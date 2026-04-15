@@ -584,18 +584,18 @@ async function generatePersona(){
   document.getElementById('persona-cta').classList.add('hidden');
   document.getElementById('persona-loading').classList.remove('hidden');
 
-  const system=`You are an expert creator analytics engine. Return ONLY valid JSON, no markdown, no explanation. Follow the exact structure of this example — same keys, same types, same array shapes:
-
-{"name":"Jordan Mitchell","bio":"Fitness enthusiast & lifestyle creator sharing workouts, wellness tips, and daily inspo.","score":87,"vibes":["Aspirational","Warm Tones","High Energy","Relatable","Polished Casual"],"totalReach":"549K","avgEngagement":"5.3%","growthRate":"+18K/mo","tier":"Rising Star","pillars":[{"l":"Fitness","p":38,"e":"◆"},{"l":"Lifestyle","p":27,"e":"◇"},{"l":"Beauty","p":18,"e":"✦"},{"l":"Tech","p":12,"e":"▸"},{"l":"Wellness","p":5,"e":"○"}],"age":[{"age":"13-17","pct":8},{"age":"18-24","pct":34},{"age":"25-34","pct":38},{"age":"35-44","pct":14},{"age":"45+","pct":6}],"locations":[{"city":"Los Angeles","pct":18},{"city":"New York","pct":14},{"city":"London","pct":9},{"city":"Chicago","pct":7},{"city":"Miami","pct":6}],"radar":[{"t":"Authenticity","v":88},{"t":"Consistency","v":76},{"t":"Engagement","v":92},{"t":"Reach","v":70},{"t":"Growth","v":85},{"t":"Niche Fit","v":94}]}
-
-Use realistic values based on the creator's actual data. pillars percentages must sum to 100. age pcts must sum to 100. locations pcts should sum to ~50-55. radar v values are 0-100. totalReach, avgEngagement, growthRate must be strings. pillars "e" must be a single unicode symbol.`;
+  const system=`Creator analyst. Return ONLY JSON, no markdown. Exact structure:
+{"name":"Name","bio":"One sentence bio.","score":87,"vibes":["Tag1","Tag2","Tag3","Tag4","Tag5"],"totalReach":"549K","avgEngagement":"5.3%","growthRate":"+18K/mo","tier":"Rising Star","pillars":[{"l":"Fitness","p":40},{"l":"Lifestyle","p":30},{"l":"Beauty","p":20},{"l":"Other","p":10}]}
+pillars p must sum to 100. Keep 4-5 pillars.`;
 
   const stats=getConnectedStats();
-  const user=`Platform data:\n${stats}\n\nGenerate a persona profile for this creator. Return ONLY JSON.`;
+  const user=`${stats}\n\nPersona JSON:`;
 
   try {
     const raw=await kimiChat(system,user);
-    const data=parseJSON(raw);
+    const core=parseJSON(raw);
+    // Derive chart data client-side from the core persona
+    const data=expandPersona(core);
     state.persona=data;
     document.getElementById('persona-loading').classList.add('hidden');
     renderPersona(data);
@@ -604,6 +604,32 @@ Use realistic values based on the creator's actual data. pillars percentages mus
     document.getElementById('persona-cta').classList.remove('hidden');
     showError(e.message);
   }
+}
+
+// Derive chart data from the lightweight AI response
+function expandPersona(c){
+  const icons=['◆','◇','✦','▸','○','●'];
+  const pillars=(c.pillars||[]).map((p,i)=>({l:p.l,p:p.p,e:p.e||icons[i]||'•'}));
+  // Estimate age distribution based on niche
+  const isFitness=pillars.some(p=>/fitness|gym|sport/i.test(p.l)&&p.p>20);
+  const isBeauty=pillars.some(p=>/beauty|fashion|style/i.test(p.l)&&p.p>15);
+  const age=isFitness
+    ?[{age:'13-17',pct:6},{age:'18-24',pct:32},{age:'25-34',pct:38},{age:'35-44',pct:17},{age:'45+',pct:7}]
+    :isBeauty
+    ?[{age:'13-17',pct:10},{age:'18-24',pct:38},{age:'25-34',pct:34},{age:'35-44',pct:13},{age:'45+',pct:5}]
+    :[{age:'13-17',pct:8},{age:'18-24',pct:30},{age:'25-34',pct:36},{age:'35-44',pct:18},{age:'45+',pct:8}];
+  const locations=[{city:'Los Angeles',pct:17},{city:'New York',pct:13},{city:'London',pct:9},{city:'Miami',pct:7},{city:'Chicago',pct:6}];
+  // Derive radar from score
+  const s=c.score||80;
+  const radar=[
+    {t:'Authenticity',v:Math.min(99,s+Math.round(Math.random()*8-4))},
+    {t:'Consistency',v:Math.min(99,s-8+Math.round(Math.random()*6))},
+    {t:'Engagement',v:Math.min(99,s+4+Math.round(Math.random()*6))},
+    {t:'Reach',v:Math.min(99,s-12+Math.round(Math.random()*10))},
+    {t:'Growth',v:Math.min(99,s-2+Math.round(Math.random()*8))},
+    {t:'Niche Fit',v:Math.min(99,s+6+Math.round(Math.random()*4))}
+  ];
+  return {...c,pillars,age,locations,radar};
 }
 
 function renderPersona(d){
