@@ -298,12 +298,22 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
         </div>
         <div class="connected-badge hidden" id="ig-badge">✓ Connected</div>
       </div>
-      <div id="ig-connect"><button class="connect-btn ig" id="ig-btn" onclick="connectPlatform('ig')">Connect Instagram</button></div>
+      <div id="ig-connect">
+        <button class="connect-btn ig" id="ig-btn" onclick="connectPlatform('ig')">Connect Instagram</button>
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+          <div style="font-size:10px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:10px">Or analyze your public profile</div>
+          <div style="display:flex;gap:8px">
+            <input id="ig-url-input" type="text" placeholder="instagram.com/yourhandle" onkeydown="if(event.key==='Enter')analyzeIGProfile()" style="flex:1;background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'">
+            <button id="ig-analyze-btn" onclick="analyzeIGProfile()" style="background:transparent;border:1px solid var(--gold-border);border-radius:6px;padding:10px 16px;color:var(--gold);font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;transition:all 0.3s" onmouseover="this.style.background='var(--gold)';this.style.color='var(--bg)'" onmouseout="this.style.background='transparent';this.style.color='var(--gold)'">Analyze</button>
+          </div>
+          <div id="ig-analyze-loading" class="hidden" style="display:flex;align-items:center;gap:8px;padding:10px 0 0;font-size:11px;color:var(--muted)"><span style="display:inline-block;animation:spin 1.5s linear infinite">✦</span> Scanning profile with AI — this may take 15–30s…</div>
+        </div>
+      </div>
       <div class="stat-grid hidden" id="ig-stats">
-        <div class="stat-box"><div class="stat-val">284K</div><div class="stat-label">Followers</div></div>
-        <div class="stat-box"><div class="stat-val">4.8%</div><div class="stat-label">Engagement</div></div>
-        <div class="stat-box"><div class="stat-val">1,247</div><div class="stat-label">Posts</div></div>
-        <div class="stat-box"><div class="stat-val">Fitness</div><div class="stat-label">Top Category</div></div>
+        <div class="stat-box"><div class="stat-val" id="ig-val-followers">—</div><div class="stat-label">Followers</div></div>
+        <div class="stat-box"><div class="stat-val" id="ig-val-engagement">—</div><div class="stat-label">Engagement</div></div>
+        <div class="stat-box"><div class="stat-val" id="ig-val-posts">—</div><div class="stat-label">Posts</div></div>
+        <div class="stat-box"><div class="stat-val" id="ig-val-category">—</div><div class="stat-label">Top Category</div></div>
       </div>
     </div>
     <div class="card" id="tt-card">
@@ -458,7 +468,15 @@ function parseJSON(raw){
 
 function getConnectedStats(){
   const parts=[];
-  if(state.igConnected) parts.push('Instagram: 284K followers, 4.8% engagement, top categories: Fitness, Lifestyle, Beauty');
+  if(state.igConnected){
+    if(state.igData){
+      const d=state.igData;
+      const cats=(d.categories||[]).map(c=>c.name+'('+c.pct+'%)').join(', ');
+      parts.push(`Instagram (${d.username||''}): ${d.followers} followers, ${d.engagementRate} engagement, ${d.totalPosts} posts, categories: ${cats}, bio: "${d.bio||''}", recent themes: ${(d.recentThemes||[]).join(', ')}, vibes: ${(d.vibes||[]).join(', ')}`);
+    } else {
+      parts.push('Instagram: connected');
+    }
+  }
   if(state.ttConnected) parts.push('TikTok: 412K followers, 6.2% engagement, top categories: Lifestyle, Fitness');
   if(state.ytConnected) parts.push('YouTube: 89K subscribers, 3.2% engagement, top categories: Fitness, Wellness');
   return parts.length ? parts.join('\n') : 'No platforms connected yet (using sample data for demo)';
@@ -468,6 +486,81 @@ function getConnectedStats(){
 function switchTab(id){
   document.querySelectorAll('#nav .nav-btn').forEach(b=>{b.classList.toggle('active',b.dataset.tab===id)});
   ['connect','persona','brands','pulse'].forEach(t=>{document.getElementById('tab-'+t).classList.toggle('hidden',t!==id)});
+}
+
+// ── Instagram URL Analysis ────────────────────────────────────────────────────
+async function analyzeIGProfile(){
+  const input=document.getElementById('ig-url-input');
+  const url=input.value.trim();
+  if(!url){ input.style.borderColor='var(--red)'; return; }
+
+  const btn=document.getElementById('ig-analyze-btn');
+  const loading=document.getElementById('ig-analyze-loading');
+  btn.disabled=true; btn.textContent='Analyzing…';
+  loading.classList.remove('hidden');
+
+  try {
+    const res=await fetch(PROXY_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        webSearch:true,
+        messages:[{
+          role:'system',
+          content:'You are a social media analyst. Use web search to look up Instagram profiles. Respond ONLY with valid JSON, no explanation.'
+        },{
+          role:'user',
+          content:`Analyze this Instagram profile: ${url}
+
+Use web search to find the profile. Look at their most recent 25 posts and extract as much data as possible. Also try searching picuki.com or similar public viewers if instagram.com blocks you.
+
+Return ONLY this JSON (no markdown, no explanation):
+{
+  "username": "@handle",
+  "displayName": "Full Name",
+  "followers": "284K",
+  "following": "1.2K",
+  "totalPosts": "1,247",
+  "engagementRate": "4.8%",
+  "topCategory": "Fitness",
+  "categories": [{"name":"Fitness","pct":40},{"name":"Lifestyle","pct":30},{"name":"Beauty","pct":20},{"name":"Other","pct":10}],
+  "vibes": ["Aspirational","High Energy","Relatable"],
+  "bio": "their actual bio text",
+  "postingFrequency": "Daily",
+  "recentThemes": ["morning routines","gym workouts","product reviews","day-in-my-life"]
+}`
+        }]
+      })
+    });
+
+    if(!res.ok) throw new Error('API error '+res.status);
+    const data=await res.json();
+    const content=data.choices[0].message.content;
+    const profile=parseJSON(content);
+
+    // Store enriched data for persona generation
+    state.igData=profile;
+    state.igConnected=true;
+
+    // Populate stat boxes with real values
+    document.getElementById('ig-val-followers').textContent=profile.followers||'—';
+    document.getElementById('ig-val-engagement').textContent=profile.engagementRate||'—';
+    document.getElementById('ig-val-posts').textContent=profile.totalPosts||'—';
+    document.getElementById('ig-val-category').textContent=profile.topCategory||profile.categories?.[0]?.name||'—';
+
+    // Show stats, hide connect section
+    document.getElementById('ig-connect').classList.add('hidden');
+    document.getElementById('ig-stats').classList.remove('hidden');
+    document.getElementById('ig-badge').innerHTML=`✓ Analyzed`;
+    document.getElementById('ig-badge').classList.remove('hidden');
+    document.getElementById('both-banner').classList.remove('hidden');
+
+  } catch(e){
+    showError('Could not analyze profile: '+e.message);
+    btn.disabled=false; btn.textContent='Analyze';
+  } finally {
+    loading.classList.add('hidden');
+  }
 }
 
 // ── Connect ───────────────────────────────────────────────────────────────────

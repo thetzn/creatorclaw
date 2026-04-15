@@ -1,21 +1,15 @@
 /**
  * CreatorClaw — Cloudflare Worker
- * Proxies requests to the Kimi (Moonshot) API so the API key
- * never touches the browser.
- *
- * Deploy:
- *   1. wrangler secret put KIMI_API_KEY   (paste your key)
- *   2. wrangler deploy
- *
- * Then set PROXY_URL in CreatorClaw.html to your Worker URL.
+ * - Regular mode: proxies requests straight to Kimi API
+ * - Web search mode: handles Kimi's multi-turn $web_search tool loop
+ *   server-side so the browser just gets the final answer in one call.
  */
 
 const KIMI_URL = 'https://api.moonshot.cn/v1/chat/completions';
 
-// Allowed origins — add your GitHub Pages URL here
 const ALLOWED_ORIGINS = [
   'https://thetzn.github.io',
-  'http://localhost',        // for local testing
+  'http://localhost',
   'http://127.0.0.1',
 ];
 
@@ -24,51 +18,91 @@ export default {
     const origin = request.headers.get('Origin') || '';
     const allowed = ALLOWED_ORIGINS.some(o => origin.startsWith(o));
 
-    // Handle CORS preflight
     if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        status: 204,
-        headers: corsHeaders(origin, allowed),
-      });
+      return new Response(null, { status: 204, headers: cors(origin, allowed) });
     }
-
-    if (request.method !== 'POST') {
-      return new Response('Method not allowed', { status: 405 });
-    }
-
-    if (!allowed) {
-      return new Response('Forbidden', { status: 403 });
-    }
+    if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+    if (!allowed) return new Response('Forbidden', { status: 403 });
 
     let body;
-    try {
-      body = await request.json();
-    } catch {
-      return new Response('Invalid JSON', { status: 400 });
+    try { body = await request.json(); }
+    catch { return new Response('Invalid JSON', { status: 400 }); }
+
+    // Web search mode — run the tool loop here, return the final answer
+    if (body.webSearch) {
+      return runWebSearch(body.messages, env, origin, allowed);
     }
 
-    const kimiRes = await fetch(KIMI_URL, {
+    // Regular proxy
+    const res = await fetch(KIMI_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + env.KIMI_API_KEY,
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.KIMI_API_KEY },
       body: JSON.stringify(body),
     });
-
-    const data = await kimiRes.json();
-
+    const data = await res.json();
     return new Response(JSON.stringify(data), {
-      status: kimiRes.status,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders(origin, allowed),
-      },
+      status: res.status,
+      headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) },
     });
   },
 };
 
-function corsHeaders(origin, allowed) {
+// Runs Kimi's $web_search tool loop to completion and returns the final response.
+async function runWebSearch(messages, env, origin, allowed) {
+  const tools = [{ type: 'builtin_function', function: { name: '$web_search' } }];
+  let msgs = [...messages];
+
+  for (let round = 0; round < 8; round++) {
+    const res = await fetch(KIMI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.KIMI_API_KEY },
+      body: JSON.stringify({
+        model: 'moonshot-v1-32k',
+        temperature: 0.3,
+        messages: msgs,
+        tools,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return new Response(JSON.stringify(err), {
+        status: res.status,
+        headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) },
+      });
+    }
+
+    const data = await res.json();
+    const choice = data.choices[0];
+    msgs.push(choice.message);
+
+    if (choice.finish_reason === 'tool_calls') {
+      // Acknowledge each tool call — Moonshot executes $web_search server-side
+      for (const tc of choice.message.tool_calls) {
+        msgs.push({
+          role: 'tool',
+          tool_call_id: tc.id,
+          name: tc.function.name,
+          content: '',
+        });
+      }
+    } else {
+      // Done — return the final answer in the same shape the frontend expects
+      return new Response(JSON.stringify({
+        choices: [{ message: { role: 'assistant', content: choice.message.content } }],
+      }), {
+        headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) },
+      });
+    }
+  }
+
+  return new Response(JSON.stringify({ error: { message: 'Web search timed out after too many rounds' } }), {
+    status: 500,
+    headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) },
+  });
+}
+
+function cors(origin, allowed) {
   return {
     'Access-Control-Allow-Origin': allowed ? origin : 'null',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
