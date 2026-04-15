@@ -5,7 +5,8 @@
  *   server-side so the browser just gets the final answer in one call.
  */
 
-const KIMI_URL = 'https://api.moonshot.cn/v1/chat/completions';
+const KIMI_URL = 'https://api.kimi.com/coding/v1/chat/completions';
+const KIMI_MODEL = 'kimi-for-coding';
 
 const ALLOWED_ORIGINS = [
   'https://thetzn.github.io',
@@ -27,6 +28,9 @@ export default {
     let body;
     try { body = await request.json(); }
     catch { return new Response('Invalid JSON', { status: 400 }); }
+
+    // Force correct model name
+    body.model = KIMI_MODEL;
 
     // Web search mode — run the tool loop here, return the final answer
     if (body.webSearch) {
@@ -57,7 +61,7 @@ async function runWebSearch(messages, env, origin, allowed) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.KIMI_API_KEY },
       body: JSON.stringify({
-        model: 'moonshot-v1-32k',
+        model: KIMI_MODEL,
         temperature: 0.3,
         messages: msgs,
         tools,
@@ -77,7 +81,7 @@ async function runWebSearch(messages, env, origin, allowed) {
     msgs.push(choice.message);
 
     if (choice.finish_reason === 'tool_calls') {
-      // Acknowledge each tool call — Moonshot executes $web_search server-side
+      // Acknowledge each tool call — Kimi executes $web_search server-side
       for (const tc of choice.message.tool_calls) {
         msgs.push({
           role: 'tool',
@@ -87,7 +91,7 @@ async function runWebSearch(messages, env, origin, allowed) {
         });
       }
     } else {
-      // Done — return the final answer in the same shape the frontend expects
+      // Done — return the final answer
       return new Response(JSON.stringify({
         choices: [{ message: { role: 'assistant', content: choice.message.content } }],
       }), {
