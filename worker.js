@@ -1,12 +1,11 @@
 /**
  * CreatorClaw — Cloudflare Worker
- * - Regular mode: proxies requests straight to Kimi API
- * - Web search mode: handles Kimi's multi-turn $web_search tool loop
- *   server-side so the browser just gets the final answer in one call.
+ * Proxies requests to OpenAI API. Handles web search mode by using
+ * OpenAI's built-in web_search tool (gpt-4o with tools).
  */
 
-const KIMI_URL = 'https://api.kimi.com/coding/v1/chat/completions';
-const KIMI_MODEL = 'kimi-for-coding';
+const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
+const MODEL = 'gpt-4o';
 
 const ALLOWED_ORIGINS = [
   'https://thetzn.github.io',
@@ -29,82 +28,38 @@ export default {
     try { body = await request.json(); }
     catch { return new Response('Invalid JSON', { status: 400 }); }
 
-    // Force correct model name
-    body.model = KIMI_MODEL;
+    const isWebSearch = body.webSearch;
+    delete body.webSearch;
 
-    // Web search mode — run the tool loop here, return the final answer
-    if (body.webSearch) {
-      return runWebSearch(body.messages, env, origin, allowed);
+    // Build the OpenAI request
+    const oaiBody = {
+      model: MODEL,
+      temperature: body.temperature || 0.7,
+      messages: body.messages || [],
+    };
+
+    // For web search, use OpenAI's web search tool
+    if (isWebSearch) {
+      oaiBody.tools = [{ type: 'web_search_preview' }];
     }
 
-    // Regular proxy
-    const res = await fetch(KIMI_URL, {
+    const res = await fetch(OPENAI_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.KIMI_API_KEY },
-      body: JSON.stringify(body),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + env.API_KEY,
+      },
+      body: JSON.stringify(oaiBody),
     });
+
     const data = await res.json();
+
     return new Response(JSON.stringify(data), {
       status: res.status,
       headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) },
     });
   },
 };
-
-// Runs Kimi's $web_search tool loop to completion and returns the final response.
-async function runWebSearch(messages, env, origin, allowed) {
-  const tools = [{ type: 'builtin_function', function: { name: '$web_search' } }];
-  let msgs = [...messages];
-
-  for (let round = 0; round < 8; round++) {
-    const res = await fetch(KIMI_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.KIMI_API_KEY },
-      body: JSON.stringify({
-        model: KIMI_MODEL,
-        temperature: 0.3,
-        messages: msgs,
-        tools,
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      return new Response(JSON.stringify(err), {
-        status: res.status,
-        headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) },
-      });
-    }
-
-    const data = await res.json();
-    const choice = data.choices[0];
-    msgs.push(choice.message);
-
-    if (choice.finish_reason === 'tool_calls') {
-      // Acknowledge each tool call — Kimi executes $web_search server-side
-      for (const tc of choice.message.tool_calls) {
-        msgs.push({
-          role: 'tool',
-          tool_call_id: tc.id,
-          name: tc.function.name,
-          content: '',
-        });
-      }
-    } else {
-      // Done — return the final answer
-      return new Response(JSON.stringify({
-        choices: [{ message: { role: 'assistant', content: choice.message.content } }],
-      }), {
-        headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) },
-      });
-    }
-  }
-
-  return new Response(JSON.stringify({ error: { message: 'Web search timed out after too many rounds' } }), {
-    status: 500,
-    headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) },
-  });
-}
 
 function cors(origin, allowed) {
   return {
