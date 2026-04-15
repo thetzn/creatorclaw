@@ -19,7 +19,7 @@
 body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-.fade-up{animation:fadeUp 0.5s ease forwards}
+.fade-up{animation:fadeUp 0.5s ease forwards;opacity:0}
 button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 0.3s ease}
 .gold-text{background:linear-gradient(135deg,var(--gold3),var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .tracking{letter-spacing:0.25em;text-transform:uppercase}
@@ -561,6 +561,10 @@ Return ONLY this JSON (no markdown, no explanation):
     document.getElementById('ig-badge').classList.remove('hidden');
     document.getElementById('both-banner').classList.remove('hidden');
 
+    // Auto-advance: switch to Persona and generate
+    switchTab('persona');
+    generatePersona();
+
   } catch(e){
     showError('Could not analyze profile: '+e.message);
     btn.disabled=false; btn.textContent='Analyze';
@@ -583,9 +587,25 @@ function connectPlatform(p){
   },1500);
 }
 
+// ── Flow CTAs ─────────────────────────────────────────────────────────────────
+function showContinueCTA(containerId,msg,btnText,onclick){
+  const c=document.getElementById(containerId);
+  const old=c.querySelector('.continue-cta');
+  if(old) old.remove();
+  const el=document.createElement('div');
+  el.className='cta-banner continue-cta fade-up';
+  el.style.marginTop='32px';
+  el.innerHTML=`<span>${msg}</span><button class="cta-btn">${btnText}</button>`;
+  el.querySelector('button').onclick=onclick;
+  c.appendChild(el);
+}
+function advanceToPulse(){ switchTab('pulse'); if(!state.pulseGen) generatePulse(); }
+function advanceToBrands(){ switchTab('brands'); if(!state.brandsGen) generateBrands(); }
+
 // ── Persona ───────────────────────────────────────────────────────────────────
 async function generatePersona(){
-
+  if(state._personaLoading) return;
+  state._personaLoading=true;
   document.getElementById('persona-cta').classList.add('hidden');
   document.getElementById('persona-loading').classList.remove('hidden');
 
@@ -599,16 +619,16 @@ pillars p must sum to 100. Keep 4-5 pillars.`;
   try {
     const raw=await kimiChat(system,user);
     const core=parseJSON(raw);
-    // Derive chart data client-side from the core persona
     const data=expandPersona(core);
     state.persona=data;
     document.getElementById('persona-loading').classList.add('hidden');
     renderPersona(data);
+    showContinueCTA('persona-result','Persona ready — discover <span class="hl">content ideas</span> matched to your profile.','Continue to Pulse',advanceToPulse);
   } catch(e){
     document.getElementById('persona-loading').classList.add('hidden');
     document.getElementById('persona-cta').classList.remove('hidden');
     showError(e.message);
-  }
+  } finally { state._personaLoading=false; }
 }
 
 // Derive chart data from the lightweight AI response
@@ -666,21 +686,17 @@ function buildCharts(d){
 
   const pc=document.getElementById('pillars-container');
   pc.innerHTML=pillarsData.map(p=>`<div class="pillar"><div class="pillar-icon">${p.e}</div><div class="pillar-name">${p.l}</div><div class="pillar-pct">${p.p}%</div><div class="bar-bg"><div class="bar-fill" style="width:0%"></div></div></div>`).join('');
-  setTimeout(()=>{pc.querySelectorAll('.bar-fill').forEach((b,i)=>{b.style.width=pillarsData[i].p*2.5+'%'})},100);
 
   const ab=document.getElementById('age-bars');
   const maxAge=Math.max(...ageData.map(x=>x.pct));
   ab.innerHTML=ageData.map(x=>`<div class="vbar-item"><div class="vbar-bar" style="width:20px;height:0;background:var(--gold)" data-h="${x.pct/maxAge*100}"></div><div class="vbar-label">${x.age}</div></div>`).join('');
-  setTimeout(()=>{ab.querySelectorAll('.vbar-bar').forEach(b=>{b.style.height=b.dataset.h+'px'})},100);
 
   const lb=document.getElementById('loc-bars');
   const maxLoc=Math.max(...locData.map(x=>x.pct));
   lb.innerHTML=locData.map(x=>`<div class="hbar"><div class="hbar-label"><span>${x.city}</span><span>${x.pct}%</span></div><div class="hbar-track"><div class="hbar-fill" style="width:0;background:var(--gold3)" data-w="${x.pct/maxLoc*100}"></div></div></div>`).join('');
-  setTimeout(()=>{lb.querySelectorAll('.hbar-fill').forEach(b=>{b.style.width=b.dataset.w+'%'})},100);
 
   const rb=document.getElementById('radar-bars');
   rb.innerHTML=radarData.map(x=>`<div class="radar-item"><div class="radar-label"><span>${x.t}</span><span>${x.v}</span></div><div class="radar-track"><div class="radar-fill" style="width:0" data-w="${x.v}"></div></div></div>`).join('');
-  setTimeout(()=>{rb.querySelectorAll('.radar-fill').forEach(b=>{b.style.width=b.dataset.w+'%'})},100);
 
   const gc=document.getElementById('growth-chart');
   const months=["May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr"];
@@ -689,25 +705,32 @@ function buildCharts(d){
     const ig=280000+i*18000;const tt=150000+i*22000;
     return`<div class="growth-col"><div class="growth-stack"><div class="growth-bar-ig" style="height:0" data-h="${ig/maxG*120}"></div><div class="growth-bar-tt" style="height:0" data-h="${tt/maxG*120}"></div></div><div class="growth-label">${m}</div></div>`;
   }).join('');
-  setTimeout(()=>{gc.querySelectorAll('.growth-bar-ig,.growth-bar-tt').forEach(b=>{b.style.height=b.dataset.h+'px'})},100);
+
+  // Single RAF to trigger all CSS transitions
+  requestAnimationFrame(()=>{
+    pc.querySelectorAll('.bar-fill').forEach((b,i)=>{b.style.width=pillarsData[i].p*2.5+'%'});
+    ab.querySelectorAll('.vbar-bar').forEach(b=>{b.style.height=b.dataset.h+'px'});
+    lb.querySelectorAll('.hbar-fill').forEach(b=>{b.style.width=b.dataset.w+'%'});
+    rb.querySelectorAll('.radar-fill').forEach(b=>{b.style.width=b.dataset.w+'%'});
+    gc.querySelectorAll('.growth-bar-ig,.growth-bar-tt').forEach(b=>{b.style.height=b.dataset.h+'px'});
+  });
 }
 
 // ── Brands ────────────────────────────────────────────────────────────────────
 async function generateBrands(){
-
+  if(state._brandsLoading) return;
+  state._brandsLoading=true;
   document.getElementById('brands-cta').classList.add('hidden');
   document.getElementById('brands-loading').classList.remove('hidden');
 
-  const system=`You are a brand partnership matchmaker. Return ONLY a JSON array of exactly 8 brands, no markdown, no explanation. Follow this exact structure:
-
-[{"name":"Gymshark","match":96,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"},{"name":"Notion","match":91,"cat":"Productivity","reasons":["Creator-focused brand","Content style match","Tech-savvy audience"],"deal":"$1,800 – $3,500"}]
-
-Use real well-known brands. match is 60-99. reasons is exactly 3 strings. deal is a dollar range string. Order by match descending.`;
+  const system=`Brand matchmaker. Return ONLY a JSON array of 8 brands, no markdown. Structure:
+[{"name":"Gymshark","match":96,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"}]
+Real brands. match 60-99. reasons exactly 3. deal is dollar range. Order by match desc.`;
 
   const personaSummary=state.persona
-    ? `Name: ${state.persona.name}\nBio: ${state.persona.bio}\nPillars: ${state.persona.pillars.map(p=>p.l).join(', ')}\nVibes: ${state.persona.vibes.join(', ')}\nReach: ${state.persona.totalReach}\nEngagement: ${state.persona.avgEngagement}`
-    : `Stats:\n${getConnectedStats()}`;
-  const user=`Creator persona:\n${personaSummary}\n\nGenerate 8 brand partnership matches.`;
+    ? `${state.persona.name}: ${state.persona.bio} Pillars: ${state.persona.pillars.map(p=>p.l).join(', ')}. Vibes: ${state.persona.vibes.join(', ')}. Reach: ${state.persona.totalReach}, Engagement: ${state.persona.avgEngagement}`
+    : getConnectedStats();
+  const user=`${personaSummary}\n\n8 brand matches:`;
 
   try {
     const raw=await kimiChat(system,user);
@@ -718,7 +741,7 @@ Use real well-known brands. match is 60-99. reasons is exactly 3 strings. deal i
     document.getElementById('brands-loading').classList.add('hidden');
     document.getElementById('brands-cta').classList.remove('hidden');
     showError(e.message);
-  }
+  } finally { state._brandsLoading=false; }
 }
 
 function renderBrands(brands){
@@ -726,12 +749,11 @@ function renderBrands(brands){
   grid.innerHTML='';
   grid.classList.remove('hidden');
   state.brandsGen=true;
-  let idx=0;
-  function addNext(){
-    if(idx>=brands.length) return;
-    const b=brands[idx];
+  const frag=document.createDocumentFragment();
+  brands.forEach((b,i)=>{
     const card=document.createElement('div');
     card.className='brand-card fade-up';
+    card.style.animationDelay=(i*80)+'ms';
     card.innerHTML=`
       <div class="brand-head">
         <div class="brand-info">
@@ -741,16 +763,14 @@ function renderBrands(brands){
         <div class="brand-match">${b.match}%</div>
       </div>
       <div class="bar-bg"><div class="bar-fill" style="width:${b.match}%"></div></div>
-      <div class="brand-reasons">${b.reasons.map(r=>`<div class="brand-reason"><span class="chk">✓</span>${r}</div>`).join('')}</div>
+      <div class="brand-reasons">${(b.reasons||[]).map(r=>`<div class="brand-reason"><span class="chk">✓</span>${r}</div>`).join('')}</div>
       <div class="brand-footer">
         <div class="brand-deal">${b.deal}</div>
         <button class="outreach-btn" onclick="toggleSent(this,'${b.name.replace(/'/g,"&#39;")}')">Start Outreach</button>
       </div>`;
-    grid.appendChild(card);
-    idx++;
-    if(idx<brands.length) setTimeout(addNext,150);
-  }
-  addNext();
+    frag.appendChild(card);
+  });
+  grid.appendChild(frag);
 }
 
 function toggleSent(btn,name){
@@ -761,31 +781,31 @@ function toggleSent(btn,name){
 
 // ── Pulse ─────────────────────────────────────────────────────────────────────
 async function generatePulse(){
-
+  if(state._pulseLoading) return;
+  state._pulseLoading=true;
   document.getElementById('pulse-cta').classList.add('hidden');
   document.getElementById('pulse-loading').classList.remove('hidden');
 
-  const system=`You are a viral content strategist. Return ONLY a JSON array of exactly 10 content ideas, no markdown, no explanation. Follow this exact structure:
-
-[{"title":"What I Eat in a Day — Honest Version","hook":"The anti-aesthetic meal prep trend is taking off. Your audience loves relatable fitness content.","trend":"hot","match":96,"format":"Reel / TikTok","platform":"Both","estReach":"45K – 80K","tags":["#WhatIEat","#RealFood","#FitnessJourney"],"persona":["Relatable","Fitness"],"cat":"fitness","sound":"Trending: original sound — meal prep queen"}]
-
-trend must be: hot, rising, steady, or new. platform must be: Both, Instagram, TikTok, or YouTube. cat must be one of: fitness, lifestyle, beauty, tech, wellness, other. sound is optional. Mix categories. Order by match descending.`;
+  const system=`Content strategist. Return ONLY a JSON array of 10 ideas, no markdown. Structure:
+[{"title":"Title","hook":"Why this works.","trend":"hot","match":96,"format":"Reel / TikTok","platform":"Both","estReach":"45K – 80K","tags":["#tag1","#tag2","#tag3"],"persona":["Trait1","Trait2"],"cat":"fitness","sound":"Trending: song — artist"}]
+trend: hot/rising/steady/new. platform: Both/Instagram/TikTok/YouTube. cat: fitness/lifestyle/beauty/tech/wellness/other. sound optional. Mix categories. Order by match desc.`;
 
   const personaSummary=state.persona
-    ? `Name: ${state.persona.name}\nBio: ${state.persona.bio}\nPillars: ${state.persona.pillars.map(p=>p.l).join(', ')}\nVibes: ${state.persona.vibes.join(', ')}\nTop engagement: ${state.persona.avgEngagement}`
-    : `Stats:\n${getConnectedStats()}`;
-  const user=`Creator persona:\n${personaSummary}\n\nGenerate 10 high-potential content ideas for right now.`;
+    ? `${state.persona.name}: ${state.persona.bio} Pillars: ${state.persona.pillars.map(p=>p.l).join(', ')}. Vibes: ${state.persona.vibes.join(', ')}`
+    : getConnectedStats();
+  const user=`${personaSummary}\n\n10 content ideas:`;
 
   try {
     const raw=await kimiChat(system,user);
     const ideas=parseJSON(raw);
     document.getElementById('pulse-loading').classList.add('hidden');
     renderPulse(ideas);
+    showContinueCTA('pulse-result','Ideas locked in — find <span class="hl">brand partners</span> that match your persona.','Continue to Brands',advanceToBrands);
   } catch(e){
     document.getElementById('pulse-loading').classList.add('hidden');
     document.getElementById('pulse-cta').classList.remove('hidden');
     showError(e.message);
-  }
+  } finally { state._pulseLoading=false; }
 }
 
 function renderPulse(ideas){
@@ -812,21 +832,20 @@ function renderPulseCards(cat){
   const grid=document.getElementById('pulse-grid');
   grid.innerHTML='';
   const filtered=cat==='all'?ideas:ideas.filter(i=>i.cat===cat);
-  let idx=0;
-  function addNext(){
-    if(idx>=filtered.length) return;
-    const idea=filtered[idx];
+  const frag=document.createDocumentFragment();
+  filtered.forEach((idea,i)=>{
     const card=document.createElement('div');
     card.className='pulse-card fade-up';
+    card.style.animationDelay=(i*60)+'ms';
     const trendLabel={hot:'Hot',rising:'Rising',steady:'Steady',new:'New'}[idea.trend]||idea.trend;
-    const safeTitle=idea.title.replace(/'/g,"&#39;");
+    const safeTitle=(idea.title||'').replace(/'/g,"&#39;");
     card.innerHTML=`
-      <div class="pulse-trend-badge ${idea.trend}">${trendLabel}</div>
+      <div class="pulse-trend-badge ${idea.trend||'new'}">${trendLabel}</div>
       <div class="pulse-idea-title">${idea.title}</div>
       <div class="pulse-idea-hook">${idea.hook}</div>
       <div class="pulse-persona-match">
         <div class="match-score">${idea.match}%</div>
-        <div class="match-text">persona match — aligns with your <strong style="color:var(--text)">${idea.persona.join(' + ')}</strong> pillars</div>
+        <div class="match-text">persona match — aligns with your <strong style="color:var(--text)">${(idea.persona||[]).join(' + ')}</strong> pillars</div>
       </div>
       <div class="pulse-meta">
         <div class="pulse-meta-item">Format: <span class="val">${idea.format}</span></div>
@@ -834,16 +853,14 @@ function renderPulseCards(cat){
         <div class="pulse-meta-item">Platform: <span class="val">${idea.platform}</span></div>
       </div>
       ${idea.sound?`<div class="pulse-meta"><div class="pulse-meta-item">Sound: <span class="val">${idea.sound}</span></div></div>`:''}
-      <div class="pulse-tags">${idea.tags.map(t=>`<span class="pulse-tag">${t}</span>`).join('')}${idea.persona.map(p=>`<span class="pulse-tag persona">${p}</span>`).join('')}</div>
+      <div class="pulse-tags">${(idea.tags||[]).map(t=>`<span class="pulse-tag">${t}</span>`).join('')}${(idea.persona||[]).map(p=>`<span class="pulse-tag persona">${p}</span>`).join('')}</div>
       <div class="pulse-actions">
         <button class="pulse-save-btn" onclick="togglePulseSave(this,'${safeTitle}')">Save</button>
         <button class="pulse-draft-btn" onclick="this.innerHTML='✓ Drafted';this.style.opacity=0.6">Draft Script</button>
       </div>`;
-    grid.appendChild(card);
-    idx++;
-    if(idx<filtered.length) setTimeout(addNext,120);
-  }
-  addNext();
+    frag.appendChild(card);
+  });
+  grid.appendChild(frag);
 }
 
 function togglePulseSave(btn,title){
