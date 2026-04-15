@@ -6,6 +6,7 @@
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 const MODEL = 'gpt-4o-mini';
+const MODEL_SEARCH = 'gpt-4o';  // web search requires gpt-4o
 
 const ALLOWED_ORIGINS = [
   'https://thetzn.github.io',
@@ -38,8 +39,9 @@ export default {
       messages: body.messages || [],
     };
 
-    // For web search, use OpenAI's web search tool
+    // For web search, use gpt-4o with web search tool
     if (isWebSearch) {
+      oaiBody.model = MODEL_SEARCH;
       oaiBody.tools = [{ type: 'web_search_preview' }];
     }
 
