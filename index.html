@@ -247,6 +247,22 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 }
 
 .hidden{display:none}
+
+/* Settings modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-box{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:40px;width:100%;max-width:440px}
+.modal-title{font-size:18px;font-weight:500;margin-bottom:6px;letter-spacing:0.02em}
+.modal-sub{color:var(--muted);font-size:13px;margin-bottom:28px;line-height:1.6}
+.modal-label{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:8px}
+.modal-input{width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:14px 16px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;transition:border-color 0.2s;margin-bottom:20px}
+.modal-input:focus{border-color:var(--gold)}
+.modal-row{display:flex;gap:10px}
+.modal-save-btn{flex:1;background:var(--gold);border-radius:8px;padding:13px 0;color:var(--bg);font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase}
+.modal-cancel-btn{background:transparent;border:1px solid var(--border2);border-radius:8px;padding:13px 20px;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase}
+.modal-saved{color:var(--green);font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-top:12px;text-align:center}
+.settings-btn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--muted);font-size:11px;display:flex;align-items:center;gap:6px;letter-spacing:0.08em}
+.settings-btn:hover{border-color:var(--border2);color:var(--text)}
+.error-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1010;border:1px solid var(--red);border-radius:8px;padding:12px 20px;color:var(--red);font-size:12px;font-weight:500;z-index:200;max-width:90vw;text-align:center}
 </style>
 </head>
 <body>
@@ -262,7 +278,25 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
       <button class="nav-btn" data-tab="brands" onclick="switchTab('brands')">Brands</button>
       <button class="nav-btn" data-tab="pulse" onclick="switchTab('pulse')">Pulse</button>
     </div>
-    <div class="avatar">JM</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="settings-btn" onclick="openSettings()">⚙ Settings</button>
+      <div class="avatar" id="avatar-initials">JM</div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay hidden" id="settings-modal">
+  <div class="modal-box">
+    <div class="modal-title">Settings</div>
+    <div class="modal-sub">Personalize your CreatorClaw experience.</div>
+    <div class="modal-label">Your Name</div>
+    <input class="modal-input" id="user-name-input" type="text" placeholder="e.g. Jordan Mitchell">
+    <div class="modal-row">
+      <button class="modal-cancel-btn" onclick="closeSettings()">Cancel</button>
+      <button class="modal-save-btn" onclick="saveSettings()">Save</button>
+    </div>
+    <div class="modal-saved hidden" id="modal-saved">✓ Saved</div>
   </div>
 </div>
 
@@ -406,8 +440,94 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 </div>
 
 <script>
-const state={igConnected:false,ttConnected:false,ytConnected:false,googleLoggedIn:false,personaGen:false,brandsGen:false,pulseGen:false,sent:{},saved:{},pulseFilter:'all'};
+// ── State ─────────────────────────────────────────────────────────────────────
+const state={
+  igConnected:false,ttConnected:false,ytConnected:false,
+  googleLoggedIn:false,personaGen:false,brandsGen:false,pulseGen:false,
+  sent:{},saved:{},pulseFilter:'all',
+  persona:null,  // holds AI-generated persona data
+};
 
+// ── Config ────────────────────────────────────────────────────────────────────
+// After deploying the Cloudflare Worker, replace this with your Worker URL.
+// e.g. 'https://creatorclaw-proxy.YOUR-SUBDOMAIN.workers.dev'
+const PROXY_URL = 'https://creatorclaw-proxy.thetzn.workers.dev';
+
+// ── User name (stored locally, no key needed) ─────────────────────────────────
+function getUserName(){ return localStorage.getItem('creator_name')||''; }
+
+function openSettings(){
+  document.getElementById('user-name-input').value=getUserName();
+  document.getElementById('modal-saved').classList.add('hidden');
+  document.getElementById('settings-modal').classList.remove('hidden');
+}
+function closeSettings(){ document.getElementById('settings-modal').classList.add('hidden'); }
+function saveSettings(){
+  const name=document.getElementById('user-name-input').value.trim();
+  if(name){
+    localStorage.setItem('creator_name',name);
+    const initials=name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    document.getElementById('avatar-initials').textContent=initials;
+  }
+  document.getElementById('modal-saved').classList.remove('hidden');
+  setTimeout(closeSettings,900);
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSettings(); });
+
+// ── Kimi API call (via Worker proxy) ─────────────────────────────────────────
+async function kimiChat(systemPrompt, userPrompt){
+  const res=await fetch(PROXY_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      model:'moonshot-v1-8k',
+      temperature:0.7,
+      messages:[
+        {role:'system',content:systemPrompt},
+        {role:'user',content:userPrompt}
+      ]
+    })
+  });
+  if(!res.ok){
+    const err=await res.json().catch(()=>({error:{message:res.statusText}}));
+    throw new Error(err.error?.message||'API error '+res.status);
+  }
+  const data=await res.json();
+  return data.choices[0].message.content;
+}
+
+function showError(msg){
+  let t=document.querySelector('.error-toast');
+  if(t) t.remove();
+  t=document.createElement('div');
+  t.className='error-toast';
+  t.textContent='⚠ '+msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),5000);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function parseJSON(raw){
+  // strip markdown code fences if present
+  const cleaned=raw.replace(/```(?:json)?/g,'').replace(/```/g,'').trim();
+  return JSON.parse(cleaned);
+}
+
+function getConnectedStats(){
+  const parts=[];
+  if(state.igConnected) parts.push('Instagram: 284K followers, 4.8% engagement, top categories: Fitness, Lifestyle, Beauty');
+  if(state.ttConnected) parts.push('TikTok: 412K followers, 6.2% engagement, top categories: Lifestyle, Fitness');
+  if(state.ytConnected) parts.push('YouTube: 89K subscribers, 3.2% engagement, top categories: Fitness, Wellness');
+  return parts.length ? parts.join('\n') : 'No platforms connected yet (using sample data for demo)';
+}
+
+// ── Tab navigation ────────────────────────────────────────────────────────────
+function switchTab(id){
+  document.querySelectorAll('#nav .nav-btn').forEach(b=>{b.classList.toggle('active',b.dataset.tab===id)});
+  ['connect','persona','brands','pulse'].forEach(t=>{document.getElementById('tab-'+t).classList.toggle('hidden',t!==id)});
+}
+
+// ── Connect ───────────────────────────────────────────────────────────────────
 function googleLogin(){
   const btn=document.getElementById('google-btn');
   btn.innerHTML='Signing in...';btn.style.opacity='0.5';
@@ -419,42 +539,6 @@ function googleLogin(){
   },1500);
 }
 
-const brands=[
-  {name:"Gymshark",match:96,cat:"Fitness Apparel",reasons:["Shared fitness audience","High engagement overlap","Aesthetic alignment"],deal:"$2,500 – $5,000",col:"var(--green)"},
-  {name:"Notion",match:91,cat:"Productivity",reasons:["Creator-focused brand","Content style match","Tech-savvy audience"],deal:"$1,800 – $3,500",col:"var(--gold)"},
-  {name:"Liquid Death",match:89,cat:"Beverage",reasons:["Edgy brand voice match","18-34 demo overlap","High virality potential"],deal:"$3,000 – $6,000",col:"var(--muted)"},
-  {name:"Skims",match:87,cat:"Fashion / Lifestyle",reasons:["Female audience alignment","Lifestyle content fit","Premium aesthetic"],deal:"$4,000 – $8,000",col:"var(--plum)"},
-  {name:"Athletic Greens",match:85,cat:"Health & Wellness",reasons:["Wellness niche overlap","Trust-based audience","Creator-preferred brand"],deal:"$2,000 – $4,500",col:"var(--green)"},
-  {name:"Adobe Creative Cloud",match:82,cat:"Software",reasons:["Creative workflow content","Tech audience segment","Educational content fit"],deal:"$3,500 – $7,000",col:"var(--red)"},
-  {name:"Lululemon",match:80,cat:"Athleisure",reasons:["Fitness + lifestyle blend","Premium positioning","Female 25-34 overlap"],deal:"$3,000 – $6,500",col:"var(--plum)"},
-  {name:"Calm",match:78,cat:"Wellness App",reasons:["Mindfulness content affinity","Self-care audience","High conversion vertical"],deal:"$1,500 – $3,000",col:"var(--blue)"}
-];
-
-const pillarsData=[{l:"Fitness",p:38,e:"◆"},{l:"Lifestyle",p:27,e:"◇"},{l:"Beauty",p:18,e:"✦"},{l:"Tech",p:12,e:"▸"},{l:"Wellness",p:5,e:"○"}];
-const ageData=[{age:"13-17",pct:8},{age:"18-24",pct:34},{age:"25-34",pct:38},{age:"35-44",pct:14},{age:"45+",pct:6}];
-const locData=[{city:"Los Angeles",pct:18},{city:"New York",pct:14},{city:"London",pct:9},{city:"Chicago",pct:7},{city:"Miami",pct:6}];
-const radarData=[{t:"Authenticity",v:88},{t:"Consistency",v:76},{t:"Engagement",v:92},{t:"Reach",v:70},{t:"Growth",v:85},{t:"Niche Fit",v:94}];
-
-const pulseIdeas=[
-  {title:"'What I Eat in a Day' — The Honest Version",hook:"The anti-aesthetic meal prep trend is taking off. Show your actual fridge, real portions, no filters. Your audience loves relatable fitness content — this is a natural fit.",trend:"hot",match:96,format:"Reel / TikTok",platform:"Both",estReach:"45K – 80K",tags:["#WhatIEat","#RealFood","#FitnessJourney"],persona:["Relatable","Fitness"],cat:"fitness",sound:"Trending: original sound — meal prep queen"},
-  {title:"Morning Routine: 5AM Club Edition",hook:"Morning routine content is surging +340% this week. Layer in your workout, skincare, and journaling. Your warm-tones aesthetic makes this a natural hit.",trend:"hot",match:94,format:"TikTok / Reel",platform:"Both",estReach:"60K – 120K",tags:["#5AMClub","#MorningRoutine","#ThatGirl"],persona:["Aspirational","High Energy"],cat:"lifestyle",sound:"Trending: Sunshine — OneRepublic"},
-  {title:"Gym Bag Essentials — What's Actually Worth It",hook:"Product roundup videos are trending in fitness. Your audience trusts your recs. Show the 5 things actually in your bag — skip the sponsored fluff.",trend:"rising",match:92,format:"Carousel / Reel",platform:"Instagram",estReach:"35K – 55K",tags:["#GymBag","#FitnessEssentials","#WorthIt"],persona:["Polished Casual","Fitness"],cat:"fitness"},
-  {title:"Skincare After the Gym — Do This, Not That",hook:"Gym skincare searches up 280% on TikTok. Cross your fitness and beauty pillars for maximum reach. Quick, punchy format works best.",trend:"rising",match:90,format:"TikTok",platform:"TikTok",estReach:"50K – 90K",tags:["#GymSkincare","#PostWorkout","#SkincareTips"],persona:["Beauty","Fitness"],cat:"beauty",sound:"Trending: original sound — dermdoctor"},
-  {title:"POV: Your First Week Back at the Gym",hook:"Relatable gym humor is having a moment. This plays to your relatable + motivational vibe. Stitch with a trending POV format for max algorithm boost.",trend:"hot",match:89,format:"TikTok",platform:"TikTok",estReach:"80K – 200K",tags:["#GymTok","#POV","#FitnessMotivation"],persona:["Relatable","High Energy"],cat:"fitness",sound:"Trending: Sports — Beach Bunny"},
-  {title:"My Content Creation Setup — Behind the Scenes",hook:"Creator tech content is rising fast. Your audience has a tech-curious segment. Show your actual filming setup, apps, and editing workflow.",trend:"rising",match:85,format:"Reel / YouTube Short",platform:"Both",estReach:"25K – 45K",tags:["#CreatorSetup","#ContentCreation","#TechTok"],persona:["Tech","Polished Casual"],cat:"tech"},
-  {title:"3 Supplements That Actually Changed Something",hook:"Supplement content always performs but honest reviews are trending over hauls. Your wellness pillar + trust factor = high save rate.",trend:"steady",match:87,format:"Carousel",platform:"Instagram",estReach:"30K – 50K",tags:["#Supplements","#WellnessTips","#HonestReview"],persona:["Wellness","Fitness"],cat:"wellness"},
-  {title:"Get Ready With Me: Gym to Brunch",hook:"GRWM videos are evergreen but the transition format (gym to going out) is spiking. Combines your fitness + lifestyle pillars perfectly.",trend:"hot",match:93,format:"Reel / TikTok",platform:"Both",estReach:"55K – 100K",tags:["#GRWM","#GymToGlam","#TransitionTrend"],persona:["Lifestyle","Aspirational"],cat:"lifestyle",sound:"Trending: Nasty — Tinashe"},
-  {title:"Unpopular Fitness Opinions — Hot Takes",hook:"'Unpopular opinion' format is surging across both platforms. Your engagement rate spikes on opinion-based content. Go bold, stay authentic.",trend:"new",match:88,format:"Talking Head",platform:"Both",estReach:"40K – 75K",tags:["#UnpopularOpinion","#FitnessTok","#HotTake"],persona:["High Energy","Relatable"],cat:"fitness"},
-  {title:"Budget vs. Bougie Activewear Try-On",hook:"Comparison content is dominating Reels. Your female 25-34 audience loves activewear. Compare affordable finds with premium picks.",trend:"new",match:86,format:"Reel",platform:"Instagram",estReach:"35K – 60K",tags:["#Activewear","#BudgetVsBougie","#TryOn"],persona:["Lifestyle","Polished Casual"],cat:"lifestyle"}
-];
-
-const pulseCategories=['all','fitness','lifestyle','beauty','tech','wellness'];
-
-function switchTab(id){
-  document.querySelectorAll('#nav .nav-btn').forEach(b=>{b.classList.toggle('active',b.dataset.tab===id)});
-  ['connect','persona','brands','pulse'].forEach(t=>{document.getElementById('tab-'+t).classList.toggle('hidden',t!==id)});
-}
-
 function connectPlatform(p){
   const btn=document.getElementById(p+'-btn');
   btn.disabled=true;btn.textContent='Connecting...';
@@ -464,36 +548,95 @@ function connectPlatform(p){
     document.getElementById(p+'-stats').classList.remove('hidden');
     document.getElementById(p+'-badge').classList.remove('hidden');
     const count=[state.igConnected,state.ttConnected,state.ytConnected].filter(Boolean).length;
-    if(count>=2)document.getElementById('both-banner').classList.remove('hidden');
+    if(count>=2) document.getElementById('both-banner').classList.remove('hidden');
   },1500);
 }
 
-function generatePersona(){
+// ── Persona ───────────────────────────────────────────────────────────────────
+async function generatePersona(){
+
   document.getElementById('persona-cta').classList.add('hidden');
   document.getElementById('persona-loading').classList.remove('hidden');
-  setTimeout(()=>{
+
+  const system=`You are an expert creator analytics engine. Given social media stats, return a JSON persona profile.
+Return ONLY valid JSON, no explanation. Schema:
+{
+  "name": "string (use provided name or 'Your Persona')",
+  "bio": "string (2-sentence creator bio)",
+  "score": number (0-100),
+  "vibes": ["tag1","tag2",...],  // 5-6 style/tone descriptors
+  "totalReach": "string e.g. '549K'",
+  "avgEngagement": "string e.g. '5.3%'",
+  "growthRate": "string e.g. '+18K/mo'",
+  "tier": "string e.g. 'Rising Star'",
+  "pillars": [{"l":"label","p":number,"e":"icon"}],  // 4-5 content pillars, p=percentage, e=single unicode symbol
+  "age": [{"age":"13-17","pct":number},{"age":"18-24","pct":number},{"age":"25-34","pct":number},{"age":"35-44","pct":number},{"age":"45+","pct":number}],
+  "locations": [{"city":"string","pct":number}],  // top 5
+  "radar": [{"t":"Authenticity","v":number},{"t":"Consistency","v":number},{"t":"Engagement","v":number},{"t":"Reach","v":number},{"t":"Growth","v":number},{"t":"Niche Fit","v":number}]
+}`;
+
+  const name=getUserName()||'the creator';
+  const stats=getConnectedStats();
+  const user=`Creator name: ${name}\n\nPlatform data:\n${stats}\n\nGenerate a realistic persona profile.`;
+
+  try {
+    const raw=await kimiChat(system,user);
+    const data=parseJSON(raw);
+    state.persona=data;
     document.getElementById('persona-loading').classList.add('hidden');
-    document.getElementById('persona-result').classList.remove('hidden');
-    document.getElementById('persona-result').classList.add('fade-up');
-    state.personaGen=true;
-    buildCharts();
-  },2000);
+    renderPersona(data);
+  } catch(e){
+    document.getElementById('persona-loading').classList.add('hidden');
+    document.getElementById('persona-cta').classList.remove('hidden');
+    showError(e.message);
+  }
 }
 
-function buildCharts(){
+function renderPersona(d){
+  // Update name/bio/score/vibes
+  document.querySelector('.persona-name h2').textContent=d.name;
+  document.querySelector('.persona-desc').textContent=d.bio;
+  document.querySelector('.score-num').textContent=d.score;
+  const deg=(d.score/100)*360;
+  document.querySelector('.score-ring').style.background=`conic-gradient(var(--gold) 0deg,var(--gold3) ${deg}deg,var(--border) ${deg}deg)`;
+  document.querySelector('.vibe-tags').innerHTML=d.vibes.map(v=>`<span class="vibe-tag">${v}</span>`).join('');
+  // Stats
+  const statCards=document.querySelectorAll('.stat-card');
+  if(statCards[0]) statCards[0].querySelector('.stat-card-val').textContent=d.totalReach;
+  if(statCards[1]) statCards[1].querySelector('.stat-card-val').textContent=d.avgEngagement;
+  if(statCards[2]) statCards[2].querySelector('.stat-card-val').textContent=d.growthRate;
+  if(statCards[3]) statCards[3].querySelector('.stat-card-val').textContent=d.tier;
+  // Charts
+  buildCharts(d);
+  document.getElementById('persona-result').classList.remove('hidden');
+  document.getElementById('persona-result').classList.add('fade-up');
+  state.personaGen=true;
+}
+
+function buildCharts(d){
+  const pillarsData=d.pillars;
+  const ageData=d.age;
+  const locData=d.locations;
+  const radarData=d.radar;
+
   const pc=document.getElementById('pillars-container');
   pc.innerHTML=pillarsData.map(p=>`<div class="pillar"><div class="pillar-icon">${p.e}</div><div class="pillar-name">${p.l}</div><div class="pillar-pct">${p.p}%</div><div class="bar-bg"><div class="bar-fill" style="width:0%"></div></div></div>`).join('');
   setTimeout(()=>{pc.querySelectorAll('.bar-fill').forEach((b,i)=>{b.style.width=pillarsData[i].p*2.5+'%'})},100);
+
   const ab=document.getElementById('age-bars');
-  const maxAge=Math.max(...ageData.map(d=>d.pct));
-  ab.innerHTML=ageData.map(d=>`<div class="vbar-item"><div class="vbar-bar" style="width:20px;height:0;background:var(--gold)" data-h="${d.pct/maxAge*100}"></div><div class="vbar-label">${d.age}</div></div>`).join('');
+  const maxAge=Math.max(...ageData.map(x=>x.pct));
+  ab.innerHTML=ageData.map(x=>`<div class="vbar-item"><div class="vbar-bar" style="width:20px;height:0;background:var(--gold)" data-h="${x.pct/maxAge*100}"></div><div class="vbar-label">${x.age}</div></div>`).join('');
   setTimeout(()=>{ab.querySelectorAll('.vbar-bar').forEach(b=>{b.style.height=b.dataset.h+'px'})},100);
+
   const lb=document.getElementById('loc-bars');
-  lb.innerHTML=locData.map(d=>`<div class="hbar"><div class="hbar-label"><span>${d.city}</span><span>${d.pct}%</span></div><div class="hbar-track"><div class="hbar-fill" style="width:0;background:var(--gold3)" data-w="${d.pct/18*100}"></div></div></div>`).join('');
+  const maxLoc=Math.max(...locData.map(x=>x.pct));
+  lb.innerHTML=locData.map(x=>`<div class="hbar"><div class="hbar-label"><span>${x.city}</span><span>${x.pct}%</span></div><div class="hbar-track"><div class="hbar-fill" style="width:0;background:var(--gold3)" data-w="${x.pct/maxLoc*100}"></div></div></div>`).join('');
   setTimeout(()=>{lb.querySelectorAll('.hbar-fill').forEach(b=>{b.style.width=b.dataset.w+'%'})},100);
+
   const rb=document.getElementById('radar-bars');
-  rb.innerHTML=radarData.map(d=>`<div class="radar-item"><div class="radar-label"><span>${d.t}</span><span>${d.v}</span></div><div class="radar-track"><div class="radar-fill" style="width:0" data-w="${d.v}"></div></div></div>`).join('');
+  rb.innerHTML=radarData.map(x=>`<div class="radar-item"><div class="radar-label"><span>${x.t}</span><span>${x.v}</span></div><div class="radar-track"><div class="radar-fill" style="width:0" data-w="${x.v}"></div></div></div>`).join('');
   setTimeout(()=>{rb.querySelectorAll('.radar-fill').forEach(b=>{b.style.width=b.dataset.w+'%'})},100);
+
   const gc=document.getElementById('growth-chart');
   const months=["May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr"];
   const maxG=500000;
@@ -504,40 +647,70 @@ function buildCharts(){
   setTimeout(()=>{gc.querySelectorAll('.growth-bar-ig,.growth-bar-tt').forEach(b=>{b.style.height=b.dataset.h+'px'})},100);
 }
 
-function generateBrands(){
+// ── Brands ────────────────────────────────────────────────────────────────────
+async function generateBrands(){
+
   document.getElementById('brands-cta').classList.add('hidden');
   document.getElementById('brands-loading').classList.remove('hidden');
-  setTimeout(()=>{
+
+  const system=`You are a brand partnership matchmaker for social media creators. Given a creator persona, return exactly 8 brand matches as JSON.
+Return ONLY a JSON array, no explanation. Each item:
+{
+  "name": "string",
+  "match": number (60-99),
+  "cat": "string (category)",
+  "reasons": ["string","string","string"],  // exactly 3 reasons
+  "deal": "string e.g. '$2,500 – $5,000'"
+}
+Order by match score descending. Use realistic, well-known brands appropriate for the creator's niche.`;
+
+  const personaSummary=state.persona
+    ? `Name: ${state.persona.name}\nBio: ${state.persona.bio}\nPillars: ${state.persona.pillars.map(p=>p.l).join(', ')}\nVibes: ${state.persona.vibes.join(', ')}\nReach: ${state.persona.totalReach}\nEngagement: ${state.persona.avgEngagement}`
+    : `Stats:\n${getConnectedStats()}`;
+  const user=`Creator persona:\n${personaSummary}\n\nGenerate 8 brand partnership matches.`;
+
+  try {
+    const raw=await kimiChat(system,user);
+    const brands=parseJSON(raw);
     document.getElementById('brands-loading').classList.add('hidden');
-    const grid=document.getElementById('brands-result');
-    grid.classList.remove('hidden');
-    state.brandsGen=true;
-    let idx=0;
-    function addNext(){
-      if(idx>=brands.length)return;
-      const b=brands[idx];
-      const card=document.createElement('div');
-      card.className='brand-card fade-up';
-      card.innerHTML=`
-        <div class="brand-head">
-          <div class="brand-info">
-            <div class="brand-logo" style="background:var(--card2);border:1px solid var(--border2);color:var(--gold)">${b.name[0]}</div>
-            <div><div class="brand-name">${b.name}</div><div class="brand-cat">${b.cat}</div></div>
-          </div>
-          <div class="brand-match">${b.match}%</div>
+    renderBrands(brands);
+  } catch(e){
+    document.getElementById('brands-loading').classList.add('hidden');
+    document.getElementById('brands-cta').classList.remove('hidden');
+    showError(e.message);
+  }
+}
+
+function renderBrands(brands){
+  const grid=document.getElementById('brands-result');
+  grid.innerHTML='';
+  grid.classList.remove('hidden');
+  state.brandsGen=true;
+  let idx=0;
+  function addNext(){
+    if(idx>=brands.length) return;
+    const b=brands[idx];
+    const card=document.createElement('div');
+    card.className='brand-card fade-up';
+    card.innerHTML=`
+      <div class="brand-head">
+        <div class="brand-info">
+          <div class="brand-logo" style="background:var(--card2);border:1px solid var(--border2);color:var(--gold)">${b.name[0]}</div>
+          <div><div class="brand-name">${b.name}</div><div class="brand-cat">${b.cat}</div></div>
         </div>
-        <div class="bar-bg"><div class="bar-fill" style="width:${b.match}%"></div></div>
-        <div class="brand-reasons">${b.reasons.map(r=>`<div class="brand-reason"><span class="chk">✓</span>${r}</div>`).join('')}</div>
-        <div class="brand-footer">
-          <div class="brand-deal">${b.deal}</div>
-          <button class="outreach-btn" onclick="toggleSent(this,'${b.name}')">Start Outreach</button>
-        </div>`;
-      grid.appendChild(card);
-      idx++;
-      if(idx<brands.length)setTimeout(addNext,150);
-    }
-    addNext();
-  },1800);
+        <div class="brand-match">${b.match}%</div>
+      </div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${b.match}%"></div></div>
+      <div class="brand-reasons">${b.reasons.map(r=>`<div class="brand-reason"><span class="chk">✓</span>${r}</div>`).join('')}</div>
+      <div class="brand-footer">
+        <div class="brand-deal">${b.deal}</div>
+        <button class="outreach-btn" onclick="toggleSent(this,'${b.name.replace(/'/g,"&#39;")}')">Start Outreach</button>
+      </div>`;
+    grid.appendChild(card);
+    idx++;
+    if(idx<brands.length) setTimeout(addNext,150);
+  }
+  addNext();
 }
 
 function toggleSent(btn,name){
@@ -546,22 +719,57 @@ function toggleSent(btn,name){
   else{btn.className='outreach-btn';btn.innerHTML='Start Outreach'}
 }
 
-function generatePulse(){
+// ── Pulse ─────────────────────────────────────────────────────────────────────
+async function generatePulse(){
+
   document.getElementById('pulse-cta').classList.add('hidden');
   document.getElementById('pulse-loading').classList.remove('hidden');
-  setTimeout(()=>{
+
+  const system=`You are a viral content strategist for social media creators. Given a creator persona, return exactly 10 content ideas as JSON.
+Return ONLY a JSON array, no explanation. Each item:
+{
+  "title": "string (catchy content title)",
+  "hook": "string (2-3 sentence explanation of why this works for this creator right now)",
+  "trend": "hot"|"rising"|"steady"|"new",
+  "match": number (75-99),
+  "format": "string e.g. 'Reel / TikTok'",
+  "platform": "Instagram"|"TikTok"|"Both"|"YouTube",
+  "estReach": "string e.g. '40K – 80K'",
+  "tags": ["#tag1","#tag2","#tag3"],
+  "persona": ["trait1","trait2"],  // 2 persona traits this idea matches
+  "cat": "fitness"|"lifestyle"|"beauty"|"tech"|"wellness"|"other",
+  "sound": "string (optional trending sound suggestion, omit if not applicable)"
+}
+Mix categories. Order by match score descending.`;
+
+  const personaSummary=state.persona
+    ? `Name: ${state.persona.name}\nBio: ${state.persona.bio}\nPillars: ${state.persona.pillars.map(p=>p.l).join(', ')}\nVibes: ${state.persona.vibes.join(', ')}\nTop engagement: ${state.persona.avgEngagement}`
+    : `Stats:\n${getConnectedStats()}`;
+  const user=`Creator persona:\n${personaSummary}\n\nGenerate 10 high-potential content ideas for right now.`;
+
+  try {
+    const raw=await kimiChat(system,user);
+    const ideas=parseJSON(raw);
     document.getElementById('pulse-loading').classList.add('hidden');
-    document.getElementById('pulse-result').classList.remove('hidden');
-    document.getElementById('pulse-result').classList.add('fade-up');
-    state.pulseGen=true;
-    buildPulseFilters();
-    renderPulseCards('all');
-  },2200);
+    renderPulse(ideas);
+  } catch(e){
+    document.getElementById('pulse-loading').classList.add('hidden');
+    document.getElementById('pulse-cta').classList.remove('hidden');
+    showError(e.message);
+  }
 }
 
-function buildPulseFilters(){
+function renderPulse(ideas){
+  document.getElementById('pulse-result').classList.remove('hidden');
+  document.getElementById('pulse-result').classList.add('fade-up');
+  state.pulseGen=true;
+  // Build dynamic category filters from actual results
+  const cats=['all',...new Set(ideas.map(i=>i.cat).filter(Boolean))];
   const f=document.getElementById('pulse-filters');
-  f.innerHTML=pulseCategories.map(c=>`<button class="pulse-filter${c==='all'?' active':''}" data-cat="${c}" onclick="filterPulse('${c}')">${c==='all'?'All':c.charAt(0).toUpperCase()+c.slice(1)}</button>`).join('');
+  f.innerHTML=cats.map(c=>`<button class="pulse-filter${c==='all'?' active':''}" data-cat="${c}" onclick="filterPulse('${c}')">${c==='all'?'All':c.charAt(0).toUpperCase()+c.slice(1)}</button>`).join('');
+  // Store and render
+  state.pulseIdeas=ideas;
+  renderPulseCards('all');
 }
 
 function filterPulse(cat){
@@ -571,16 +779,18 @@ function filterPulse(cat){
 }
 
 function renderPulseCards(cat){
+  const ideas=state.pulseIdeas||[];
   const grid=document.getElementById('pulse-grid');
   grid.innerHTML='';
-  const filtered=cat==='all'?pulseIdeas:pulseIdeas.filter(i=>i.cat===cat);
+  const filtered=cat==='all'?ideas:ideas.filter(i=>i.cat===cat);
   let idx=0;
   function addNext(){
-    if(idx>=filtered.length)return;
+    if(idx>=filtered.length) return;
     const idea=filtered[idx];
     const card=document.createElement('div');
     card.className='pulse-card fade-up';
-    const trendLabel={hot:'Hot',rising:'Rising',steady:'Steady',new:'New'}[idea.trend];
+    const trendLabel={hot:'Hot',rising:'Rising',steady:'Steady',new:'New'}[idea.trend]||idea.trend;
+    const safeTitle=idea.title.replace(/'/g,"&#39;");
     card.innerHTML=`
       <div class="pulse-trend-badge ${idea.trend}">${trendLabel}</div>
       <div class="pulse-idea-title">${idea.title}</div>
@@ -597,12 +807,12 @@ function renderPulseCards(cat){
       ${idea.sound?`<div class="pulse-meta"><div class="pulse-meta-item">Sound: <span class="val">${idea.sound}</span></div></div>`:''}
       <div class="pulse-tags">${idea.tags.map(t=>`<span class="pulse-tag">${t}</span>`).join('')}${idea.persona.map(p=>`<span class="pulse-tag persona">${p}</span>`).join('')}</div>
       <div class="pulse-actions">
-        <button class="pulse-save-btn" onclick="togglePulseSave(this,'${idea.title.replace(/'/g,"&#39;")}')">Save</button>
+        <button class="pulse-save-btn" onclick="togglePulseSave(this,'${safeTitle}')">Save</button>
         <button class="pulse-draft-btn" onclick="this.innerHTML='✓ Drafted';this.style.opacity=0.6">Draft Script</button>
       </div>`;
     grid.appendChild(card);
     idx++;
-    if(idx<filtered.length)setTimeout(addNext,120);
+    if(idx<filtered.length) setTimeout(addNext,120);
   }
   addNext();
 }
@@ -612,6 +822,15 @@ function togglePulseSave(btn,title){
   if(state.saved[title]){btn.className='pulse-save-btn saved';btn.innerHTML='✓ Saved'}
   else{btn.className='pulse-save-btn';btn.innerHTML='Save'}
 }
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(function init(){
+  const name=getUserName();
+  if(name){
+    const initials=name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    document.getElementById('avatar-initials').textContent=initials;
+  }
+})();
 </script>
 </body>
 </html>
