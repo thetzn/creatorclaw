@@ -461,9 +461,14 @@ function showError(msg){
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function parseJSON(raw){
-  // strip markdown code fences if present
-  const cleaned=raw.replace(/```(?:json)?/g,'').replace(/```/g,'').trim();
-  return JSON.parse(cleaned);
+  // Strip markdown fences, leading/trailing junk
+  let s=raw.replace(/```(?:json)?\s*/gi,'').replace(/```/g,'').trim();
+  // If response has text before the JSON, extract the first { } or [ ] block
+  const objMatch=s.match(/\{[\s\S]*\}/);
+  const arrMatch=s.match(/\[[\s\S]*\]/);
+  if(objMatch&&(!arrMatch||objMatch.index<=arrMatch.index)) s=objMatch[0];
+  else if(arrMatch) s=arrMatch[0];
+  return JSON.parse(s);
 }
 
 function getConnectedStats(){
