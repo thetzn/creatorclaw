@@ -1,12 +1,13 @@
 /**
  * CreatorClaw — Cloudflare Worker
- * Proxies requests to OpenAI API. Handles web search mode by using
- * OpenAI's built-in web_search tool (gpt-4o with tools).
+ * - Regular mode: Chat Completions API with gpt-4o-mini
+ * - Web search mode: Responses API with gpt-4o + web_search_preview
  */
 
-const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
+const CHAT_URL = 'https://api.openai.com/v1/chat/completions';
+const RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const MODEL = 'gpt-4o-mini';
-const MODEL_SEARCH = 'gpt-4o';  // web search requires gpt-4o
+const MODEL_SEARCH = 'gpt-4o';
 
 const ALLOWED_ORIGINS = [
   'https://thetzn.github.io',
@@ -32,34 +33,69 @@ export default {
     const isWebSearch = body.webSearch;
     delete body.webSearch;
 
-    // Build the OpenAI request
-    const oaiBody = {
-      model: MODEL,
-      temperature: body.temperature || 0.7,
-      messages: body.messages || [],
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + env.API_KEY,
     };
 
-    // For web search, use gpt-4o with web search tool
+    let res;
+
     if (isWebSearch) {
-      oaiBody.model = MODEL_SEARCH;
-      oaiBody.tools = [{ type: 'web_search_preview' }];
+      // Use the Responses API which supports web_search_preview
+      // Convert chat messages to Responses API input format
+      const input = (body.messages || []).map(m => ({
+        role: m.role === 'system' ? 'developer' : m.role,
+        content: m.content,
+      }));
+
+      res = await fetch(RESPONSES_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model: MODEL_SEARCH,
+          tools: [{ type: 'web_search_preview' }],
+          input,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return new Response(JSON.stringify(data), {
+          status: res.status,
+          headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) },
+        });
+      }
+
+      // Extract text content from the Responses API output
+      const textOutput = (data.output || []).find(o => o.type === 'message');
+      const text = textOutput?.content?.find(c => c.type === 'output_text')?.text || '';
+
+      // Return in the same shape as Chat Completions so the frontend doesn't care
+      return new Response(JSON.stringify({
+        choices: [{ message: { role: 'assistant', content: text } }],
+      }), {
+        headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) },
+      });
+
+    } else {
+      // Regular Chat Completions
+      res = await fetch(CHAT_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model: MODEL,
+          temperature: body.temperature || 0.7,
+          messages: body.messages || [],
+        }),
+      });
+
+      const data = await res.json();
+      return new Response(JSON.stringify(data), {
+        status: res.status,
+        headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) },
+      });
     }
-
-    const res = await fetch(OPENAI_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + env.API_KEY,
-      },
-      body: JSON.stringify(oaiBody),
-    });
-
-    const data = await res.json();
-
-    return new Response(JSON.stringify(data), {
-      status: res.status,
-      headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) },
-    });
   },
 };
 
