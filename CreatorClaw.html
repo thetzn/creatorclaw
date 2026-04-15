@@ -303,7 +303,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
           <div style="font-size:10px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:10px">Or analyze your public profile</div>
           <div style="display:flex;gap:8px">
-            <input id="ig-url-input" type="text" placeholder="instagram.com/yourhandle" onkeydown="if(event.key==='Enter')analyzeIGProfile()" style="flex:1;background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'">
+            <input id="ig-url-input" type="text" placeholder="@yourhandle" onkeydown="if(event.key==='Enter')analyzeIGProfile()" style="flex:1;background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'">
             <button id="ig-analyze-btn" onclick="analyzeIGProfile()" style="background:transparent;border:1px solid var(--gold-border);border-radius:6px;padding:10px 16px;color:var(--gold);font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;transition:all 0.3s" onmouseover="this.style.background='var(--gold)';this.style.color='var(--bg)'" onmouseout="this.style.background='transparent';this.style.color='var(--gold)'">Analyze</button>
           </div>
           <div id="ig-analyze-loading" class="hidden" style="display:flex;align-items:center;gap:8px;padding:10px 0 0;font-size:11px;color:var(--muted)"><span style="display:inline-block;animation:spin 1.5s linear infinite">✦</span> Scanning profile with AI — this may take 15–30s…</div>
@@ -491,8 +491,9 @@ function switchTab(id){
 // ── Instagram URL Analysis ────────────────────────────────────────────────────
 async function analyzeIGProfile(){
   const input=document.getElementById('ig-url-input');
-  const url=input.value.trim();
-  if(!url){ input.style.borderColor='var(--red)'; return; }
+  const raw=input.value.trim().replace(/^@/,'').replace(/^(https?:\/\/)?(www\.)?instagram\.com\//,'');
+  if(!raw){ input.style.borderColor='var(--red)'; return; }
+  const url='instagram.com/'+raw;
 
   const btn=document.getElementById('ig-analyze-btn');
   const loading=document.getElementById('ig-analyze-loading');
