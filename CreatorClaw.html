@@ -4,227 +4,225 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CreatorClaw</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#FDFBF9;--card:#FFFFFF;--card-alt:#F9F6F3;--border:#EDE8E3;
-  --text:#2D2A26;--muted:#8A8279;--accent:#C4756E;--accent2:#D4918B;
-  --accent-light:#F5E6E4;--accent-dark:#A85E57;
-  --plum:#8B6E8E;--plum-light:#F0E8F1;
-  --sage:#7A8E6E;--sage-light:#E8F0E4;
-  --gold:#B8965A;--gold-light:#F5EDE0;
-  --navy:#4A5568;
-  --radius:14px;--radius-lg:20px;
-  --shadow:0 1px 3px rgba(0,0,0,0.04),0 4px 12px rgba(0,0,0,0.03);
-  --shadow-lg:0 4px 24px rgba(0,0,0,0.06);
+  --bg:#0A0A0A;--card:#111111;--card2:#161616;--border:#1E1E1E;--border2:#2A2A2A;
+  --text:#F0EDE8;--muted:#6B6560;--muted2:#4A4641;
+  --gold:#C9A96E;--gold2:#E8D5A3;--gold3:#B8965A;--gold-dim:rgba(201,169,110,0.12);--gold-border:rgba(201,169,110,0.2);
+  --slate:#7B8794;--green:#6B9E6B;--green-dim:rgba(107,158,107,0.15);
+  --red:#C46E6E;--red-dim:rgba(196,110,110,0.15);
+  --blue:#6E8EC4;--blue-dim:rgba(110,142,196,0.15);
+  --plum:#8E6E8B;--plum-dim:rgba(142,110,139,0.15);
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
-h1,h2,h3,.serif{font-family:'Playfair Display',Georgia,serif}
-@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .fade-up{animation:fadeUp 0.5s ease forwards}
-button{font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all 0.25s ease}
-button:hover{transform:translateY(-1px)}
+button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 0.3s ease}
+.gold-text{background:linear-gradient(135deg,var(--gold3),var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.tracking{letter-spacing:0.25em;text-transform:uppercase}
+.tracking-sm{letter-spacing:0.15em;text-transform:uppercase}
 
 /* Header */
-.header{background:rgba(253,251,249,0.85);border-bottom:1px solid var(--border);padding:0 40px;position:sticky;top:0;z-index:50;backdrop-filter:blur(16px)}
-.header-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:68px}
-.logo{display:flex;align-items:center;gap:10px}
-.logo-mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--plum));display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700;font-family:'Playfair Display',serif}
-.logo-text{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--text);letter-spacing:-0.3px}
-.nav{display:flex;gap:2px;background:var(--card-alt);border-radius:10px;padding:3px;border:1px solid var(--border)}
-.nav-btn{padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);background:transparent;letter-spacing:0.01em}
-.nav-btn.active{color:var(--text);background:var(--card);box-shadow:var(--shadow)}
-.avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent-light),var(--plum-light));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--accent-dark);border:2px solid var(--border)}
+.header{background:rgba(10,10,10,0.9);border-bottom:1px solid var(--border);padding:0 32px;position:sticky;top:0;z-index:50;backdrop-filter:blur(20px)}
+.header-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-text{font-size:18px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase}
+.nav{display:flex;gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav-btn{padding:10px 20px;font-size:11px;font-weight:600;color:var(--muted);background:transparent;letter-spacing:0.15em;text-transform:uppercase;white-space:nowrap;position:relative}
+.nav-btn.active{color:var(--gold)}
+.nav-btn.active::after{content:'';position:absolute;bottom:0;left:20px;right:20px;height:1px;background:var(--gold)}
+.avatar{width:32px;height:32px;border-radius:50%;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.05em}
 
-.main{max-width:1100px;margin:0 auto;padding:40px 40px 80px}
-.page-title{font-size:32px;font-weight:700;margin-bottom:6px;color:var(--text);letter-spacing:-0.5px}
-.page-sub{color:var(--muted);font-size:15px;margin-bottom:36px;font-weight:400;line-height:1.5}
+.main{max-width:1100px;margin:0 auto;padding:60px 32px 100px}
+.page-title{font-size:36px;font-weight:300;margin-bottom:10px;letter-spacing:-0.01em;line-height:1.2}
+.page-sub{color:var(--muted);font-size:14px;margin-bottom:48px;font-weight:400;line-height:1.6;max-width:500px}
 
 /* Cards */
-.card{background:var(--card);border-radius:var(--radius-lg);border:1px solid var(--border);padding:28px;box-shadow:var(--shadow);transition:all 0.3s}
-.card:hover{box-shadow:var(--shadow-lg)}
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:24px}
-.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:32px;transition:all 0.3s}
+.card:hover{border-color:var(--border2)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+
+/* Login */
+.login-card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:48px 32px;text-align:center;margin-bottom:32px}
+.login-card h2{font-size:24px;font-weight:300;margin-bottom:10px;letter-spacing:-0.01em}
+.login-card p{color:var(--muted);font-size:13px;margin-bottom:28px;line-height:1.6}
+.google-btn{display:inline-flex;align-items:center;gap:10px;padding:14px 32px;border-radius:8px;background:var(--card2);border:1px solid var(--border2);font-size:13px;font-weight:500;color:var(--text);cursor:pointer;transition:all 0.3s}
+.google-btn:hover{border-color:var(--muted2)}
+.google-btn svg{width:18px;height:18px}
+.or-divider{display:flex;align-items:center;gap:20px;margin:32px 0;color:var(--muted2);font-size:10px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase}
+.or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:var(--border)}
 
 /* Platform Cards */
-.plat-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
-.plat-info{display:flex;align-items:center;gap:12px}
-.plat-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px}
-.plat-name{font-weight:700;font-size:16px}
-.plat-desc{font-size:12px;color:var(--muted)}
-.connected-badge{display:flex;align-items:center;gap:5px;color:var(--sage);font-size:12px;font-weight:600;background:var(--sage-light);padding:4px 10px;border-radius:20px}
+.plat-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.plat-info{display:flex;align-items:center;gap:14px}
+.plat-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.plat-name{font-weight:600;font-size:15px;letter-spacing:0.02em}
+.plat-desc{font-size:11px;color:var(--muted);letter-spacing:0.05em}
+.connected-badge{display:flex;align-items:center;gap:5px;color:var(--green);font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase}
 
-.connect-btn{width:100%;padding:13px 0;border-radius:12px;color:#fff;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:0.01em}
+.connect-btn{width:100%;padding:14px 0;border-radius:8px;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:0.1em;text-transform:uppercase}
 .connect-btn.ig{background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)}
-.connect-btn.tt{background:#000}
-.connect-btn:disabled{opacity:0.6;cursor:wait}
+.connect-btn.tt{background:#fff;color:#000}
+.connect-btn:disabled{opacity:0.5;cursor:wait}
 
-.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.stat-box{background:var(--card-alt);border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border)}
-.stat-val{font-size:20px;font-weight:700;color:var(--text)}
-.stat-label{font-size:11px;color:var(--muted);margin-top:2px}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat-box{background:var(--card2);border-radius:8px;padding:16px;text-align:center;border:1px solid var(--border)}
+.stat-val{font-size:22px;font-weight:700;color:var(--text);letter-spacing:-0.02em}
+.stat-label{font-size:9px;color:var(--muted);margin-top:4px;letter-spacing:0.15em;text-transform:uppercase}
 
-.cta-banner{margin-top:28px;background:var(--accent-light);border:1px solid rgba(196,117,110,0.2);border-radius:14px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between}
-.cta-banner span{font-weight:500;font-size:14px;color:var(--text)}
-.cta-banner .hl{color:var(--accent-dark);font-weight:700}
-.cta-btn{background:var(--accent);border-radius:10px;padding:10px 22px;color:#fff;font-weight:600;font-size:13px}
+.cta-banner{margin-top:32px;background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:10px;padding:20px 28px;display:flex;align-items:center;justify-content:space-between}
+.cta-banner span{font-weight:400;font-size:13px;color:var(--text)}
+.cta-banner .hl{color:var(--gold);font-weight:600}
+.cta-btn{background:transparent;border:1px solid var(--gold);border-radius:6px;padding:10px 24px;color:var(--gold);font-weight:600;font-size:11px;letter-spacing:0.1em;text-transform:uppercase}
+.cta-btn:hover{background:var(--gold);color:var(--bg)}
 
 /* Center CTA */
 .center-cta{text-align:center;padding:80px 0}
-.center-icon{width:72px;height:72px;border-radius:20px;background:var(--accent-light);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:32px}
-.center-cta h2{font-size:24px;font-weight:700;margin-bottom:10px}
-.center-cta p{color:var(--muted);margin-bottom:28px;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.6;font-size:14px}
-.gen-btn{background:var(--accent);border-radius:12px;padding:14px 36px;color:#fff;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(196,117,110,0.25)}
+.center-icon{width:64px;height:64px;border-radius:16px;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:24px;color:var(--gold)}
+.center-cta h2{font-size:28px;font-weight:300;margin-bottom:12px;letter-spacing:-0.01em}
+.center-cta p{color:var(--muted);margin-bottom:36px;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.7;font-size:13px}
+.gen-btn{background:transparent;border:1px solid var(--gold);border-radius:8px;padding:16px 40px;color:var(--gold);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:10px;letter-spacing:0.15em;text-transform:uppercase;transition:all 0.3s}
+.gen-btn:hover{background:var(--gold);color:var(--bg)}
 
 .loading{text-align:center;padding:100px 0}
-.spinner{font-size:36px;display:inline-block;animation:spin 1.5s ease-in-out infinite;margin-bottom:20px}
-.loading-title{font-weight:600;font-size:17px;color:var(--text)}
-.loading-sub{color:var(--muted);font-size:13px;margin-top:6px}
+.spinner{font-size:28px;display:inline-block;animation:spin 2s linear infinite;margin-bottom:24px;color:var(--gold)}
+.loading-title{font-weight:400;font-size:16px;color:var(--text);letter-spacing:0.02em}
+.loading-sub{color:var(--muted);font-size:12px;margin-top:8px}
 
 /* Persona */
-.persona-header{display:flex;gap:28px;margin-bottom:24px;align-items:flex-start}
-.persona-avatar{width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,var(--accent-light),var(--plum-light));display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--accent-dark);flex-shrink:0;border:3px solid var(--border)}
+.persona-header{display:flex;gap:32px;margin-bottom:28px;align-items:flex-start}
+.persona-avatar{width:80px;height:80px;border-radius:50%;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:300;color:var(--gold);flex-shrink:0;letter-spacing:0.05em}
 .persona-bio{flex:1}
-.persona-name{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.persona-name h2{font-size:22px;font-weight:700;letter-spacing:-0.3px}
-.persona-name .check{color:var(--accent);font-size:16px}
-.persona-desc{color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:14px;max-width:480px}
+.persona-name{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.persona-name h2{font-size:22px;font-weight:400;letter-spacing:0.02em}
+.persona-name .check{color:var(--gold);font-size:14px}
+.persona-desc{color:var(--muted);font-size:13px;line-height:1.7;margin-bottom:16px;max-width:480px}
 .vibe-tags{display:flex;gap:6px;flex-wrap:wrap}
-.vibe-tag{background:var(--card-alt);color:var(--muted);border-radius:20px;padding:5px 13px;font-size:11px;font-weight:600;border:1px solid var(--border)}
+.vibe-tag{background:transparent;color:var(--muted);border-radius:4px;padding:4px 12px;font-size:10px;font-weight:500;border:1px solid var(--border2);letter-spacing:0.08em;text-transform:uppercase}
 .score-wrap{text-align:center;flex-shrink:0}
-.score-ring{width:76px;height:76px;border-radius:50%;background:conic-gradient(var(--accent) 0deg,var(--plum) 313.2deg,var(--border) 313.2deg);display:flex;align-items:center;justify-content:center}
-.score-inner{width:60px;height:60px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center}
-.score-num{font-size:20px;font-weight:700;font-family:'Playfair Display',serif;color:var(--accent-dark)}
-.score-label{font-size:10px;color:var(--muted);margin-top:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+.score-ring{width:72px;height:72px;border-radius:50%;background:conic-gradient(var(--gold) 0deg,var(--gold3) 313.2deg,var(--border) 313.2deg);display:flex;align-items:center;justify-content:center}
+.score-inner{width:58px;height:58px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center}
+.score-num{font-size:20px;font-weight:700;color:var(--gold)}
+.score-label{font-size:9px;color:var(--muted);margin-top:8px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase}
 
-.stat-card{background:var(--card);border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:14px;border:1px solid var(--border);box-shadow:var(--shadow)}
-.stat-card-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px}
-.stat-card-val{font-size:20px;font-weight:700}
-.stat-card-label{font-size:12px;color:var(--muted)}
-.stat-card-sub{color:var(--sage);margin-left:4px;font-weight:600;font-size:11px}
+.stat-card{background:var(--card);border-radius:10px;padding:20px;border:1px solid var(--border)}
+.stat-card-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:12px}
+.stat-card-val{font-size:24px;font-weight:700;letter-spacing:-0.02em}
+.stat-card-label{font-size:10px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-top:4px}
+.stat-card-sub{color:var(--green);margin-left:4px;font-weight:600;font-size:10px}
 
-.pillars{display:flex;gap:10px;margin-bottom:0}
-.pillar{flex:1;background:var(--card-alt);border-radius:14px;padding:18px;text-align:center;border:1px solid var(--border)}
-.pillar-icon{font-size:20px;margin-bottom:6px}
-.pillar-name{font-weight:700;font-size:13px;margin-bottom:4px}
-.pillar-pct{font-size:12px;color:var(--muted);margin-bottom:8px}
-.bar-bg{height:4px;border-radius:2px;background:var(--border);width:100%;overflow:hidden}
-.bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--plum));transition:width 1s ease}
+.pillars{display:flex;gap:8px;margin-bottom:0}
+.pillar{flex:1;background:var(--card2);border-radius:10px;padding:20px;text-align:center;border:1px solid var(--border)}
+.pillar-icon{font-size:16px;margin-bottom:8px;color:var(--gold)}
+.pillar-name{font-weight:600;font-size:12px;margin-bottom:4px;letter-spacing:0.05em}
+.pillar-pct{font-size:11px;color:var(--muted);margin-bottom:10px}
+.bar-bg{height:3px;border-radius:2px;background:var(--border);width:100%;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--gold3),var(--gold));transition:width 1s ease}
 
 /* Charts */
-.chart-card{background:var(--card);border-radius:var(--radius-lg);border:1px solid var(--border);padding:22px;box-shadow:var(--shadow)}
-.chart-title{font-size:13px;font-weight:700;margin-bottom:16px;color:var(--text);text-transform:uppercase;letter-spacing:0.5px}
+.chart-card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:24px}
+.chart-title{font-size:10px;font-weight:600;margin-bottom:20px;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase}
 
-.pie-container{display:flex;justify-content:center;margin-bottom:14px}
-.pie{width:120px;height:120px;border-radius:50%;background:conic-gradient(var(--accent) 0deg 223.2deg,var(--plum) 223.2deg 345.6deg,var(--gold) 345.6deg 360deg);position:relative}
-.pie-hole{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:74px;height:74px;border-radius:50%;background:var(--card)}
-.pie-legend{display:flex;justify-content:center;gap:14px;font-size:11px}
-.pie-legend-item{display:flex;align-items:center;gap:4px;color:var(--muted)}
-.pie-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.pie-container{display:flex;justify-content:center;margin-bottom:16px}
+.pie{width:110px;height:110px;border-radius:50%;background:conic-gradient(var(--gold) 0deg 223.2deg,var(--plum) 223.2deg 345.6deg,var(--muted2) 345.6deg 360deg);position:relative}
+.pie-hole{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:70px;height:70px;border-radius:50%;background:var(--card)}
+.pie-legend{display:flex;justify-content:center;gap:16px;font-size:10px}
+.pie-legend-item{display:flex;align-items:center;gap:5px;color:var(--muted)}
+.pie-dot{width:6px;height:6px;border-radius:50%;display:inline-block}
 
-.hbar{margin-bottom:10px}
-.hbar-label{font-size:11px;color:var(--muted);margin-bottom:4px;display:flex;justify-content:space-between}
-.hbar-track{height:6px;border-radius:3px;background:var(--card-alt);overflow:hidden;border:1px solid var(--border)}
-.hbar-fill{height:100%;border-radius:3px;transition:width 1s ease}
+.hbar{margin-bottom:12px}
+.hbar-label{font-size:10px;color:var(--muted);margin-bottom:5px;display:flex;justify-content:space-between;letter-spacing:0.05em}
+.hbar-track{height:4px;border-radius:2px;background:var(--border);overflow:hidden}
+.hbar-fill{height:100%;border-radius:2px;transition:width 1s ease}
 
-.vbar-container{display:flex;align-items:flex-end;justify-content:space-around;height:130px;padding-top:10px}
+.vbar-container{display:flex;align-items:flex-end;justify-content:space-around;height:120px;padding-top:10px}
 .vbar-item{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1}
-.vbar-bar{width:24px;border-radius:6px 6px 0 0;transition:height 1s ease}
-.vbar-label{font-size:10px;color:var(--muted);font-weight:500}
+.vbar-bar{width:20px;border-radius:4px 4px 0 0;transition:height 1s ease}
+.vbar-label{font-size:9px;color:var(--muted);font-weight:500;letter-spacing:0.05em}
 
-.radar-item{margin-bottom:12px}
-.radar-label{font-size:11px;color:var(--muted);margin-bottom:4px;display:flex;justify-content:space-between}
+.radar-item{margin-bottom:14px}
+.radar-label{font-size:10px;color:var(--muted);margin-bottom:5px;display:flex;justify-content:space-between;letter-spacing:0.05em}
 .radar-label span:last-child{font-weight:700;color:var(--text)}
-.radar-track{height:4px;border-radius:2px;background:var(--card-alt);overflow:hidden;border:1px solid var(--border)}
-.radar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--plum));transition:width 1s ease}
+.radar-track{height:3px;border-radius:2px;background:var(--border);overflow:hidden}
+.radar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--gold3),var(--gold));transition:width 1s ease}
 
-.growth-bars{display:flex;align-items:flex-end;gap:3px;height:150px;padding:10px 0}
+.growth-bars{display:flex;align-items:flex-end;gap:3px;height:140px;padding:10px 0}
 .growth-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
 .growth-stack{width:100%;display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;justify-content:flex-end}
-.growth-bar-ig{width:14px;border-radius:4px 4px 0 0;background:var(--accent);transition:height 1s ease}
-.growth-bar-tt{width:14px;border-radius:4px 4px 0 0;background:var(--navy);transition:height 1s ease}
-.growth-label{font-size:8px;color:var(--muted);margin-top:4px;font-weight:500}
-.growth-legend{display:flex;justify-content:center;gap:18px;margin-top:10px;font-size:11px;color:var(--muted)}
+.growth-bar-ig{width:12px;border-radius:3px 3px 0 0;background:var(--gold);transition:height 1s ease}
+.growth-bar-tt{width:12px;border-radius:3px 3px 0 0;background:var(--muted2);transition:height 1s ease}
+.growth-label{font-size:7px;color:var(--muted2);margin-top:4px;font-weight:500;letter-spacing:0.05em}
+.growth-legend{display:flex;justify-content:center;gap:20px;margin-top:12px;font-size:10px;color:var(--muted)}
 
 /* Brands */
-.brand-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-.brand-card{background:var(--card);border-radius:var(--radius-lg);border:1px solid var(--border);padding:24px;box-shadow:var(--shadow)}
-.brand-card:hover{box-shadow:var(--shadow-lg)}
-.brand-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.brand-logo{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800}
-.brand-info{display:flex;align-items:center;gap:12px}
-.brand-name{font-weight:700;font-size:16px}
-.brand-cat{font-size:11px;color:var(--muted)}
-.brand-match{background:var(--accent-light);color:var(--accent-dark);border-radius:20px;padding:4px 12px;font-weight:700;font-size:13px}
-.brand-reasons{margin:12px 0}
-.brand-reason{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);margin-bottom:5px}
-.brand-reason .chk{color:var(--sage);font-weight:700}
-.brand-footer{display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--border)}
-.brand-deal{font-size:14px;font-weight:700;color:var(--sage)}
-.outreach-btn{background:var(--accent);border-radius:10px;padding:9px 18px;color:#fff;font-weight:600;font-size:12px;display:flex;align-items:center;gap:5px}
-.outreach-btn.sent{background:var(--sage-light);color:var(--sage);border:1px solid rgba(122,142,110,0.2)}
+.brand-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.brand-card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:28px}
+.brand-card:hover{border-color:var(--border2)}
+.brand-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.brand-logo{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700}
+.brand-info{display:flex;align-items:center;gap:14px}
+.brand-name{font-weight:600;font-size:15px;letter-spacing:0.02em}
+.brand-cat{font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase}
+.brand-match{color:var(--gold);font-weight:700;font-size:14px;letter-spacing:-0.02em}
+.brand-reasons{margin:16px 0}
+.brand-reason{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin-bottom:6px}
+.brand-reason .chk{color:var(--gold);font-weight:400}
+.brand-footer{display:flex;align-items:center;justify-content:space-between;padding-top:16px;border-top:1px solid var(--border)}
+.brand-deal{font-size:13px;font-weight:600;color:var(--green)}
+.outreach-btn{background:transparent;border:1px solid var(--gold-border);border-radius:6px;padding:9px 18px;color:var(--gold);font-weight:600;font-size:10px;display:flex;align-items:center;gap:5px;letter-spacing:0.1em;text-transform:uppercase;transition:all 0.3s}
+.outreach-btn:hover{background:var(--gold);color:var(--bg)}
+.outreach-btn.sent{background:var(--green-dim);color:var(--green);border-color:rgba(107,158,107,0.3)}
 
 /* Pulse */
-.pulse-filters{display:flex;gap:6px;margin-bottom:28px;flex-wrap:wrap}
-.pulse-filter{padding:7px 18px;border-radius:20px;font-size:12px;font-weight:600;color:var(--muted);background:var(--card);border:1px solid var(--border)}
-.pulse-filter.active{color:#fff;background:var(--accent);border-color:var(--accent)}
-.pulse-section-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
-.pulse-section-label .dot{width:6px;height:6px;border-radius:50%}
-.pulse-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-.pulse-card{background:var(--card);border-radius:var(--radius-lg);border:1px solid var(--border);padding:24px;position:relative;overflow:hidden;box-shadow:var(--shadow)}
-.pulse-card:hover{box-shadow:var(--shadow-lg)}
-.pulse-trend-badge{position:absolute;top:18px;right:18px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.3px}
-.pulse-trend-badge.hot{background:#FEE2E2;color:#DC2626}
-.pulse-trend-badge.rising{background:var(--gold-light);color:var(--gold)}
-.pulse-trend-badge.steady{background:var(--sage-light);color:var(--sage)}
-.pulse-trend-badge.new{background:var(--plum-light);color:var(--plum)}
-.pulse-idea-title{font-weight:700;font-size:16px;margin-bottom:8px;padding-right:70px;line-height:1.3}
-.pulse-idea-hook{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:14px}
-.pulse-persona-match{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card-alt);border-radius:12px;margin-bottom:14px;border:1px solid var(--border)}
-.pulse-persona-match .match-score{font-weight:800;font-size:15px;color:var(--accent-dark);font-family:'Playfair Display',serif}
-.pulse-persona-match .match-text{font-size:11px;color:var(--muted);line-height:1.4}
-.pulse-meta{display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap}
-.pulse-meta-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)}
+.pulse-filters{display:flex;gap:6px;margin-bottom:36px;flex-wrap:wrap}
+.pulse-filter{padding:8px 20px;border-radius:6px;font-size:10px;font-weight:600;color:var(--muted);background:transparent;border:1px solid var(--border);letter-spacing:0.12em;text-transform:uppercase}
+.pulse-filter.active{color:var(--gold);border-color:var(--gold)}
+.pulse-section-label{font-size:9px;font-weight:600;color:var(--muted2);letter-spacing:0.25em;text-transform:uppercase;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.pulse-section-label .dot{width:5px;height:5px;border-radius:50%}
+.pulse-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.pulse-card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:28px;position:relative;overflow:hidden}
+.pulse-card:hover{border-color:var(--border2)}
+.pulse-trend-badge{position:absolute;top:20px;right:20px;padding:4px 10px;border-radius:4px;font-size:9px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase}
+.pulse-trend-badge.hot{background:var(--red-dim);color:var(--red)}
+.pulse-trend-badge.rising{background:var(--gold-dim);color:var(--gold)}
+.pulse-trend-badge.steady{background:var(--green-dim);color:var(--green)}
+.pulse-trend-badge.new{background:var(--plum-dim);color:var(--plum)}
+.pulse-idea-title{font-weight:600;font-size:15px;margin-bottom:8px;padding-right:70px;line-height:1.4;letter-spacing:0.01em}
+.pulse-idea-hook{color:var(--muted);font-size:12px;line-height:1.7;margin-bottom:16px}
+.pulse-persona-match{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card2);border-radius:8px;margin-bottom:16px;border:1px solid var(--border)}
+.pulse-persona-match .match-score{font-weight:700;font-size:16px;color:var(--gold)}
+.pulse-persona-match .match-text{font-size:10px;color:var(--muted);line-height:1.4;letter-spacing:0.02em}
+.pulse-meta{display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap}
+.pulse-meta-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);letter-spacing:0.03em}
 .pulse-meta-item .val{color:var(--text);font-weight:600}
-.pulse-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:16px}
-.pulse-tag{font-size:10px;padding:3px 10px;border-radius:12px;background:var(--card-alt);color:var(--muted);border:1px solid var(--border);font-weight:500}
-.pulse-tag.persona{background:var(--accent-light);color:var(--accent-dark);border-color:rgba(196,117,110,0.2)}
+.pulse-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:18px}
+.pulse-tag{font-size:9px;padding:3px 10px;border-radius:4px;background:transparent;color:var(--muted);border:1px solid var(--border);font-weight:500;letter-spacing:0.05em}
+.pulse-tag.persona{background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border)}
 .pulse-actions{display:flex;gap:8px}
-.pulse-save-btn{padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;background:var(--card-alt);color:var(--muted);border:1px solid var(--border);display:flex;align-items:center;gap:5px}
-.pulse-save-btn.saved{background:var(--accent-light);color:var(--accent-dark);border-color:rgba(196,117,110,0.2)}
-.pulse-draft-btn{padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;display:flex;align-items:center;gap:5px}
+.pulse-save-btn{padding:9px 16px;border-radius:6px;font-size:10px;font-weight:600;background:transparent;color:var(--muted);border:1px solid var(--border2);display:flex;align-items:center;gap:5px;letter-spacing:0.08em;text-transform:uppercase}
+.pulse-save-btn.saved{background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border)}
+.pulse-draft-btn{padding:9px 16px;border-radius:6px;font-size:10px;font-weight:600;background:transparent;border:1px solid var(--gold-border);color:var(--gold);display:flex;align-items:center;gap:5px;letter-spacing:0.08em;text-transform:uppercase}
+.pulse-draft-btn:hover{background:var(--gold);color:var(--bg)}
 
-/* Google Login */
-.login-section{margin-bottom:36px}
-.login-card{background:var(--card);border-radius:var(--radius-lg);border:1px solid var(--border);padding:32px;text-align:center;box-shadow:var(--shadow);margin-bottom:24px}
-.login-card h2{font-size:22px;margin-bottom:8px}
-.login-card p{color:var(--muted);font-size:14px;margin-bottom:24px;line-height:1.5}
-.google-btn{display:inline-flex;align-items:center;gap:10px;padding:12px 28px;border-radius:12px;background:var(--card);border:1px solid var(--border);font-size:14px;font-weight:600;color:var(--text);box-shadow:var(--shadow);cursor:pointer}
-.google-btn:hover{box-shadow:var(--shadow-lg)}
-.google-btn svg{width:20px;height:20px}
-.or-divider{display:flex;align-items:center;gap:16px;margin:24px 0;color:var(--muted);font-size:12px;font-weight:500}
-.or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:var(--border)}
-.section-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px}
-
-/* Mobile Responsive */
+/* Mobile */
 @media(max-width:768px){
   .header{padding:0 16px}
-  .header-inner{height:56px}
-  .logo-text{font-size:17px}
-  .nav{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex-shrink:1;min-width:0}
-  .nav::-webkit-scrollbar{display:none}
-  .nav-btn{padding:7px 14px;font-size:12px;white-space:nowrap;flex-shrink:0}
+  .header-inner{height:52px}
+  .logo-text{font-size:14px}
+  .nav-btn{padding:8px 14px;font-size:10px}
   .avatar{display:none}
-  .main{padding:24px 16px 60px}
-  .page-title{font-size:24px}
-  .page-sub{font-size:13px;margin-bottom:24px}
-  .grid-2,.grid-3,.grid-4,.card-2col-eq{grid-template-columns:1fr!important;gap:14px}
+  .main{padding:32px 16px 60px}
+  .page-title{font-size:26px}
+  .page-sub{font-size:13px;margin-bottom:32px}
+  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr!important;gap:12px}
   .brand-grid,.pulse-grid{grid-template-columns:1fr}
-  .card{padding:20px}
-  .login-card{padding:24px}
+  .card,.login-card{padding:24px}
   .persona-header{flex-direction:column;align-items:center;text-align:center}
   .persona-bio{text-align:center}
   .persona-name{justify-content:center}
@@ -232,30 +230,20 @@ button:hover{transform:translateY(-1px)}
   .vibe-tags{justify-content:center}
   .pillars{flex-direction:column;gap:8px}
   .pillar{flex:none}
-  .stat-card{padding:14px 16px}
-  .stat-card-val{font-size:18px}
-  .cta-banner{flex-direction:column;gap:12px;text-align:center;padding:16px 20px}
+  .cta-banner{flex-direction:column;gap:12px;text-align:center;padding:18px 20px}
   .center-cta{padding:50px 0}
-  .center-cta h2{font-size:20px}
-  .gen-btn{padding:12px 28px;font-size:14px}
-  .brand-card{padding:20px}
-  .brand-head{flex-wrap:wrap;gap:10px}
+  .center-cta h2{font-size:22px}
+  .gen-btn{padding:14px 28px;font-size:11px}
+  .brand-card,.pulse-card{padding:22px}
   .brand-footer{flex-direction:column;gap:10px;align-items:flex-start}
-  .pulse-card{padding:20px}
-  .pulse-meta{gap:8px}
   .pulse-actions{flex-wrap:wrap}
-  .growth-bars{height:120px}
-  .vbar-container{height:100px}
-  .pie{width:100px;height:100px}
-  .pie-hole{width:62px;height:62px}
-  .pie-legend{flex-wrap:wrap;gap:8px}
+  .growth-bars{height:110px}
+  .vbar-container{height:90px}
 }
 @media(max-width:480px){
-  .nav-btn{padding:6px 10px;font-size:11px}
-  .stat-grid{grid-template-columns:1fr 1fr;gap:8px}
-  .stat-val{font-size:17px}
+  .stat-grid{grid-template-columns:1fr 1fr;gap:6px}
   .pulse-filters{gap:4px}
-  .pulse-filter{padding:6px 12px;font-size:11px}
+  .pulse-filter{padding:6px 14px;font-size:9px}
 }
 
 .hidden{display:none}
@@ -266,13 +254,12 @@ button:hover{transform:translateY(-1px)}
 <div class="header">
   <div class="header-inner">
     <div class="logo">
-      <div class="logo-mark">C</div>
-      <span class="logo-text">CreatorClaw</span>
+      <span class="logo-text gold-text">CreatorClaw</span>
     </div>
     <div class="nav" id="nav">
       <button class="nav-btn active" data-tab="connect" onclick="switchTab('connect')">Connect</button>
       <button class="nav-btn" data-tab="persona" onclick="switchTab('persona')">Persona</button>
-      <button class="nav-btn" data-tab="brands" onclick="switchTab('brands')">Brand Match</button>
+      <button class="nav-btn" data-tab="brands" onclick="switchTab('brands')">Brands</button>
       <button class="nav-btn" data-tab="pulse" onclick="switchTab('pulse')">Pulse</button>
     </div>
     <div class="avatar">JM</div>
@@ -283,33 +270,29 @@ button:hover{transform:translateY(-1px)}
 
 <!-- CONNECT TAB -->
 <div id="tab-connect">
-  <h1 class="page-title">Connect your platforms</h1>
+  <h1 class="page-title">Connect your <span class="gold-text">platforms</span></h1>
   <p class="page-sub">Link your social accounts so we can analyze your content, audience, and engagement patterns.</p>
 
-  <!-- Google / YouTube Login -->
-  <div class="login-section" id="login-section">
-    <div class="login-card" id="google-login-card">
-      <h2>Get started</h2>
-      <p>Sign in with Google to connect your YouTube channel and speed up account linking.</p>
-      <button class="google-btn" id="google-btn" onclick="googleLogin()">
-        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-        Continue with Google
-      </button>
+  <div class="login-card" id="google-login-card">
+    <h2>Get started</h2>
+    <p>Sign in with Google to connect your YouTube channel and speed up account linking.</p>
+    <button class="google-btn" id="google-btn" onclick="googleLogin()">
+      <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continue with Google
+    </button>
+  </div>
+  <div class="login-card hidden" id="google-connected">
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      <span style="font-weight:500;font-size:14px">Signed in as Jordan Mitchell</span>
+      <span class="connected-badge">✓ Google</span>
     </div>
-    <div class="login-card hidden" id="google-connected">
-      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px">
-        <svg viewBox="0 0 24 24" width="24" height="24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-        <span style="font-weight:600;font-size:15px">Signed in as Jordan Mitchell</span>
-        <span class="connected-badge">✓ Google</span>
-      </div>
-      <p style="color:var(--muted);font-size:13px">Your YouTube channel was automatically linked.</p>
-    </div>
+    <p style="color:var(--muted);font-size:12px">Your YouTube channel was automatically linked.</p>
   </div>
 
   <div class="or-divider">Connect your creator platforms</div>
 
-  <!-- Platform Cards -->
-  <div class="grid-2" style="margin-bottom:20px">
+  <div class="grid-2" style="margin-bottom:16px">
     <div class="card" id="ig-card">
       <div class="plat-head">
         <div class="plat-info">
@@ -329,7 +312,7 @@ button:hover{transform:translateY(-1px)}
     <div class="card" id="tt-card">
       <div class="plat-head">
         <div class="plat-info">
-          <div class="plat-icon" style="background:#000;color:#fff">🎵</div>
+          <div class="plat-icon" style="background:#fff;color:#000">🎵</div>
           <div><div class="plat-name">TikTok</div><div class="plat-desc">Short-form Video</div></div>
         </div>
         <div class="connected-badge hidden" id="tt-badge">✓ Connected</div>
@@ -344,7 +327,6 @@ button:hover{transform:translateY(-1px)}
     </div>
   </div>
 
-  <!-- YouTube Card -->
   <div class="card" id="yt-card">
     <div class="plat-head">
       <div class="plat-info">
@@ -353,7 +335,7 @@ button:hover{transform:translateY(-1px)}
       </div>
       <div class="connected-badge hidden" id="yt-badge">✓ Connected</div>
     </div>
-    <div id="yt-connect"><button class="connect-btn" id="yt-btn" onclick="connectPlatform('yt')" style="background:#FF0000">Connect YouTube</button></div>
+    <div id="yt-connect"><button class="connect-btn" id="yt-btn" onclick="connectPlatform('yt')" style="background:#FF0000;color:#fff">Connect YouTube</button></div>
     <div class="stat-grid hidden" id="yt-stats">
       <div class="stat-box"><div class="stat-val">89K</div><div class="stat-label">Subscribers</div></div>
       <div class="stat-box"><div class="stat-val">3.2%</div><div class="stat-label">Engagement</div></div>
@@ -364,124 +346,61 @@ button:hover{transform:translateY(-1px)}
 
   <div class="cta-banner hidden" id="both-banner">
     <span>Platforms connected — head to <span class="hl">Persona</span> to build your media kit.</span>
-    <button class="cta-btn" onclick="switchTab('persona')">Build Persona →</button>
+    <button class="cta-btn" onclick="switchTab('persona')">Build Persona</button>
   </div>
 </div>
 
 <!-- PERSONA TAB -->
 <div id="tab-persona" class="hidden">
-  <h1 class="page-title">Your Persona</h1>
+  <h1 class="page-title">Your <span class="gold-text">Persona</span></h1>
   <p class="page-sub">An AI-generated media kit built from your content, audience, and engagement patterns.</p>
-  <div id="persona-cta" class="center-cta">
-    <div class="center-icon">✦</div>
-    <h2>Ready to build your persona</h2>
-    <p>We'll analyze your content across platforms to create a comprehensive media kit.</p>
-    <button class="gen-btn" onclick="generatePersona()">Generate Persona</button>
-  </div>
-  <div id="persona-loading" class="loading hidden">
-    <div class="spinner">✦</div>
-    <div class="loading-title">Analyzing your content...</div>
-    <div class="loading-sub">Scanning 2,070 posts across Instagram and TikTok</div>
-  </div>
+  <div id="persona-cta" class="center-cta"><div class="center-icon">✦</div><h2>Ready to build your persona</h2><p>We'll analyze your content across platforms to create a comprehensive media kit.</p><button class="gen-btn" onclick="generatePersona()">Generate Persona</button></div>
+  <div id="persona-loading" class="loading hidden"><div class="spinner">✦</div><div class="loading-title">Analyzing your content...</div><div class="loading-sub">Scanning 2,070 posts across Instagram and TikTok</div></div>
   <div id="persona-result" class="hidden">
-    <div class="card persona-header" style="margin-bottom:24px">
+    <div class="card persona-header" style="margin-bottom:20px">
       <div class="persona-avatar">JM</div>
       <div class="persona-bio">
         <div class="persona-name"><h2>Jordan Mitchell</h2><span class="check">✓</span></div>
         <p class="persona-desc">Fitness enthusiast &amp; lifestyle creator sharing workouts, wellness tips, and daily inspo. Building a community around balanced, real living.</p>
-        <div class="vibe-tags">
-          <span class="vibe-tag">Aspirational</span><span class="vibe-tag">Warm Tones</span><span class="vibe-tag">High Energy</span><span class="vibe-tag">Relatable</span><span class="vibe-tag">Polished Casual</span><span class="vibe-tag">Motivational</span>
-        </div>
+        <div class="vibe-tags"><span class="vibe-tag">Aspirational</span><span class="vibe-tag">Warm Tones</span><span class="vibe-tag">High Energy</span><span class="vibe-tag">Relatable</span><span class="vibe-tag">Polished Casual</span><span class="vibe-tag">Motivational</span></div>
       </div>
-      <div class="score-wrap">
-        <div class="score-ring"><div class="score-inner"><span class="score-num">87</span></div></div>
-        <div class="score-label">Persona Score</div>
-      </div>
+      <div class="score-wrap"><div class="score-ring"><div class="score-inner"><span class="score-num">87</span></div></div><div class="score-label">Persona Score</div></div>
     </div>
     <div class="grid-4">
-      <div class="stat-card"><div class="stat-card-icon" style="background:var(--accent-light)">👁️</div><div><div class="stat-card-val">549K</div><div class="stat-card-label">Total Reach<span class="stat-card-sub">+12%</span></div></div></div>
-      <div class="stat-card"><div class="stat-card-icon" style="background:var(--plum-light)">♡</div><div><div class="stat-card-val">5.3%</div><div class="stat-card-label">Avg Engagement<span class="stat-card-sub">+0.8%</span></div></div></div>
-      <div class="stat-card"><div class="stat-card-icon" style="background:var(--sage-light)">↗</div><div><div class="stat-card-val">+18K/mo</div><div class="stat-card-label">Growth Rate</div></div></div>
-      <div class="stat-card"><div class="stat-card-icon" style="background:var(--gold-light)">★</div><div><div class="stat-card-val">Rising Star</div><div class="stat-card-label">Creator Tier</div></div></div>
+      <div class="stat-card"><div class="stat-card-icon" style="background:var(--gold-dim);color:var(--gold)">◎</div><div class="stat-card-val">549K</div><div class="stat-card-label">Total Reach<span class="stat-card-sub">+12%</span></div></div>
+      <div class="stat-card"><div class="stat-card-icon" style="background:var(--plum-dim);color:var(--plum)">♡</div><div class="stat-card-val">5.3%</div><div class="stat-card-label">Avg Engagement<span class="stat-card-sub">+0.8%</span></div></div>
+      <div class="stat-card"><div class="stat-card-icon" style="background:var(--green-dim);color:var(--green)">↗</div><div class="stat-card-val">+18K/mo</div><div class="stat-card-label">Growth Rate</div></div>
+      <div class="stat-card"><div class="stat-card-icon" style="background:var(--gold-dim);color:var(--gold)">★</div><div class="stat-card-val">Rising Star</div><div class="stat-card-label">Creator Tier</div></div>
     </div>
-    <div class="card" style="margin-bottom:24px;padding:24px">
-      <div class="chart-title">Content Pillars</div>
-      <div class="pillars" id="pillars-container"></div>
-    </div>
+    <div class="card" style="margin-bottom:20px;padding:28px"><div class="chart-title">Content Pillars</div><div class="pillars" id="pillars-container"></div></div>
     <div class="grid-3">
-      <div class="chart-card">
-        <div class="chart-title">Gender Split</div>
-        <div class="pie-container"><div class="pie"><div class="pie-hole"></div></div></div>
-        <div class="pie-legend">
-          <span class="pie-legend-item"><span class="pie-dot" style="background:var(--accent)"></span>Female 62%</span>
-          <span class="pie-legend-item"><span class="pie-dot" style="background:var(--plum)"></span>Male 34%</span>
-          <span class="pie-legend-item"><span class="pie-dot" style="background:var(--gold)"></span>Other 4%</span>
-        </div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Age Distribution</div>
-        <div class="vbar-container" id="age-bars"></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Top Locations</div>
-        <div id="loc-bars" style="padding-top:8px"></div>
-      </div>
+      <div class="chart-card"><div class="chart-title">Gender Split</div><div class="pie-container"><div class="pie"><div class="pie-hole"></div></div></div><div class="pie-legend"><span class="pie-legend-item"><span class="pie-dot" style="background:var(--gold)"></span>Female 62%</span><span class="pie-legend-item"><span class="pie-dot" style="background:var(--plum)"></span>Male 34%</span><span class="pie-legend-item"><span class="pie-dot" style="background:var(--muted2)"></span>Other 4%</span></div></div>
+      <div class="chart-card"><div class="chart-title">Age Distribution</div><div class="vbar-container" id="age-bars"></div></div>
+      <div class="chart-card"><div class="chart-title">Top Locations</div><div id="loc-bars" style="padding-top:8px"></div></div>
     </div>
     <div class="grid-2">
-      <div class="chart-card">
-        <div class="chart-title">Creator Profile</div>
-        <div id="radar-bars" style="padding-top:4px"></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Follower Growth (12mo)</div>
-        <div class="growth-bars" id="growth-chart"></div>
-        <div class="growth-legend">
-          <span><span class="pie-dot" style="background:var(--accent)"></span> Instagram</span>
-          <span><span class="pie-dot" style="background:var(--navy)"></span> TikTok</span>
-        </div>
-      </div>
+      <div class="chart-card"><div class="chart-title">Creator Profile</div><div id="radar-bars" style="padding-top:4px"></div></div>
+      <div class="chart-card"><div class="chart-title">Follower Growth (12mo)</div><div class="growth-bars" id="growth-chart"></div><div class="growth-legend"><span><span class="pie-dot" style="background:var(--gold)"></span> Instagram</span><span><span class="pie-dot" style="background:var(--muted2)"></span> TikTok</span></div></div>
     </div>
   </div>
 </div>
 
 <!-- BRANDS TAB -->
 <div id="tab-brands" class="hidden">
-  <h1 class="page-title">Brand Matches</h1>
+  <h1 class="page-title">Brand <span class="gold-text">Matches</span></h1>
   <p class="page-sub">Brands aligned with your persona, ranked by audience fit and content compatibility.</p>
-  <div id="brands-cta" class="center-cta">
-    <div class="center-icon">♢</div>
-    <h2>Find your brand matches</h2>
-    <p>We'll match you with brands that align with your audience, content style, and niche.</p>
-    <button class="gen-btn" onclick="generateBrands()">Generate Matches</button>
-  </div>
-  <div id="brands-loading" class="loading hidden">
-    <div class="spinner">♢</div>
-    <div class="loading-title">Matching brands to your persona...</div>
-    <div class="loading-sub">Scanning 12,000+ brand profiles</div>
-  </div>
+  <div id="brands-cta" class="center-cta"><div class="center-icon">♢</div><h2>Find your brand matches</h2><p>We'll match you with brands that align with your audience, content style, and niche.</p><button class="gen-btn" onclick="generateBrands()">Generate Matches</button></div>
+  <div id="brands-loading" class="loading hidden"><div class="spinner">♢</div><div class="loading-title">Matching brands to your persona...</div><div class="loading-sub">Scanning 12,000+ brand profiles</div></div>
   <div id="brands-result" class="brand-grid hidden"></div>
 </div>
 
 <!-- PULSE TAB -->
 <div id="tab-pulse" class="hidden">
-  <h1 class="page-title">Pulse</h1>
+  <h1 class="page-title"><span class="gold-text">Pulse</span></h1>
   <p class="page-sub">Content ideas matched to your persona and what's trending right now.</p>
-  <div id="pulse-cta" class="center-cta">
-    <div class="center-icon">◎</div>
-    <h2>Discover what to post next</h2>
-    <p>We'll scan trending topics, sounds, and formats — then match them to your persona for high-engagement ideas.</p>
-    <button class="gen-btn" onclick="generatePulse()">Scan Trends</button>
-  </div>
-  <div id="pulse-loading" class="loading hidden">
-    <div class="spinner">◎</div>
-    <div class="loading-title">Scanning trends across platforms...</div>
-    <div class="loading-sub">Analyzing 50K+ trending posts, sounds, and hashtags</div>
-  </div>
-  <div id="pulse-result" class="hidden">
-    <div class="pulse-filters" id="pulse-filters"></div>
-    <div class="pulse-section-label"><span class="dot" style="background:var(--accent)"></span> Trending Now — Matched to Your Persona</div>
-    <div class="pulse-grid" id="pulse-grid"></div>
-  </div>
+  <div id="pulse-cta" class="center-cta"><div class="center-icon">◎</div><h2>Discover what to post next</h2><p>We'll scan trending topics, sounds, and formats — then match them to your persona for high-engagement ideas.</p><button class="gen-btn" onclick="generatePulse()">Scan Trends</button></div>
+  <div id="pulse-loading" class="loading hidden"><div class="spinner">◎</div><div class="loading-title">Scanning trends across platforms...</div><div class="loading-sub">Analyzing 50K+ trending posts, sounds, and hashtags</div></div>
+  <div id="pulse-result" class="hidden"><div class="pulse-filters" id="pulse-filters"></div><div class="pulse-section-label"><span class="dot" style="background:var(--gold)"></span> Trending Now — Matched to Your Persona</div><div class="pulse-grid" id="pulse-grid"></div></div>
 </div>
 
 </div>
@@ -491,25 +410,24 @@ const state={igConnected:false,ttConnected:false,ytConnected:false,googleLoggedI
 
 function googleLogin(){
   const btn=document.getElementById('google-btn');
-  btn.innerHTML='Signing in...';btn.style.opacity='0.6';
+  btn.innerHTML='Signing in...';btn.style.opacity='0.5';
   setTimeout(()=>{
     state.googleLoggedIn=true;
     document.getElementById('google-login-card').classList.add('hidden');
     document.getElementById('google-connected').classList.remove('hidden');
-    // Auto-connect YouTube
     setTimeout(()=>connectPlatform('yt'),800);
   },1500);
 }
 
 const brands=[
-  {name:"Gymshark",match:96,cat:"Fitness Apparel",reasons:["Shared fitness audience","High engagement overlap","Aesthetic alignment"],deal:"$2,500 – $5,000",col:"#7A8E6E"},
-  {name:"Notion",match:91,cat:"Productivity",reasons:["Creator-focused brand","Content style match","Tech-savvy audience"],deal:"$1,800 – $3,500",col:"#B8965A"},
-  {name:"Liquid Death",match:89,cat:"Beverage",reasons:["Edgy brand voice match","18-34 demo overlap","High virality potential"],deal:"$3,000 – $6,000",col:"#4A5568"},
-  {name:"Skims",match:87,cat:"Fashion / Lifestyle",reasons:["Female audience alignment","Lifestyle content fit","Premium aesthetic"],deal:"$4,000 – $8,000",col:"#C4756E"},
-  {name:"Athletic Greens",match:85,cat:"Health & Wellness",reasons:["Wellness niche overlap","Trust-based audience","Creator-preferred brand"],deal:"$2,000 – $4,500",col:"#7A8E6E"},
-  {name:"Adobe Creative Cloud",match:82,cat:"Software",reasons:["Creative workflow content","Tech audience segment","Educational content fit"],deal:"$3,500 – $7,000",col:"#A85E57"},
-  {name:"Lululemon",match:80,cat:"Athleisure",reasons:["Fitness + lifestyle blend","Premium positioning","Female 25-34 overlap"],deal:"$3,000 – $6,500",col:"#8B6E8E"},
-  {name:"Calm",match:78,cat:"Wellness App",reasons:["Mindfulness content affinity","Self-care audience","High conversion vertical"],deal:"$1,500 – $3,000",col:"#5B7A9E"}
+  {name:"Gymshark",match:96,cat:"Fitness Apparel",reasons:["Shared fitness audience","High engagement overlap","Aesthetic alignment"],deal:"$2,500 – $5,000",col:"var(--green)"},
+  {name:"Notion",match:91,cat:"Productivity",reasons:["Creator-focused brand","Content style match","Tech-savvy audience"],deal:"$1,800 – $3,500",col:"var(--gold)"},
+  {name:"Liquid Death",match:89,cat:"Beverage",reasons:["Edgy brand voice match","18-34 demo overlap","High virality potential"],deal:"$3,000 – $6,000",col:"var(--muted)"},
+  {name:"Skims",match:87,cat:"Fashion / Lifestyle",reasons:["Female audience alignment","Lifestyle content fit","Premium aesthetic"],deal:"$4,000 – $8,000",col:"var(--plum)"},
+  {name:"Athletic Greens",match:85,cat:"Health & Wellness",reasons:["Wellness niche overlap","Trust-based audience","Creator-preferred brand"],deal:"$2,000 – $4,500",col:"var(--green)"},
+  {name:"Adobe Creative Cloud",match:82,cat:"Software",reasons:["Creative workflow content","Tech audience segment","Educational content fit"],deal:"$3,500 – $7,000",col:"var(--red)"},
+  {name:"Lululemon",match:80,cat:"Athleisure",reasons:["Fitness + lifestyle blend","Premium positioning","Female 25-34 overlap"],deal:"$3,000 – $6,500",col:"var(--plum)"},
+  {name:"Calm",match:78,cat:"Wellness App",reasons:["Mindfulness content affinity","Self-care audience","High conversion vertical"],deal:"$1,500 – $3,000",col:"var(--blue)"}
 ];
 
 const pillarsData=[{l:"Fitness",p:38,e:"◆"},{l:"Lifestyle",p:27,e:"◇"},{l:"Beauty",p:18,e:"✦"},{l:"Tech",p:12,e:"▸"},{l:"Wellness",p:5,e:"○"}];
@@ -568,10 +486,10 @@ function buildCharts(){
   setTimeout(()=>{pc.querySelectorAll('.bar-fill').forEach((b,i)=>{b.style.width=pillarsData[i].p*2.5+'%'})},100);
   const ab=document.getElementById('age-bars');
   const maxAge=Math.max(...ageData.map(d=>d.pct));
-  ab.innerHTML=ageData.map(d=>`<div class="vbar-item"><div class="vbar-bar" style="width:24px;height:0;background:var(--accent)" data-h="${d.pct/maxAge*110}"></div><div class="vbar-label">${d.age}</div></div>`).join('');
+  ab.innerHTML=ageData.map(d=>`<div class="vbar-item"><div class="vbar-bar" style="width:20px;height:0;background:var(--gold)" data-h="${d.pct/maxAge*100}"></div><div class="vbar-label">${d.age}</div></div>`).join('');
   setTimeout(()=>{ab.querySelectorAll('.vbar-bar').forEach(b=>{b.style.height=b.dataset.h+'px'})},100);
   const lb=document.getElementById('loc-bars');
-  lb.innerHTML=locData.map(d=>`<div class="hbar"><div class="hbar-label"><span>${d.city}</span><span>${d.pct}%</span></div><div class="hbar-track"><div class="hbar-fill" style="width:0;background:var(--plum)" data-w="${d.pct/18*100}"></div></div></div>`).join('');
+  lb.innerHTML=locData.map(d=>`<div class="hbar"><div class="hbar-label"><span>${d.city}</span><span>${d.pct}%</span></div><div class="hbar-track"><div class="hbar-fill" style="width:0;background:var(--gold3)" data-w="${d.pct/18*100}"></div></div></div>`).join('');
   setTimeout(()=>{lb.querySelectorAll('.hbar-fill').forEach(b=>{b.style.width=b.dataset.w+'%'})},100);
   const rb=document.getElementById('radar-bars');
   rb.innerHTML=radarData.map(d=>`<div class="radar-item"><div class="radar-label"><span>${d.t}</span><span>${d.v}</span></div><div class="radar-track"><div class="radar-fill" style="width:0" data-w="${d.v}"></div></div></div>`).join('');
@@ -581,7 +499,7 @@ function buildCharts(){
   const maxG=500000;
   gc.innerHTML=months.map((m,i)=>{
     const ig=280000+i*18000;const tt=150000+i*22000;
-    return`<div class="growth-col"><div class="growth-stack"><div class="growth-bar-ig" style="height:0" data-h="${ig/maxG*130}"></div><div class="growth-bar-tt" style="height:0" data-h="${tt/maxG*130}"></div></div><div class="growth-label">${m}</div></div>`;
+    return`<div class="growth-col"><div class="growth-stack"><div class="growth-bar-ig" style="height:0" data-h="${ig/maxG*120}"></div><div class="growth-bar-tt" style="height:0" data-h="${tt/maxG*120}"></div></div><div class="growth-label">${m}</div></div>`;
   }).join('');
   setTimeout(()=>{gc.querySelectorAll('.growth-bar-ig,.growth-bar-tt').forEach(b=>{b.style.height=b.dataset.h+'px'})},100);
 }
@@ -603,7 +521,7 @@ function generateBrands(){
       card.innerHTML=`
         <div class="brand-head">
           <div class="brand-info">
-            <div class="brand-logo" style="background:${b.col}18;border:1px solid ${b.col}30;color:${b.col}">${b.name[0]}</div>
+            <div class="brand-logo" style="background:var(--card2);border:1px solid var(--border2);color:var(--gold)">${b.name[0]}</div>
             <div><div class="brand-name">${b.name}</div><div class="brand-cat">${b.cat}</div></div>
           </div>
           <div class="brand-match">${b.match}%</div>
@@ -680,7 +598,7 @@ function renderPulseCards(cat){
       <div class="pulse-tags">${idea.tags.map(t=>`<span class="pulse-tag">${t}</span>`).join('')}${idea.persona.map(p=>`<span class="pulse-tag persona">${p}</span>`).join('')}</div>
       <div class="pulse-actions">
         <button class="pulse-save-btn" onclick="togglePulseSave(this,'${idea.title.replace(/'/g,"&#39;")}')">Save</button>
-        <button class="pulse-draft-btn" onclick="this.innerHTML='✓ Added to Drafts';this.style.opacity=0.7">Draft Script</button>
+        <button class="pulse-draft-btn" onclick="this.innerHTML='✓ Drafted';this.style.opacity=0.6">Draft Script</button>
       </div>`;
     grid.appendChild(card);
     idx++;
