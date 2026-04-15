@@ -584,26 +584,14 @@ async function generatePersona(){
   document.getElementById('persona-cta').classList.add('hidden');
   document.getElementById('persona-loading').classList.remove('hidden');
 
-  const system=`You are an expert creator analytics engine. Given social media stats, return a JSON persona profile.
-Return ONLY valid JSON, no explanation. Schema:
-{
-  "name": "string (use provided name or 'Your Persona')",
-  "bio": "string (2-sentence creator bio)",
-  "score": number (0-100),
-  "vibes": ["tag1","tag2",...],  // 5-6 style/tone descriptors
-  "totalReach": "string e.g. '549K'",
-  "avgEngagement": "string e.g. '5.3%'",
-  "growthRate": "string e.g. '+18K/mo'",
-  "tier": "string e.g. 'Rising Star'",
-  "pillars": [{"l":"label","p":number,"e":"icon"}],  // 4-5 content pillars, p=percentage, e=single unicode symbol
-  "age": [{"age":"13-17","pct":number},{"age":"18-24","pct":number},{"age":"25-34","pct":number},{"age":"35-44","pct":number},{"age":"45+","pct":number}],
-  "locations": [{"city":"string","pct":number}],  // top 5
-  "radar": [{"t":"Authenticity","v":number},{"t":"Consistency","v":number},{"t":"Engagement","v":number},{"t":"Reach","v":number},{"t":"Growth","v":number},{"t":"Niche Fit","v":number}]
-}`;
+  const system=`You are an expert creator analytics engine. Return ONLY valid JSON, no markdown, no explanation. Follow the exact structure of this example — same keys, same types, same array shapes:
 
-  const name=getUserName()||'the creator';
+{"name":"Jordan Mitchell","bio":"Fitness enthusiast & lifestyle creator sharing workouts, wellness tips, and daily inspo.","score":87,"vibes":["Aspirational","Warm Tones","High Energy","Relatable","Polished Casual"],"totalReach":"549K","avgEngagement":"5.3%","growthRate":"+18K/mo","tier":"Rising Star","pillars":[{"l":"Fitness","p":38,"e":"◆"},{"l":"Lifestyle","p":27,"e":"◇"},{"l":"Beauty","p":18,"e":"✦"},{"l":"Tech","p":12,"e":"▸"},{"l":"Wellness","p":5,"e":"○"}],"age":[{"age":"13-17","pct":8},{"age":"18-24","pct":34},{"age":"25-34","pct":38},{"age":"35-44","pct":14},{"age":"45+","pct":6}],"locations":[{"city":"Los Angeles","pct":18},{"city":"New York","pct":14},{"city":"London","pct":9},{"city":"Chicago","pct":7},{"city":"Miami","pct":6}],"radar":[{"t":"Authenticity","v":88},{"t":"Consistency","v":76},{"t":"Engagement","v":92},{"t":"Reach","v":70},{"t":"Growth","v":85},{"t":"Niche Fit","v":94}]}
+
+Use realistic values based on the creator's actual data. pillars percentages must sum to 100. age pcts must sum to 100. locations pcts should sum to ~50-55. radar v values are 0-100. totalReach, avgEngagement, growthRate must be strings. pillars "e" must be a single unicode symbol.`;
+
   const stats=getConnectedStats();
-  const user=`Creator name: ${name}\n\nPlatform data:\n${stats}\n\nGenerate a realistic persona profile.`;
+  const user=`Platform data:\n${stats}\n\nGenerate a persona profile for this creator. Return ONLY JSON.`;
 
   try {
     const raw=await kimiChat(system,user);
@@ -679,16 +667,11 @@ async function generateBrands(){
   document.getElementById('brands-cta').classList.add('hidden');
   document.getElementById('brands-loading').classList.remove('hidden');
 
-  const system=`You are a brand partnership matchmaker for social media creators. Given a creator persona, return exactly 8 brand matches as JSON.
-Return ONLY a JSON array, no explanation. Each item:
-{
-  "name": "string",
-  "match": number (60-99),
-  "cat": "string (category)",
-  "reasons": ["string","string","string"],  // exactly 3 reasons
-  "deal": "string e.g. '$2,500 – $5,000'"
-}
-Order by match score descending. Use realistic, well-known brands appropriate for the creator's niche.`;
+  const system=`You are a brand partnership matchmaker. Return ONLY a JSON array of exactly 8 brands, no markdown, no explanation. Follow this exact structure:
+
+[{"name":"Gymshark","match":96,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"},{"name":"Notion","match":91,"cat":"Productivity","reasons":["Creator-focused brand","Content style match","Tech-savvy audience"],"deal":"$1,800 – $3,500"}]
+
+Use real well-known brands. match is 60-99. reasons is exactly 3 strings. deal is a dollar range string. Order by match descending.`;
 
   const personaSummary=state.persona
     ? `Name: ${state.persona.name}\nBio: ${state.persona.bio}\nPillars: ${state.persona.pillars.map(p=>p.l).join(', ')}\nVibes: ${state.persona.vibes.join(', ')}\nReach: ${state.persona.totalReach}\nEngagement: ${state.persona.avgEngagement}`
@@ -751,22 +734,11 @@ async function generatePulse(){
   document.getElementById('pulse-cta').classList.add('hidden');
   document.getElementById('pulse-loading').classList.remove('hidden');
 
-  const system=`You are a viral content strategist for social media creators. Given a creator persona, return exactly 10 content ideas as JSON.
-Return ONLY a JSON array, no explanation. Each item:
-{
-  "title": "string (catchy content title)",
-  "hook": "string (2-3 sentence explanation of why this works for this creator right now)",
-  "trend": "hot"|"rising"|"steady"|"new",
-  "match": number (75-99),
-  "format": "string e.g. 'Reel / TikTok'",
-  "platform": "Instagram"|"TikTok"|"Both"|"YouTube",
-  "estReach": "string e.g. '40K – 80K'",
-  "tags": ["#tag1","#tag2","#tag3"],
-  "persona": ["trait1","trait2"],  // 2 persona traits this idea matches
-  "cat": "fitness"|"lifestyle"|"beauty"|"tech"|"wellness"|"other",
-  "sound": "string (optional trending sound suggestion, omit if not applicable)"
-}
-Mix categories. Order by match score descending.`;
+  const system=`You are a viral content strategist. Return ONLY a JSON array of exactly 10 content ideas, no markdown, no explanation. Follow this exact structure:
+
+[{"title":"What I Eat in a Day — Honest Version","hook":"The anti-aesthetic meal prep trend is taking off. Your audience loves relatable fitness content.","trend":"hot","match":96,"format":"Reel / TikTok","platform":"Both","estReach":"45K – 80K","tags":["#WhatIEat","#RealFood","#FitnessJourney"],"persona":["Relatable","Fitness"],"cat":"fitness","sound":"Trending: original sound — meal prep queen"}]
+
+trend must be: hot, rising, steady, or new. platform must be: Both, Instagram, TikTok, or YouTube. cat must be one of: fitness, lifestyle, beauty, tech, wellness, other. sound is optional. Mix categories. Order by match descending.`;
 
   const personaSummary=state.persona
     ? `Name: ${state.persona.name}\nBio: ${state.persona.bio}\nPillars: ${state.persona.pillars.map(p=>p.l).join(', ')}\nVibes: ${state.persona.vibes.join(', ')}\nTop engagement: ${state.persona.avgEngagement}`
