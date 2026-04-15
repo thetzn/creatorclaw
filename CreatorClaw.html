@@ -4,184 +4,198 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CreatorClaw</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <style>
+:root{
+  --bg:#FDFBF9;--card:#FFFFFF;--card-alt:#F9F6F3;--border:#EDE8E3;
+  --text:#2D2A26;--muted:#8A8279;--accent:#C4756E;--accent2:#D4918B;
+  --accent-light:#F5E6E4;--accent-dark:#A85E57;
+  --plum:#8B6E8E;--plum-light:#F0E8F1;
+  --sage:#7A8E6E;--sage-light:#E8F0E4;
+  --gold:#B8965A;--gold-light:#F5EDE0;
+  --navy:#4A5568;
+  --radius:14px;--radius-lg:20px;
+  --shadow:0 1px 3px rgba(0,0,0,0.04),0 4px 12px rgba(0,0,0,0.03);
+  --shadow-lg:0 4px 24px rgba(0,0,0,0.06);
+}
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#0f0f14;color:#e4e4eb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
+h1,h2,h3,.serif{font-family:'Playfair Display',Georgia,serif}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-.fade-up{animation:fadeUp 0.4s ease forwards}
-button{font-family:inherit;cursor:pointer;border:none;transition:all 0.2s}
-button:hover{filter:brightness(1.1)}
+.fade-up{animation:fadeUp 0.5s ease forwards}
+button{font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all 0.25s ease}
+button:hover{transform:translateY(-1px)}
 
-.header{background:linear-gradient(180deg,rgba(24,24,34,0.5),#0f0f14);border-bottom:1px solid #2a2a3a;padding:0 32px;position:sticky;top:0;z-index:50;backdrop-filter:blur(12px)}
-.header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
+/* Header */
+.header{background:rgba(253,251,249,0.85);border-bottom:1px solid var(--border);padding:0 40px;position:sticky;top:0;z-index:50;backdrop-filter:blur(16px)}
+.header-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:68px}
 .logo{display:flex;align-items:center;gap:10px}
-.logo-icon{background:linear-gradient(135deg,#d946ef,#a855f7);border-radius:10px;padding:8px;font-size:18px;line-height:1}
-.logo-text{font-size:20px;font-weight:800;letter-spacing:-0.5px;background:linear-gradient(135deg,#d946ef,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.nav{display:flex;gap:4px}
-.nav-btn{display:flex;align-items:center;gap:8px;padding:8px 18px;border-radius:8px;font-size:14px;font-weight:600;color:#8888a0;background:transparent}
-.nav-btn.active{color:#fff;background:linear-gradient(135deg,rgba(217,70,239,0.19),rgba(168,85,247,0.19))}
-.avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#d946ef,#a855f7);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff}
-.main{max-width:1200px;margin:0 auto;padding:32px 32px 64px}
-.page-title{font-size:28px;font-weight:800;margin-bottom:6px}
-.page-sub{color:#8888a0;font-size:15px;margin-bottom:32px}
+.logo-mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--plum));display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700;font-family:'Playfair Display',serif}
+.logo-text{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--text);letter-spacing:-0.3px}
+.nav{display:flex;gap:2px;background:var(--card-alt);border-radius:10px;padding:3px;border:1px solid var(--border)}
+.nav-btn{padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);background:transparent;letter-spacing:0.01em}
+.nav-btn.active{color:var(--text);background:var(--card);box-shadow:var(--shadow)}
+.avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent-light),var(--plum-light));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--accent-dark);border:2px solid var(--border)}
 
-.card{background:#1a1a24;border-radius:16px;border:1px solid #2a2a3a;padding:28px;transition:all 0.3s}
-.card-2col{display:grid;grid-template-columns:1fr 1fr;gap:24px}
-.card-4col{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
-.card-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:24px}
-.card-2col-eq{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.main{max-width:1100px;margin:0 auto;padding:40px 40px 80px}
+.page-title{font-size:32px;font-weight:700;margin-bottom:6px;color:var(--text);letter-spacing:-0.5px}
+.page-sub{color:var(--muted);font-size:15px;margin-bottom:36px;font-weight:400;line-height:1.5}
 
+/* Cards */
+.card{background:var(--card);border-radius:var(--radius-lg);border:1px solid var(--border);padding:28px;box-shadow:var(--shadow);transition:all 0.3s}
+.card:hover{box-shadow:var(--shadow-lg)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:24px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+
+/* Platform Cards */
 .plat-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
-.plat-icon{border-radius:12px;padding:10px;font-size:20px;line-height:1}
 .plat-info{display:flex;align-items:center;gap:12px}
-.plat-name{font-weight:700;font-size:18px}
-.plat-desc{font-size:12px;color:#8888a0}
-.connected-badge{display:flex;align-items:center;gap:6px;color:#22c55e;font-size:13px;font-weight:600}
+.plat-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.plat-name{font-weight:700;font-size:16px}
+.plat-desc{font-size:12px;color:var(--muted)}
+.connected-badge{display:flex;align-items:center;gap:5px;color:var(--sage);font-size:12px;font-weight:600;background:var(--sage-light);padding:4px 10px;border-radius:20px}
 
-.connect-btn{width:100%;padding:12px 0;border-radius:10px;color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px}
+.connect-btn{width:100%;padding:13px 0;border-radius:12px;color:#fff;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:0.01em}
 .connect-btn.ig{background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)}
-.connect-btn.tt{background:linear-gradient(135deg,#00f2ea,#ff0050)}
-.connect-btn:disabled{opacity:0.7;cursor:wait}
+.connect-btn.tt{background:#000}
+.connect-btn:disabled{opacity:0.6;cursor:wait}
 
-.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.stat-box{background:#22222e;border-radius:10px;padding:14px;text-align:center}
-.stat-val{font-size:20px;font-weight:700}
-.stat-label{font-size:11px;color:#8888a0}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat-box{background:var(--card-alt);border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border)}
+.stat-val{font-size:20px;font-weight:700;color:var(--text)}
+.stat-label{font-size:11px;color:var(--muted);margin-top:2px}
 
-.cta-banner{margin-top:28px;background:linear-gradient(135deg,rgba(217,70,239,0.08),rgba(168,85,247,0.08));border:1px solid rgba(217,70,239,0.25);border-radius:12px;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
-.cta-banner span{font-weight:600}
-.cta-banner .hl{color:#d946ef}
-.cta-btn{background:linear-gradient(135deg,#d946ef,#a855f7);border-radius:8px;padding:8px 20px;color:#fff;font-weight:700;font-size:14px}
+.cta-banner{margin-top:28px;background:var(--accent-light);border:1px solid rgba(196,117,110,0.2);border-radius:14px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between}
+.cta-banner span{font-weight:500;font-size:14px;color:var(--text)}
+.cta-banner .hl{color:var(--accent-dark);font-weight:700}
+.cta-btn{background:var(--accent);border-radius:10px;padding:10px 22px;color:#fff;font-weight:600;font-size:13px}
 
+/* Center CTA */
 .center-cta{text-align:center;padding:80px 0}
-.center-icon{width:80px;height:80px;border-radius:20px;background:linear-gradient(135deg,rgba(217,70,239,0.19),rgba(168,85,247,0.19));display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:36px}
-.center-cta h2{font-size:22px;font-weight:700;margin-bottom:8px}
-.center-cta p{color:#8888a0;margin-bottom:24px;max-width:400px;margin-left:auto;margin-right:auto}
-.gen-btn{background:linear-gradient(135deg,#d946ef,#a855f7);border-radius:12px;padding:14px 36px;color:#fff;font-size:16px;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+.center-icon{width:72px;height:72px;border-radius:20px;background:var(--accent-light);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:32px}
+.center-cta h2{font-size:24px;font-weight:700;margin-bottom:10px}
+.center-cta p{color:var(--muted);margin-bottom:28px;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.6;font-size:14px}
+.gen-btn{background:var(--accent);border-radius:12px;padding:14px 36px;color:#fff;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(196,117,110,0.25)}
 
 .loading{text-align:center;padding:100px 0}
-.spinner{font-size:48px;display:inline-block;animation:spin 1s linear infinite;margin-bottom:20px}
-.loading-title{font-weight:600;font-size:18px}
-.loading-sub{color:#8888a0;font-size:14px;margin-top:6px}
+.spinner{font-size:36px;display:inline-block;animation:spin 1.5s ease-in-out infinite;margin-bottom:20px}
+.loading-title{font-weight:600;font-size:17px;color:var(--text)}
+.loading-sub{color:var(--muted);font-size:13px;margin-top:6px}
 
 /* Persona */
-.persona-header{display:flex;gap:24px;margin-bottom:24px}
-.persona-avatar{width:100px;height:100px;border-radius:24px;background:linear-gradient(135deg,#d946ef,#a855f7);display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:800;color:#fff;flex-shrink:0}
+.persona-header{display:flex;gap:28px;margin-bottom:24px;align-items:flex-start}
+.persona-avatar{width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,var(--accent-light),var(--plum-light));display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--accent-dark);flex-shrink:0;border:3px solid var(--border)}
 .persona-bio{flex:1}
-.persona-name{display:flex;align-items:center;gap:10px;margin-bottom:6px}
-.persona-name h2{font-size:24px;font-weight:800}
-.persona-name .check{color:#d946ef;font-size:18px}
-.persona-desc{color:#8888a0;font-size:14px;line-height:1.5;margin-bottom:12px;max-width:500px}
-.vibe-tags{display:flex;gap:8px;flex-wrap:wrap}
-.vibe-tag{background:rgba(217,70,239,0.12);color:#d946ef;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600}
+.persona-name{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.persona-name h2{font-size:22px;font-weight:700;letter-spacing:-0.3px}
+.persona-name .check{color:var(--accent);font-size:16px}
+.persona-desc{color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:14px;max-width:480px}
+.vibe-tags{display:flex;gap:6px;flex-wrap:wrap}
+.vibe-tag{background:var(--card-alt);color:var(--muted);border-radius:20px;padding:5px 13px;font-size:11px;font-weight:600;border:1px solid var(--border)}
 .score-wrap{text-align:center;flex-shrink:0}
-.score-ring{width:80px;height:80px;border-radius:50%;background:conic-gradient(#d946ef 0deg,#a855f7 313.2deg,#2a2a3a 313.2deg);display:flex;align-items:center;justify-content:center}
-.score-inner{width:64px;height:64px;border-radius:50%;background:#1a1a24;display:flex;align-items:center;justify-content:center}
-.score-num{font-size:22px;font-weight:800}
-.score-label{font-size:11px;color:#8888a0;margin-top:6px;font-weight:600}
+.score-ring{width:76px;height:76px;border-radius:50%;background:conic-gradient(var(--accent) 0deg,var(--plum) 313.2deg,var(--border) 313.2deg);display:flex;align-items:center;justify-content:center}
+.score-inner{width:60px;height:60px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center}
+.score-num{font-size:20px;font-weight:700;font-family:'Playfair Display',serif;color:var(--accent-dark)}
+.score-label{font-size:10px;color:var(--muted);margin-top:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
 
-.stat-card{background:#22222e;border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:14px;border:1px solid #2a2a3a}
-.stat-card-icon{background:linear-gradient(135deg,#d946ef,#a855f7);border-radius:10px;padding:10px;font-size:18px;line-height:1}
-.stat-card-val{font-size:22px;font-weight:700}
-.stat-card-label{font-size:12px;color:#8888a0}
-.stat-card-sub{color:#22c55e;margin-left:6px;font-weight:600}
+.stat-card{background:var(--card);border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:14px;border:1px solid var(--border);box-shadow:var(--shadow)}
+.stat-card-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.stat-card-val{font-size:20px;font-weight:700}
+.stat-card-label{font-size:12px;color:var(--muted)}
+.stat-card-sub{color:var(--sage);margin-left:4px;font-weight:600;font-size:11px}
 
-.pillars{display:flex;gap:12px;margin-bottom:24px}
-.pillar{flex:1;background:#22222e;border-radius:12px;padding:16px;text-align:center}
-.pillar-icon{font-size:22px;margin-bottom:6px}
-.pillar-name{font-weight:700;font-size:14px;margin-bottom:4px}
-.pillar-pct{font-size:12px;color:#8888a0;margin-bottom:6px}
-.bar-bg{height:6px;border-radius:3px;background:#2a2a3a;width:100%;overflow:hidden}
-.bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#a855f7,#d946ef);transition:width 1s ease}
+.pillars{display:flex;gap:10px;margin-bottom:0}
+.pillar{flex:1;background:var(--card-alt);border-radius:14px;padding:18px;text-align:center;border:1px solid var(--border)}
+.pillar-icon{font-size:20px;margin-bottom:6px}
+.pillar-name{font-weight:700;font-size:13px;margin-bottom:4px}
+.pillar-pct{font-size:12px;color:var(--muted);margin-bottom:8px}
+.bar-bg{height:4px;border-radius:2px;background:var(--border);width:100%;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--plum));transition:width 1s ease}
 
 /* Charts */
-.chart-card{background:#1a1a24;border-radius:16px;border:1px solid #2a2a3a;padding:20px}
-.chart-title{font-size:14px;font-weight:700;margin-bottom:16px}
-.chart-area{position:relative;height:180px}
+.chart-card{background:var(--card);border-radius:var(--radius-lg);border:1px solid var(--border);padding:22px;box-shadow:var(--shadow)}
+.chart-title{font-size:13px;font-weight:700;margin-bottom:16px;color:var(--text);text-transform:uppercase;letter-spacing:0.5px}
 
-/* Pie chart via CSS */
-.pie-container{display:flex;justify-content:center;margin-bottom:12px}
-.pie{width:130px;height:130px;border-radius:50%;background:conic-gradient(#d946ef 0deg 223.2deg,#a855f7 223.2deg 345.6deg,#6366f1 345.6deg 360deg);position:relative}
-.pie-hole{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:80px;border-radius:50%;background:#1a1a24}
-.pie-legend{display:flex;justify-content:center;gap:12px;font-size:11px}
-.pie-legend-item{display:flex;align-items:center;gap:4px;color:#8888a0}
-.pie-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.pie-container{display:flex;justify-content:center;margin-bottom:14px}
+.pie{width:120px;height:120px;border-radius:50%;background:conic-gradient(var(--accent) 0deg 223.2deg,var(--plum) 223.2deg 345.6deg,var(--gold) 345.6deg 360deg);position:relative}
+.pie-hole{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:74px;height:74px;border-radius:50%;background:var(--card)}
+.pie-legend{display:flex;justify-content:center;gap:14px;font-size:11px}
+.pie-legend-item{display:flex;align-items:center;gap:4px;color:var(--muted)}
+.pie-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
 
-/* Bar charts */
-.hbar{margin-bottom:8px}
-.hbar-label{font-size:11px;color:#8888a0;margin-bottom:3px;display:flex;justify-content:space-between}
-.hbar-track{height:8px;border-radius:4px;background:#2a2a3a;overflow:hidden}
-.hbar-fill{height:100%;border-radius:4px;transition:width 1s ease}
+.hbar{margin-bottom:10px}
+.hbar-label{font-size:11px;color:var(--muted);margin-bottom:4px;display:flex;justify-content:space-between}
+.hbar-track{height:6px;border-radius:3px;background:var(--card-alt);overflow:hidden;border:1px solid var(--border)}
+.hbar-fill{height:100%;border-radius:3px;transition:width 1s ease}
 
-.vbar-container{display:flex;align-items:flex-end;justify-content:space-around;height:140px;padding-top:10px}
-.vbar-item{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}
-.vbar-bar{width:28px;border-radius:4px 4px 0 0;transition:height 1s ease}
-.vbar-label{font-size:10px;color:#8888a0}
+.vbar-container{display:flex;align-items:flex-end;justify-content:space-around;height:130px;padding-top:10px}
+.vbar-item{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1}
+.vbar-bar{width:24px;border-radius:6px 6px 0 0;transition:height 1s ease}
+.vbar-label{font-size:10px;color:var(--muted);font-weight:500}
 
-/* Radar - simplified as horizontal bars */
-.radar-item{margin-bottom:10px}
-.radar-label{font-size:11px;color:#8888a0;margin-bottom:3px;display:flex;justify-content:space-between}
-.radar-track{height:6px;border-radius:3px;background:#2a2a3a;overflow:hidden}
-.radar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#d946ef,#a855f7);transition:width 1s ease}
+.radar-item{margin-bottom:12px}
+.radar-label{font-size:11px;color:var(--muted);margin-bottom:4px;display:flex;justify-content:space-between}
+.radar-label span:last-child{font-weight:700;color:var(--text)}
+.radar-track{height:4px;border-radius:2px;background:var(--card-alt);overflow:hidden;border:1px solid var(--border)}
+.radar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--plum));transition:width 1s ease}
 
-/* Growth chart - simplified */
-.growth-bars{display:flex;align-items:flex-end;gap:4px;height:160px;padding:10px 0}
+.growth-bars{display:flex;align-items:flex-end;gap:3px;height:150px;padding:10px 0}
 .growth-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
 .growth-stack{width:100%;display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;justify-content:flex-end}
-.growth-bar-ig{width:16px;border-radius:3px 3px 0 0;background:#e1306c;transition:height 1s ease}
-.growth-bar-tt{width:16px;border-radius:3px 3px 0 0;background:#00f2ea;transition:height 1s ease}
-.growth-label{font-size:8px;color:#8888a0;margin-top:4px}
-.growth-legend{display:flex;justify-content:center;gap:16px;margin-top:8px;font-size:11px}
-.growth-legend span{display:flex;align-items:center;gap:4px;color:#8888a0}
+.growth-bar-ig{width:14px;border-radius:4px 4px 0 0;background:var(--accent);transition:height 1s ease}
+.growth-bar-tt{width:14px;border-radius:4px 4px 0 0;background:var(--navy);transition:height 1s ease}
+.growth-label{font-size:8px;color:var(--muted);margin-top:4px;font-weight:500}
+.growth-legend{display:flex;justify-content:center;gap:18px;margin-top:10px;font-size:11px;color:var(--muted)}
 
 /* Brands */
 .brand-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-.brand-card{background:#1a1a24;border-radius:16px;border:1px solid #2a2a3a;padding:24px}
-.brand-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.brand-logo{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800}
-.brand-info{display:flex;align-items:center;gap:14px}
-.brand-name{font-weight:700;font-size:17px}
-.brand-cat{font-size:12px;color:#8888a0}
-.brand-match{background:rgba(217,70,239,0.12);color:#d946ef;border-radius:20px;padding:4px 12px;font-weight:800;font-size:14px}
-.brand-reasons{margin:14px 0}
-.brand-reason{display:flex;align-items:center;gap:8px;font-size:13px;color:#8888a0;margin-bottom:4px}
-.brand-reason .chk{color:#22c55e}
-.brand-footer{display:flex;align-items:center;justify-content:space-between}
-.brand-deal{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;color:#22c55e}
-.outreach-btn{background:linear-gradient(135deg,#d946ef,#a855f7);border-radius:8px;padding:8px 18px;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px}
-.outreach-btn.sent{background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);color:#22c55e}
+.brand-card{background:var(--card);border-radius:var(--radius-lg);border:1px solid var(--border);padding:24px;box-shadow:var(--shadow)}
+.brand-card:hover{box-shadow:var(--shadow-lg)}
+.brand-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.brand-logo{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800}
+.brand-info{display:flex;align-items:center;gap:12px}
+.brand-name{font-weight:700;font-size:16px}
+.brand-cat{font-size:11px;color:var(--muted)}
+.brand-match{background:var(--accent-light);color:var(--accent-dark);border-radius:20px;padding:4px 12px;font-weight:700;font-size:13px}
+.brand-reasons{margin:12px 0}
+.brand-reason{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);margin-bottom:5px}
+.brand-reason .chk{color:var(--sage);font-weight:700}
+.brand-footer{display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--border)}
+.brand-deal{font-size:14px;font-weight:700;color:var(--sage)}
+.outreach-btn{background:var(--accent);border-radius:10px;padding:9px 18px;color:#fff;font-weight:600;font-size:12px;display:flex;align-items:center;gap:5px}
+.outreach-btn.sent{background:var(--sage-light);color:var(--sage);border:1px solid rgba(122,142,110,0.2)}
 
 /* Pulse */
-.pulse-filters{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
-.pulse-filter{padding:6px 16px;border-radius:20px;font-size:13px;font-weight:600;color:#8888a0;background:#22222e;border:1px solid #2a2a3a}
-.pulse-filter.active{color:#fff;background:linear-gradient(135deg,#d946ef,#a855f7);border-color:transparent}
-.pulse-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-.pulse-card{background:#1a1a24;border-radius:16px;border:1px solid #2a2a3a;padding:24px;position:relative;overflow:hidden}
-.pulse-card:hover{border-color:rgba(217,70,239,0.3)}
-.pulse-trend-badge{position:absolute;top:16px;right:16px;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:700}
-.pulse-trend-badge.hot{background:rgba(239,68,68,0.15);color:#ef4444}
-.pulse-trend-badge.rising{background:rgba(245,158,11,0.15);color:#f59e0b}
-.pulse-trend-badge.steady{background:rgba(34,197,94,0.15);color:#22c55e}
-.pulse-trend-badge.new{background:rgba(99,102,241,0.15);color:#818cf8}
-.pulse-idea-title{font-weight:700;font-size:17px;margin-bottom:6px;padding-right:70px}
-.pulse-idea-hook{color:#8888a0;font-size:13px;line-height:1.5;margin-bottom:14px}
-.pulse-meta{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
-.pulse-meta-item{display:flex;align-items:center;gap:5px;font-size:12px;color:#8888a0}
-.pulse-meta-item .val{color:#e4e4eb;font-weight:600}
-.pulse-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
-.pulse-tag{font-size:11px;padding:3px 10px;border-radius:12px;background:#22222e;color:#8888a0;border:1px solid #2a2a3a}
-.pulse-tag.persona{background:rgba(217,70,239,0.1);color:#d946ef;border-color:rgba(217,70,239,0.2)}
-.pulse-actions{display:flex;gap:8px}
-.pulse-save-btn{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;background:#22222e;color:#8888a0;border:1px solid #2a2a3a;display:flex;align-items:center;gap:5px}
-.pulse-save-btn.saved{background:rgba(217,70,239,0.12);color:#d946ef;border-color:rgba(217,70,239,0.25)}
-.pulse-draft-btn{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;background:linear-gradient(135deg,#d946ef,#a855f7);color:#fff;display:flex;align-items:center;gap:5px}
-.pulse-section-label{font-size:12px;font-weight:700;color:#8888a0;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.pulse-filters{display:flex;gap:6px;margin-bottom:28px;flex-wrap:wrap}
+.pulse-filter{padding:7px 18px;border-radius:20px;font-size:12px;font-weight:600;color:var(--muted);background:var(--card);border:1px solid var(--border)}
+.pulse-filter.active{color:#fff;background:var(--accent);border-color:var(--accent)}
+.pulse-section-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
 .pulse-section-label .dot{width:6px;height:6px;border-radius:50%}
-.pulse-persona-match{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#22222e;border-radius:10px;margin-bottom:14px;border:1px solid #2a2a3a}
-.pulse-persona-match .match-score{font-weight:800;font-size:15px;color:#d946ef}
-.pulse-persona-match .match-text{font-size:12px;color:#8888a0}
-.pulse-format{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;background:#22222e;color:#e4e4eb;border:1px solid #2a2a3a}
+.pulse-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.pulse-card{background:var(--card);border-radius:var(--radius-lg);border:1px solid var(--border);padding:24px;position:relative;overflow:hidden;box-shadow:var(--shadow)}
+.pulse-card:hover{box-shadow:var(--shadow-lg)}
+.pulse-trend-badge{position:absolute;top:18px;right:18px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.3px}
+.pulse-trend-badge.hot{background:#FEE2E2;color:#DC2626}
+.pulse-trend-badge.rising{background:var(--gold-light);color:var(--gold)}
+.pulse-trend-badge.steady{background:var(--sage-light);color:var(--sage)}
+.pulse-trend-badge.new{background:var(--plum-light);color:var(--plum)}
+.pulse-idea-title{font-weight:700;font-size:16px;margin-bottom:8px;padding-right:70px;line-height:1.3}
+.pulse-idea-hook{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:14px}
+.pulse-persona-match{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card-alt);border-radius:12px;margin-bottom:14px;border:1px solid var(--border)}
+.pulse-persona-match .match-score{font-weight:800;font-size:15px;color:var(--accent-dark);font-family:'Playfair Display',serif}
+.pulse-persona-match .match-text{font-size:11px;color:var(--muted);line-height:1.4}
+.pulse-meta{display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+.pulse-meta-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)}
+.pulse-meta-item .val{color:var(--text);font-weight:600}
+.pulse-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:16px}
+.pulse-tag{font-size:10px;padding:3px 10px;border-radius:12px;background:var(--card-alt);color:var(--muted);border:1px solid var(--border);font-weight:500}
+.pulse-tag.persona{background:var(--accent-light);color:var(--accent-dark);border-color:rgba(196,117,110,0.2)}
+.pulse-actions{display:flex;gap:8px}
+.pulse-save-btn{padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;background:var(--card-alt);color:var(--muted);border:1px solid var(--border);display:flex;align-items:center;gap:5px}
+.pulse-save-btn.saved{background:var(--accent-light);color:var(--accent-dark);border-color:rgba(196,117,110,0.2)}
+.pulse-draft-btn{padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;display:flex;align-items:center;gap:5px}
 
 .hidden{display:none}
 </style>
@@ -191,14 +205,14 @@ button:hover{filter:brightness(1.1)}
 <div class="header">
   <div class="header-inner">
     <div class="logo">
-      <div class="logo-icon">⚡</div>
+      <div class="logo-mark">C</div>
       <span class="logo-text">CreatorClaw</span>
     </div>
     <div class="nav" id="nav">
-      <button class="nav-btn active" data-tab="connect" onclick="switchTab('connect')">🔗 Connect</button>
-      <button class="nav-btn" data-tab="persona" onclick="switchTab('persona')">👤 Persona</button>
-      <button class="nav-btn" data-tab="brands" onclick="switchTab('brands')">🎯 Brand Match</button>
-      <button class="nav-btn" data-tab="pulse" onclick="switchTab('pulse')">📡 Pulse</button>
+      <button class="nav-btn active" data-tab="connect" onclick="switchTab('connect')">Connect</button>
+      <button class="nav-btn" data-tab="persona" onclick="switchTab('persona')">Persona</button>
+      <button class="nav-btn" data-tab="brands" onclick="switchTab('brands')">Brand Match</button>
+      <button class="nav-btn" data-tab="pulse" onclick="switchTab('pulse')">Pulse</button>
     </div>
     <div class="avatar">JM</div>
   </div>
@@ -208,21 +222,18 @@ button:hover{filter:brightness(1.1)}
 
 <!-- CONNECT TAB -->
 <div id="tab-connect">
-  <h1 class="page-title">Connect Your Platforms</h1>
-  <p class="page-sub">Link your social accounts so CreatorClaw can analyze your content and audience.</p>
-  <div class="card-2col">
-    <!-- Instagram -->
+  <h1 class="page-title">Connect your platforms</h1>
+  <p class="page-sub">Link your social accounts so we can analyze your content, audience, and engagement patterns.</p>
+  <div class="grid-2">
     <div class="card" id="ig-card">
       <div class="plat-head">
         <div class="plat-info">
-          <div class="plat-icon" style="background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)">📷</div>
+          <div class="plat-icon" style="background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff">📷</div>
           <div><div class="plat-name">Instagram</div><div class="plat-desc">Photos, Reels, Stories</div></div>
         </div>
         <div class="connected-badge hidden" id="ig-badge">✓ Connected</div>
       </div>
-      <div id="ig-connect">
-        <button class="connect-btn ig" id="ig-btn" onclick="connectPlatform('ig')">Connect Instagram →</button>
-      </div>
+      <div id="ig-connect"><button class="connect-btn ig" id="ig-btn" onclick="connectPlatform('ig')">Connect Instagram</button></div>
       <div class="stat-grid hidden" id="ig-stats">
         <div class="stat-box"><div class="stat-val">284K</div><div class="stat-label">Followers</div></div>
         <div class="stat-box"><div class="stat-val">4.8%</div><div class="stat-label">Engagement</div></div>
@@ -230,18 +241,15 @@ button:hover{filter:brightness(1.1)}
         <div class="stat-box"><div class="stat-val">Fitness</div><div class="stat-label">Top Category</div></div>
       </div>
     </div>
-    <!-- TikTok -->
     <div class="card" id="tt-card">
       <div class="plat-head">
         <div class="plat-info">
-          <div class="plat-icon" style="background:linear-gradient(135deg,#00f2ea,#ff0050)">🎵</div>
+          <div class="plat-icon" style="background:#000;color:#fff">🎵</div>
           <div><div class="plat-name">TikTok</div><div class="plat-desc">Short-form Video</div></div>
         </div>
         <div class="connected-badge hidden" id="tt-badge">✓ Connected</div>
       </div>
-      <div id="tt-connect">
-        <button class="connect-btn tt" id="tt-btn" onclick="connectPlatform('tt')">Connect TikTok →</button>
-      </div>
+      <div id="tt-connect"><button class="connect-btn tt" id="tt-btn" onclick="connectPlatform('tt')">Connect TikTok</button></div>
       <div class="stat-grid hidden" id="tt-stats">
         <div class="stat-box"><div class="stat-val">412K</div><div class="stat-label">Followers</div></div>
         <div class="stat-box"><div class="stat-val">6.2%</div><div class="stat-label">Engagement</div></div>
@@ -251,7 +259,7 @@ button:hover{filter:brightness(1.1)}
     </div>
   </div>
   <div class="cta-banner hidden" id="both-banner">
-    <span>✨ Both platforms connected! Head to <span class="hl">Persona</span> to build your media kit.</span>
+    <span>Both platforms connected — head to <span class="hl">Persona</span> to build your media kit.</span>
     <button class="cta-btn" onclick="switchTab('persona')">Build Persona →</button>
   </div>
 </div>
@@ -259,62 +267,51 @@ button:hover{filter:brightness(1.1)}
 <!-- PERSONA TAB -->
 <div id="tab-persona" class="hidden">
   <h1 class="page-title">Your Persona</h1>
-  <p class="page-sub">AI-generated media kit based on your content, audience, and engagement patterns.</p>
-
+  <p class="page-sub">An AI-generated media kit built from your content, audience, and engagement patterns.</p>
   <div id="persona-cta" class="center-cta">
-    <div class="center-icon">👤</div>
-    <h2>Ready to Generate Your Persona</h2>
-    <p>We'll analyze your content across platforms to build a comprehensive media kit persona.</p>
-    <button class="gen-btn" onclick="generatePersona()">✨ Generate Persona</button>
+    <div class="center-icon">✦</div>
+    <h2>Ready to build your persona</h2>
+    <p>We'll analyze your content across platforms to create a comprehensive media kit.</p>
+    <button class="gen-btn" onclick="generatePersona()">Generate Persona</button>
   </div>
-
   <div id="persona-loading" class="loading hidden">
-    <div class="spinner">⚡</div>
+    <div class="spinner">✦</div>
     <div class="loading-title">Analyzing your content...</div>
     <div class="loading-sub">Scanning 2,070 posts across Instagram and TikTok</div>
   </div>
-
   <div id="persona-result" class="hidden">
     <div class="card persona-header" style="margin-bottom:24px">
       <div class="persona-avatar">JM</div>
       <div class="persona-bio">
         <div class="persona-name"><h2>Jordan Mitchell</h2><span class="check">✓</span></div>
-        <p class="persona-desc">Fitness enthusiast & lifestyle creator sharing workouts, wellness tips, and daily inspo. Building a community around balanced, real living.</p>
+        <p class="persona-desc">Fitness enthusiast &amp; lifestyle creator sharing workouts, wellness tips, and daily inspo. Building a community around balanced, real living.</p>
         <div class="vibe-tags">
-          <span class="vibe-tag">Aspirational</span>
-          <span class="vibe-tag">Warm Tones</span>
-          <span class="vibe-tag">High Energy</span>
-          <span class="vibe-tag">Relatable</span>
-          <span class="vibe-tag">Polished Casual</span>
-          <span class="vibe-tag">Motivational</span>
+          <span class="vibe-tag">Aspirational</span><span class="vibe-tag">Warm Tones</span><span class="vibe-tag">High Energy</span><span class="vibe-tag">Relatable</span><span class="vibe-tag">Polished Casual</span><span class="vibe-tag">Motivational</span>
         </div>
       </div>
       <div class="score-wrap">
         <div class="score-ring"><div class="score-inner"><span class="score-num">87</span></div></div>
-        <div class="score-label">PERSONA SCORE</div>
+        <div class="score-label">Persona Score</div>
       </div>
     </div>
-
-    <div class="card-4col">
-      <div class="stat-card"><div class="stat-card-icon">👁️</div><div><div class="stat-card-val">549K</div><div class="stat-card-label">Total Reach<span class="stat-card-sub">+12% mo</span></div></div></div>
-      <div class="stat-card"><div class="stat-card-icon">❤️</div><div><div class="stat-card-val">5.3%</div><div class="stat-card-label">Avg Engagement<span class="stat-card-sub">+0.8%</span></div></div></div>
-      <div class="stat-card"><div class="stat-card-icon">📈</div><div><div class="stat-card-val">+18K/mo</div><div class="stat-card-label">Growth Rate</div></div></div>
-      <div class="stat-card"><div class="stat-card-icon">🏆</div><div><div class="stat-card-val">Rising Star</div><div class="stat-card-label">Creator Tier</div></div></div>
+    <div class="grid-4">
+      <div class="stat-card"><div class="stat-card-icon" style="background:var(--accent-light)">👁️</div><div><div class="stat-card-val">549K</div><div class="stat-card-label">Total Reach<span class="stat-card-sub">+12%</span></div></div></div>
+      <div class="stat-card"><div class="stat-card-icon" style="background:var(--plum-light)">♡</div><div><div class="stat-card-val">5.3%</div><div class="stat-card-label">Avg Engagement<span class="stat-card-sub">+0.8%</span></div></div></div>
+      <div class="stat-card"><div class="stat-card-icon" style="background:var(--sage-light)">↗</div><div><div class="stat-card-val">+18K/mo</div><div class="stat-card-label">Growth Rate</div></div></div>
+      <div class="stat-card"><div class="stat-card-icon" style="background:var(--gold-light)">★</div><div><div class="stat-card-val">Rising Star</div><div class="stat-card-label">Creator Tier</div></div></div>
     </div>
-
     <div class="card" style="margin-bottom:24px;padding:24px">
       <div class="chart-title">Content Pillars</div>
       <div class="pillars" id="pillars-container"></div>
     </div>
-
-    <div class="card-3col">
+    <div class="grid-3">
       <div class="chart-card">
         <div class="chart-title">Gender Split</div>
         <div class="pie-container"><div class="pie"><div class="pie-hole"></div></div></div>
         <div class="pie-legend">
-          <span class="pie-legend-item"><span class="pie-dot" style="background:#d946ef"></span>Female 62%</span>
-          <span class="pie-legend-item"><span class="pie-dot" style="background:#a855f7"></span>Male 34%</span>
-          <span class="pie-legend-item"><span class="pie-dot" style="background:#6366f1"></span>Other 4%</span>
+          <span class="pie-legend-item"><span class="pie-dot" style="background:var(--accent)"></span>Female 62%</span>
+          <span class="pie-legend-item"><span class="pie-dot" style="background:var(--plum)"></span>Male 34%</span>
+          <span class="pie-legend-item"><span class="pie-dot" style="background:var(--gold)"></span>Other 4%</span>
         </div>
       </div>
       <div class="chart-card">
@@ -326,8 +323,7 @@ button:hover{filter:brightness(1.1)}
         <div id="loc-bars" style="padding-top:8px"></div>
       </div>
     </div>
-
-    <div class="card-2col-eq">
+    <div class="grid-2">
       <div class="chart-card">
         <div class="chart-title">Creator Profile</div>
         <div id="radar-bars" style="padding-top:4px"></div>
@@ -336,8 +332,8 @@ button:hover{filter:brightness(1.1)}
         <div class="chart-title">Follower Growth (12mo)</div>
         <div class="growth-bars" id="growth-chart"></div>
         <div class="growth-legend">
-          <span><span class="pie-dot" style="background:#e1306c"></span> Instagram</span>
-          <span><span class="pie-dot" style="background:#00f2ea"></span> TikTok</span>
+          <span><span class="pie-dot" style="background:var(--accent)"></span> Instagram</span>
+          <span><span class="pie-dot" style="background:var(--navy)"></span> TikTok</span>
         </div>
       </div>
     </div>
@@ -347,21 +343,18 @@ button:hover{filter:brightness(1.1)}
 <!-- BRANDS TAB -->
 <div id="tab-brands" class="hidden">
   <h1 class="page-title">Brand Matches</h1>
-  <p class="page-sub">Brands algorithmically matched to your persona for high-conversion outreach.</p>
-
+  <p class="page-sub">Brands aligned with your persona, ranked by audience fit and content compatibility.</p>
   <div id="brands-cta" class="center-cta">
-    <div class="center-icon">🎯</div>
-    <h2>Find Your Brand Matches</h2>
+    <div class="center-icon">♢</div>
+    <h2>Find your brand matches</h2>
     <p>We'll match you with brands that align with your audience, content style, and niche.</p>
-    <button class="gen-btn" onclick="generateBrands()">⚡ Generate Matches</button>
+    <button class="gen-btn" onclick="generateBrands()">Generate Matches</button>
   </div>
-
   <div id="brands-loading" class="loading hidden">
-    <div class="spinner">⚡</div>
+    <div class="spinner">♢</div>
     <div class="loading-title">Matching brands to your persona...</div>
     <div class="loading-sub">Scanning 12,000+ brand profiles</div>
   </div>
-
   <div id="brands-result" class="brand-grid hidden"></div>
 </div>
 
@@ -369,24 +362,20 @@ button:hover{filter:brightness(1.1)}
 <div id="tab-pulse" class="hidden">
   <h1 class="page-title">Pulse</h1>
   <p class="page-sub">Content ideas matched to your persona and what's trending right now.</p>
-
   <div id="pulse-cta" class="center-cta">
-    <div class="center-icon">📡</div>
-    <h2>Discover What to Post Next</h2>
+    <div class="center-icon">◎</div>
+    <h2>Discover what to post next</h2>
     <p>We'll scan trending topics, sounds, and formats — then match them to your persona for high-engagement ideas.</p>
-    <button class="gen-btn" onclick="generatePulse()">📡 Scan Trends</button>
+    <button class="gen-btn" onclick="generatePulse()">Scan Trends</button>
   </div>
-
   <div id="pulse-loading" class="loading hidden">
-    <div class="spinner">📡</div>
+    <div class="spinner">◎</div>
     <div class="loading-title">Scanning trends across platforms...</div>
     <div class="loading-sub">Analyzing 50K+ trending posts, sounds, and hashtags</div>
   </div>
-
   <div id="pulse-result" class="hidden">
     <div class="pulse-filters" id="pulse-filters"></div>
-
-    <div class="pulse-section-label"><span class="dot" style="background:#ef4444"></span> Trending Now — Matched to Your Persona</div>
+    <div class="pulse-section-label"><span class="dot" style="background:var(--accent)"></span> Trending Now — Matched to Your Persona</div>
     <div class="pulse-grid" id="pulse-grid"></div>
   </div>
 </div>
@@ -397,32 +386,32 @@ button:hover{filter:brightness(1.1)}
 const state={igConnected:false,ttConnected:false,personaGen:false,brandsGen:false,pulseGen:false,sent:{},saved:{},pulseFilter:'all'};
 
 const brands=[
-  {name:"Gymshark",match:96,cat:"Fitness Apparel",reasons:["Shared fitness audience","High engagement overlap","Aesthetic alignment"],deal:"$2,500 - $5,000",col:"#06b6d4"},
-  {name:"Notion",match:91,cat:"Productivity",reasons:["Creator-focused brand","Content style match","Tech-savvy audience"],deal:"$1,800 - $3,500",col:"#f59e0b"},
-  {name:"Liquid Death",match:89,cat:"Beverage",reasons:["Edgy brand voice match","18-34 demo overlap","High virality potential"],deal:"$3,000 - $6,000",col:"#10b981"},
-  {name:"Skims",match:87,cat:"Fashion / Lifestyle",reasons:["Female audience alignment","Lifestyle content fit","Premium aesthetic"],deal:"$4,000 - $8,000",col:"#ec4899"},
-  {name:"Athletic Greens",match:85,cat:"Health & Wellness",reasons:["Wellness niche overlap","Trust-based audience","Creator-preferred brand"],deal:"$2,000 - $4,500",col:"#22c55e"},
-  {name:"Adobe Creative Cloud",match:82,cat:"Software",reasons:["Creative workflow content","Tech audience segment","Educational content fit"],deal:"$3,500 - $7,000",col:"#ef4444"},
-  {name:"Lululemon",match:80,cat:"Athleisure",reasons:["Fitness + lifestyle blend","Premium positioning","Female 25-34 overlap"],deal:"$3,000 - $6,500",col:"#8b5cf6"},
-  {name:"Calm",match:78,cat:"Wellness App",reasons:["Mindfulness content affinity","Self-care audience","High conversion vertical"],deal:"$1,500 - $3,000",col:"#3b82f6"}
+  {name:"Gymshark",match:96,cat:"Fitness Apparel",reasons:["Shared fitness audience","High engagement overlap","Aesthetic alignment"],deal:"$2,500 – $5,000",col:"#7A8E6E"},
+  {name:"Notion",match:91,cat:"Productivity",reasons:["Creator-focused brand","Content style match","Tech-savvy audience"],deal:"$1,800 – $3,500",col:"#B8965A"},
+  {name:"Liquid Death",match:89,cat:"Beverage",reasons:["Edgy brand voice match","18-34 demo overlap","High virality potential"],deal:"$3,000 – $6,000",col:"#4A5568"},
+  {name:"Skims",match:87,cat:"Fashion / Lifestyle",reasons:["Female audience alignment","Lifestyle content fit","Premium aesthetic"],deal:"$4,000 – $8,000",col:"#C4756E"},
+  {name:"Athletic Greens",match:85,cat:"Health & Wellness",reasons:["Wellness niche overlap","Trust-based audience","Creator-preferred brand"],deal:"$2,000 – $4,500",col:"#7A8E6E"},
+  {name:"Adobe Creative Cloud",match:82,cat:"Software",reasons:["Creative workflow content","Tech audience segment","Educational content fit"],deal:"$3,500 – $7,000",col:"#A85E57"},
+  {name:"Lululemon",match:80,cat:"Athleisure",reasons:["Fitness + lifestyle blend","Premium positioning","Female 25-34 overlap"],deal:"$3,000 – $6,500",col:"#8B6E8E"},
+  {name:"Calm",match:78,cat:"Wellness App",reasons:["Mindfulness content affinity","Self-care audience","High conversion vertical"],deal:"$1,500 – $3,000",col:"#5B7A9E"}
 ];
 
-const pillarsData=[{l:"Fitness",p:38,e:"🔥"},{l:"Lifestyle",p:27,e:"🎨"},{l:"Beauty",p:18,e:"✨"},{l:"Tech",p:12,e:"#️⃣"},{l:"Wellness",p:5,e:"❤️"}];
+const pillarsData=[{l:"Fitness",p:38,e:"◆"},{l:"Lifestyle",p:27,e:"◇"},{l:"Beauty",p:18,e:"✦"},{l:"Tech",p:12,e:"▸"},{l:"Wellness",p:5,e:"○"}];
 const ageData=[{age:"13-17",pct:8},{age:"18-24",pct:34},{age:"25-34",pct:38},{age:"35-44",pct:14},{age:"45+",pct:6}];
 const locData=[{city:"Los Angeles",pct:18},{city:"New York",pct:14},{city:"London",pct:9},{city:"Chicago",pct:7},{city:"Miami",pct:6}];
 const radarData=[{t:"Authenticity",v:88},{t:"Consistency",v:76},{t:"Engagement",v:92},{t:"Reach",v:70},{t:"Growth",v:85},{t:"Niche Fit",v:94}];
 
 const pulseIdeas=[
-  {title:"'What I Eat in a Day' but Make It Real",hook:"The 'anti-aesthetic meal prep' trend is blowing up. Show your actual fridge, real portions, and no filters. Your audience loves relatable fitness content — this is a perfect fit.",trend:"hot",match:96,format:"Reel / TikTok",platform:"Both",estReach:"45K-80K",tags:["#WhatIEat","#RealFood","#FitnessJourney"],persona:["Relatable","Fitness"],cat:"fitness",sound:"Trending: 'original sound - meal prep queen'"},
-  {title:"Morning Routine: 5AM Club Edition",hook:"'Morning routine' content is surging +340% this week. Layer in your workout, skincare, and journaling. Your warm-tones aesthetic + motivational vibe makes this a natural hit.",trend:"hot",match:94,format:"TikTok / Reel",platform:"Both",estReach:"60K-120K",tags:["#5AMClub","#MorningRoutine","#ThatGirl"],persona:["Aspirational","High Energy"],cat:"lifestyle",sound:"Trending: 'Sunshine - OneRepublic'"},
-  {title:"Gym Bag Essentials — What's Actually Worth It",hook:"Product roundup videos are trending in fitness. Your audience trusts your recs. Show the 5 things actually in your bag, ditch the sponsored fluff.",trend:"rising",match:92,format:"Carousel / Reel",platform:"Instagram",estReach:"35K-55K",tags:["#GymBag","#FitnessEssentials","#WorthIt"],persona:["Polished Casual","Fitness"],cat:"fitness",sound:"N/A (carousel)"},
-  {title:"Skincare After the Gym — Do This, Not That",hook:"'Gym skincare' searches up 280% on TikTok. Cross your fitness and beauty pillars for maximum reach. Quick, punchy format works best.",trend:"rising",match:90,format:"TikTok",platform:"TikTok",estReach:"50K-90K",tags:["#GymSkincare","#PostWorkout","#SkincareTips"],persona:["Beauty","Fitness"],cat:"beauty",sound:"Trending: 'original sound - dermdoctor'"},
-  {title:"POV: Your First Week Back at the Gym",hook:"Relatable gym humor is having a moment. This plays to your 'relatable + motivational' vibe. Stitch with a trending POV format for max algorithm boost.",trend:"hot",match:89,format:"TikTok",platform:"TikTok",estReach:"80K-200K",tags:["#GymTok","#POV","#FitnessMotivation"],persona:["Relatable","High Energy"],cat:"fitness",sound:"Trending: 'Sports - Beach Bunny'"},
-  {title:"My Honest Tech Setup for Content Creation",hook:"Creator tech content is rising fast. Your audience has a tech-curious segment (12%). Show your actual filming setup, apps, and editing workflow.",trend:"rising",match:85,format:"Reel / YouTube Short",platform:"Both",estReach:"25K-45K",tags:["#CreatorSetup","#ContentCreation","#TechTok"],persona:["Tech","Polished Casual"],cat:"tech",sound:"N/A"},
-  {title:"3 Supplements That Actually Changed Something",hook:"Supplement content always performs but 'honest reviews' are trending over hauls. Your wellness pillar + trust factor = high save rate on this.",trend:"steady",match:87,format:"Carousel",platform:"Instagram",estReach:"30K-50K",tags:["#Supplements","#WellnessTips","#HonestReview"],persona:["Wellness","Fitness"],cat:"wellness",sound:"N/A (carousel)"},
-  {title:"Get Ready With Me: Workout to Brunch Edition",hook:"GRWM videos are evergreen but the 'transition' format (gym to going out) is spiking. Combines your fitness + lifestyle pillars perfectly.",trend:"hot",match:93,format:"Reel / TikTok",platform:"Both",estReach:"55K-100K",tags:["#GRWM","#GymToGlam","#TransitionTrend"],persona:["Lifestyle","Aspirational"],cat:"lifestyle",sound:"Trending: 'Nasty - Tinashe'"},
-  {title:"Unpopular Fitness Opinions — Hot Takes",hook:"'Unpopular opinion' format is surging across both platforms. Your engagement rate spikes on opinion-based content. Go bold, stay authentic.",trend:"new",match:88,format:"Talking Head / TikTok",platform:"Both",estReach:"40K-75K",tags:["#UnpopularOpinion","#FitnessTok","#HotTake"],persona:["High Energy","Relatable"],cat:"fitness",sound:"Trending: 'original sound - unpopular opinions'"},
-  {title:"Budget vs. Bougie Activewear Try-On",hook:"Comparison content is dominating Reels. Your female 25-34 audience loves activewear. Compare affordable finds with premium picks.",trend:"new",match:86,format:"Reel",platform:"Instagram",estReach:"35K-60K",tags:["#Activewear","#BudgetVsBougie","#TryOn"],persona:["Lifestyle","Polished Casual"],cat:"lifestyle",sound:"Trending: 'original sound - fashion finds'"}
+  {title:"'What I Eat in a Day' — The Honest Version",hook:"The anti-aesthetic meal prep trend is taking off. Show your actual fridge, real portions, no filters. Your audience loves relatable fitness content — this is a natural fit.",trend:"hot",match:96,format:"Reel / TikTok",platform:"Both",estReach:"45K – 80K",tags:["#WhatIEat","#RealFood","#FitnessJourney"],persona:["Relatable","Fitness"],cat:"fitness",sound:"Trending: original sound — meal prep queen"},
+  {title:"Morning Routine: 5AM Club Edition",hook:"Morning routine content is surging +340% this week. Layer in your workout, skincare, and journaling. Your warm-tones aesthetic makes this a natural hit.",trend:"hot",match:94,format:"TikTok / Reel",platform:"Both",estReach:"60K – 120K",tags:["#5AMClub","#MorningRoutine","#ThatGirl"],persona:["Aspirational","High Energy"],cat:"lifestyle",sound:"Trending: Sunshine — OneRepublic"},
+  {title:"Gym Bag Essentials — What's Actually Worth It",hook:"Product roundup videos are trending in fitness. Your audience trusts your recs. Show the 5 things actually in your bag — skip the sponsored fluff.",trend:"rising",match:92,format:"Carousel / Reel",platform:"Instagram",estReach:"35K – 55K",tags:["#GymBag","#FitnessEssentials","#WorthIt"],persona:["Polished Casual","Fitness"],cat:"fitness"},
+  {title:"Skincare After the Gym — Do This, Not That",hook:"Gym skincare searches up 280% on TikTok. Cross your fitness and beauty pillars for maximum reach. Quick, punchy format works best.",trend:"rising",match:90,format:"TikTok",platform:"TikTok",estReach:"50K – 90K",tags:["#GymSkincare","#PostWorkout","#SkincareTips"],persona:["Beauty","Fitness"],cat:"beauty",sound:"Trending: original sound — dermdoctor"},
+  {title:"POV: Your First Week Back at the Gym",hook:"Relatable gym humor is having a moment. This plays to your relatable + motivational vibe. Stitch with a trending POV format for max algorithm boost.",trend:"hot",match:89,format:"TikTok",platform:"TikTok",estReach:"80K – 200K",tags:["#GymTok","#POV","#FitnessMotivation"],persona:["Relatable","High Energy"],cat:"fitness",sound:"Trending: Sports — Beach Bunny"},
+  {title:"My Content Creation Setup — Behind the Scenes",hook:"Creator tech content is rising fast. Your audience has a tech-curious segment. Show your actual filming setup, apps, and editing workflow.",trend:"rising",match:85,format:"Reel / YouTube Short",platform:"Both",estReach:"25K – 45K",tags:["#CreatorSetup","#ContentCreation","#TechTok"],persona:["Tech","Polished Casual"],cat:"tech"},
+  {title:"3 Supplements That Actually Changed Something",hook:"Supplement content always performs but honest reviews are trending over hauls. Your wellness pillar + trust factor = high save rate.",trend:"steady",match:87,format:"Carousel",platform:"Instagram",estReach:"30K – 50K",tags:["#Supplements","#WellnessTips","#HonestReview"],persona:["Wellness","Fitness"],cat:"wellness"},
+  {title:"Get Ready With Me: Gym to Brunch",hook:"GRWM videos are evergreen but the transition format (gym to going out) is spiking. Combines your fitness + lifestyle pillars perfectly.",trend:"hot",match:93,format:"Reel / TikTok",platform:"Both",estReach:"55K – 100K",tags:["#GRWM","#GymToGlam","#TransitionTrend"],persona:["Lifestyle","Aspirational"],cat:"lifestyle",sound:"Trending: Nasty — Tinashe"},
+  {title:"Unpopular Fitness Opinions — Hot Takes",hook:"'Unpopular opinion' format is surging across both platforms. Your engagement rate spikes on opinion-based content. Go bold, stay authentic.",trend:"new",match:88,format:"Talking Head",platform:"Both",estReach:"40K – 75K",tags:["#UnpopularOpinion","#FitnessTok","#HotTake"],persona:["High Energy","Relatable"],cat:"fitness"},
+  {title:"Budget vs. Bougie Activewear Try-On",hook:"Comparison content is dominating Reels. Your female 25-34 audience loves activewear. Compare affordable finds with premium picks.",trend:"new",match:86,format:"Reel",platform:"Instagram",estReach:"35K – 60K",tags:["#Activewear","#BudgetVsBougie","#TryOn"],persona:["Lifestyle","Polished Casual"],cat:"lifestyle"}
 ];
 
 const pulseCategories=['all','fitness','lifestyle','beauty','tech','wellness'];
@@ -434,13 +423,12 @@ function switchTab(id){
 
 function connectPlatform(p){
   const btn=document.getElementById(p+'-btn');
-  btn.disabled=true;btn.textContent='⏳ Connecting...';
+  btn.disabled=true;btn.textContent='Connecting...';
   setTimeout(()=>{
     state[p+'Connected']=true;
     document.getElementById(p+'-connect').classList.add('hidden');
     document.getElementById(p+'-stats').classList.remove('hidden');
     document.getElementById(p+'-badge').classList.remove('hidden');
-    document.getElementById(p+'-card').style.borderColor=p==='ig'?'rgba(225,48,108,0.25)':'rgba(0,242,234,0.25)';
     if(state.igConnected&&state.ttConnected)document.getElementById('both-banner').classList.remove('hidden');
   },1500);
 }
@@ -458,38 +446,27 @@ function generatePersona(){
 }
 
 function buildCharts(){
-  // Pillars
   const pc=document.getElementById('pillars-container');
   pc.innerHTML=pillarsData.map(p=>`<div class="pillar"><div class="pillar-icon">${p.e}</div><div class="pillar-name">${p.l}</div><div class="pillar-pct">${p.p}%</div><div class="bar-bg"><div class="bar-fill" style="width:0%"></div></div></div>`).join('');
   setTimeout(()=>{pc.querySelectorAll('.bar-fill').forEach((b,i)=>{b.style.width=pillarsData[i].p*2.5+'%'})},100);
-
-  // Age bars
   const ab=document.getElementById('age-bars');
   const maxAge=Math.max(...ageData.map(d=>d.pct));
-  ab.innerHTML=ageData.map(d=>`<div class="vbar-item"><div class="vbar-bar" style="width:28px;height:0;background:#d946ef" data-h="${d.pct/maxAge*120}"></div><div class="vbar-label">${d.age}</div></div>`).join('');
+  ab.innerHTML=ageData.map(d=>`<div class="vbar-item"><div class="vbar-bar" style="width:24px;height:0;background:var(--accent)" data-h="${d.pct/maxAge*110}"></div><div class="vbar-label">${d.age}</div></div>`).join('');
   setTimeout(()=>{ab.querySelectorAll('.vbar-bar').forEach(b=>{b.style.height=b.dataset.h+'px'})},100);
-
-  // Location bars
   const lb=document.getElementById('loc-bars');
-  lb.innerHTML=locData.map(d=>`<div class="hbar"><div class="hbar-label"><span>${d.city}</span><span>${d.pct}%</span></div><div class="hbar-track"><div class="hbar-fill" style="width:0;background:#a855f7" data-w="${d.pct/18*100}"></div></div></div>`).join('');
+  lb.innerHTML=locData.map(d=>`<div class="hbar"><div class="hbar-label"><span>${d.city}</span><span>${d.pct}%</span></div><div class="hbar-track"><div class="hbar-fill" style="width:0;background:var(--plum)" data-w="${d.pct/18*100}"></div></div></div>`).join('');
   setTimeout(()=>{lb.querySelectorAll('.hbar-fill').forEach(b=>{b.style.width=b.dataset.w+'%'})},100);
-
-  // Radar
   const rb=document.getElementById('radar-bars');
   rb.innerHTML=radarData.map(d=>`<div class="radar-item"><div class="radar-label"><span>${d.t}</span><span>${d.v}</span></div><div class="radar-track"><div class="radar-fill" style="width:0" data-w="${d.v}"></div></div></div>`).join('');
   setTimeout(()=>{rb.querySelectorAll('.radar-fill').forEach(b=>{b.style.width=b.dataset.w+'%'})},100);
-
-  // Growth
   const gc=document.getElementById('growth-chart');
   const months=["May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr"];
   const maxG=500000;
   gc.innerHTML=months.map((m,i)=>{
     const ig=280000+i*18000;const tt=150000+i*22000;
-    return`<div class="growth-col"><div class="growth-stack"><div class="growth-bar-ig" style="height:0" data-h="${ig/maxG*140}"></div><div class="growth-bar-tt" style="height:0" data-h="${tt/maxG*140}"></div></div><div class="growth-label">${m}</div></div>`;
+    return`<div class="growth-col"><div class="growth-stack"><div class="growth-bar-ig" style="height:0" data-h="${ig/maxG*130}"></div><div class="growth-bar-tt" style="height:0" data-h="${tt/maxG*130}"></div></div><div class="growth-label">${m}</div></div>`;
   }).join('');
-  setTimeout(()=>{
-    gc.querySelectorAll('.growth-bar-ig,.growth-bar-tt').forEach(b=>{b.style.height=b.dataset.h+'px'});
-  },100);
+  setTimeout(()=>{gc.querySelectorAll('.growth-bar-ig,.growth-bar-tt').forEach(b=>{b.style.height=b.dataset.h+'px'})},100);
 }
 
 function generateBrands(){
@@ -509,16 +486,16 @@ function generateBrands(){
       card.innerHTML=`
         <div class="brand-head">
           <div class="brand-info">
-            <div class="brand-logo" style="background:${b.col}25;border:1px solid ${b.col}40;color:${b.col}">${b.name[0]}</div>
+            <div class="brand-logo" style="background:${b.col}18;border:1px solid ${b.col}30;color:${b.col}">${b.name[0]}</div>
             <div><div class="brand-name">${b.name}</div><div class="brand-cat">${b.cat}</div></div>
           </div>
           <div class="brand-match">${b.match}%</div>
         </div>
-        <div class="bar-bg" style="margin-bottom:0"><div class="bar-fill" style="width:${b.match}%"></div></div>
+        <div class="bar-bg"><div class="bar-fill" style="width:${b.match}%"></div></div>
         <div class="brand-reasons">${b.reasons.map(r=>`<div class="brand-reason"><span class="chk">✓</span>${r}</div>`).join('')}</div>
         <div class="brand-footer">
-          <div class="brand-deal">💰 ${b.deal}</div>
-          <button class="outreach-btn" onclick="toggleSent(this,'${b.name}')">📩 Start Outreach</button>
+          <div class="brand-deal">${b.deal}</div>
+          <button class="outreach-btn" onclick="toggleSent(this,'${b.name}')">Start Outreach</button>
         </div>`;
       grid.appendChild(card);
       idx++;
@@ -531,7 +508,7 @@ function generateBrands(){
 function toggleSent(btn,name){
   state.sent[name]=!state.sent[name];
   if(state.sent[name]){btn.className='outreach-btn sent';btn.innerHTML='✓ Sent'}
-  else{btn.className='outreach-btn';btn.innerHTML='📩 Start Outreach'}
+  else{btn.className='outreach-btn';btn.innerHTML='Start Outreach'}
 }
 
 function generatePulse(){
@@ -549,7 +526,7 @@ function generatePulse(){
 
 function buildPulseFilters(){
   const f=document.getElementById('pulse-filters');
-  f.innerHTML=pulseCategories.map(c=>`<button class="pulse-filter${c==='all'?' active':''}" data-cat="${c}" onclick="filterPulse('${c}')">${c==='all'?'All Ideas':c.charAt(0).toUpperCase()+c.slice(1)}</button>`).join('');
+  f.innerHTML=pulseCategories.map(c=>`<button class="pulse-filter${c==='all'?' active':''}" data-cat="${c}" onclick="filterPulse('${c}')">${c==='all'?'All':c.charAt(0).toUpperCase()+c.slice(1)}</button>`).join('');
 }
 
 function filterPulse(cat){
@@ -568,25 +545,25 @@ function renderPulseCards(cat){
     const idea=filtered[idx];
     const card=document.createElement('div');
     card.className='pulse-card fade-up';
-    const trendLabel={hot:'🔥 Hot',rising:'📈 Rising',steady:'✅ Steady',new:'🆕 New'}[idea.trend];
+    const trendLabel={hot:'Hot',rising:'Rising',steady:'Steady',new:'New'}[idea.trend];
     card.innerHTML=`
       <div class="pulse-trend-badge ${idea.trend}">${trendLabel}</div>
       <div class="pulse-idea-title">${idea.title}</div>
       <div class="pulse-idea-hook">${idea.hook}</div>
       <div class="pulse-persona-match">
         <div class="match-score">${idea.match}%</div>
-        <div class="match-text">persona match — aligns with your <strong style="color:#e4e4eb">${idea.persona.join(' + ')}</strong> pillars</div>
+        <div class="match-text">persona match — aligns with your <strong style="color:var(--text)">${idea.persona.join(' + ')}</strong> pillars</div>
       </div>
       <div class="pulse-meta">
-        <div class="pulse-meta-item">📱 <span class="val">${idea.format}</span></div>
-        <div class="pulse-meta-item">📊 <span class="val">${idea.estReach}</span> est. reach</div>
-        <div class="pulse-meta-item">🌐 <span class="val">${idea.platform}</span></div>
+        <div class="pulse-meta-item">Format: <span class="val">${idea.format}</span></div>
+        <div class="pulse-meta-item">Est. reach: <span class="val">${idea.estReach}</span></div>
+        <div class="pulse-meta-item">Platform: <span class="val">${idea.platform}</span></div>
       </div>
-      ${idea.sound!=='N/A'&&idea.sound!=='N/A (carousel)'?`<div class="pulse-meta"><div class="pulse-meta-item">🎵 <span class="val">${idea.sound}</span></div></div>`:''}
+      ${idea.sound?`<div class="pulse-meta"><div class="pulse-meta-item">Sound: <span class="val">${idea.sound}</span></div></div>`:''}
       <div class="pulse-tags">${idea.tags.map(t=>`<span class="pulse-tag">${t}</span>`).join('')}${idea.persona.map(p=>`<span class="pulse-tag persona">${p}</span>`).join('')}</div>
       <div class="pulse-actions">
-        <button class="pulse-save-btn" onclick="togglePulseSave(this,'${idea.title.replace(/'/g,'\\&#39;')}')">🔖 Save</button>
-        <button class="pulse-draft-btn" onclick="this.innerHTML='✓ Added to Drafts';this.style.opacity=0.7">✏️ Draft Script</button>
+        <button class="pulse-save-btn" onclick="togglePulseSave(this,'${idea.title.replace(/'/g,"&#39;")}')">Save</button>
+        <button class="pulse-draft-btn" onclick="this.innerHTML='✓ Added to Drafts';this.style.opacity=0.7">Draft Script</button>
       </div>`;
     grid.appendChild(card);
     idx++;
@@ -597,8 +574,8 @@ function renderPulseCards(cat){
 
 function togglePulseSave(btn,title){
   state.saved[title]=!state.saved[title];
-  if(state.saved[title]){btn.className='pulse-save-btn saved';btn.innerHTML='🔖 Saved'}
-  else{btn.className='pulse-save-btn';btn.innerHTML='🔖 Save'}
+  if(state.saved[title]){btn.className='pulse-save-btn saved';btn.innerHTML='✓ Saved'}
+  else{btn.className='pulse-save-btn';btn.innerHTML='Save'}
 }
 </script>
 </body>
