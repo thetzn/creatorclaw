@@ -946,44 +946,13 @@ async function analyzeIGProfile(){
     const res=await fetch(PROXY_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        webSearch:true,
-        messages:[{
-          role:'system',
-          content:'You are a social media data analyst. Use web search to find real Instagram profile data. Respond ONLY with valid JSON, no explanation.'
-        },{
-          role:'user',
-          content:`Find Instagram profile: ${url}
-
-Use web search to find this profile and extract accurate data. Preferred sources (in order):
-1. socialblade.com/instagram/user/{handle} — best for follower counts + engagement rate
-2. The actual instagram.com page
-3. picuki.com/profile/{handle}
-4. News articles / Wikipedia
-5. Their linked website or other public profiles
-
-For well-known creators, follower counts are easily found — don't return null for those. Only use null when a field is genuinely unknowable from the search (e.g. exact engagement rate for very small accounts).
-
-Return ONLY this JSON (no markdown, no explanation):
-{
-  "username": "@handle",
-  "displayName": "Full Name from profile",
-  "followers": "follower count as a readable string e.g. '297M', '284K', '12.3K'",
-  "following": "count or null",
-  "totalPosts": "count e.g. '1,247' or null",
-  "engagementRate": "percentage e.g. '4.8%' — use SocialBlade if available",
-  "topCategory": "primary content category e.g. 'Fitness'",
-  "categories": [{"name":"Fitness","pct":40},{"name":"Lifestyle","pct":30}],
-  "vibes": ["Aspirational","High Energy"],
-  "bio": "their actual bio text",
-  "postingFrequency": "Daily / Weekly / etc",
-  "recentThemes": ["actual recent post themes you observed"]
-}`
-        }]
-      })
+      body:JSON.stringify({ igScrape:true, handle:raw })
     });
 
-    if(!res.ok) throw new Error('API error '+res.status);
+    if(!res.ok){
+      const err=await res.json().catch(()=>({}));
+      throw new Error(err.error?.message||('API error '+res.status));
+    }
     const data=await res.json();
     const content=data.choices[0].message.content;
     const profile=parseJSON(content);
