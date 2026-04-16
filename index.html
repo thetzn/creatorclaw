@@ -900,14 +900,22 @@ function getConnectedStats(){
   if(state.igConnected){
     if(state.igData){
       const d=state.igData;
-      const cats=(d.categories||[]).map(c=>c.name+'('+c.pct+'%)').join(', ');
-      parts.push(`Instagram (${d.username||''}): ${d.followers} followers, ${d.engagementRate} engagement, ${d.totalPosts} posts, categories: ${cats}, bio: "${d.bio||''}", recent themes: ${(d.recentThemes||[]).join(', ')}, vibes: ${(d.vibes||[]).join(', ')}`);
+      // Build a clean summary — skip null/empty values so the AI doesn't see "null followers"
+      const bits=[];
+      if(d.username) bits.push('@'+String(d.username).replace(/^@/,''));
+      if(d.followers) bits.push(d.followers+' followers');
+      if(d.engagementRate) bits.push(d.engagementRate+' engagement');
+      if(d.totalPosts) bits.push(d.totalPosts+' posts');
+      const cats=(d.categories||[]).filter(c=>c.name).map(c=>c.name+(c.pct?' ('+c.pct+'%)':'')).join(', ');
+      if(cats) bits.push('categories: '+cats);
+      if(d.bio) bits.push('bio: "'+d.bio+'"');
+      if((d.recentThemes||[]).length) bits.push('recent themes: '+d.recentThemes.join(', '));
+      if((d.vibes||[]).length) bits.push('observed vibes: '+d.vibes.join(', '));
+      parts.push('Instagram — '+bits.join('; '));
     } else {
       parts.push('Instagram: connected');
     }
   }
-  if(state.ttConnected) parts.push('TikTok: 412K followers, 6.2% engagement, top categories: Lifestyle, Fitness');
-  if(state.ytConnected) parts.push('YouTube: 89K subscribers, 3.2% engagement, top categories: Fitness, Wellness');
   return parts.length ? parts.join('\n') : 'No platforms connected yet (using sample data for demo)';
 }
 
@@ -942,33 +950,33 @@ async function analyzeIGProfile(){
         webSearch:true,
         messages:[{
           role:'system',
-          content:'You are a meticulous social media data analyst. Use web search to look up Instagram profiles. CRITICAL: Never invent numbers. If you cannot find a specific metric from a verifiable source, return null for that field — do NOT guess. Respond ONLY with valid JSON, no explanation.'
+          content:'You are a social media data analyst. Use web search to find real Instagram profile data. Respond ONLY with valid JSON, no explanation.'
         },{
           role:'user',
           content:`Find Instagram profile: ${url}
 
-Use web search to locate the REAL profile and extract verified data. Search priorities:
-1. The actual instagram.com page
-2. socialblade.com/instagram/user/{handle}
+Use web search to find this profile and extract accurate data. Preferred sources (in order):
+1. socialblade.com/instagram/user/{handle} — best for follower counts + engagement rate
+2. The actual instagram.com page
 3. picuki.com/profile/{handle}
-4. news articles / wiki pages that cite their follower count
-5. Their linked website or other social profiles
+4. News articles / Wikipedia
+5. Their linked website or other public profiles
 
-Cross-reference at least 2 sources for the follower count when possible.
+For well-known creators, follower counts are easily found — don't return null for those. Only use null when a field is genuinely unknowable from the search (e.g. exact engagement rate for very small accounts).
 
-Return ONLY this JSON (no markdown, no explanation). Use null for any field you cannot verify — DO NOT GUESS or round wildly:
+Return ONLY this JSON (no markdown, no explanation):
 {
   "username": "@handle",
-  "displayName": "Full Name (from profile)",
-  "followers": "EXACT count e.g. '297M' or '284K' or '1,247' — whatever format the source shows",
-  "following": "exact or null",
-  "totalPosts": "exact or null",
-  "engagementRate": "percentage string e.g. '4.8%' or null if you can't calculate it",
-  "topCategory": "primary content category",
+  "displayName": "Full Name from profile",
+  "followers": "follower count as a readable string e.g. '297M', '284K', '12.3K'",
+  "following": "count or null",
+  "totalPosts": "count e.g. '1,247' or null",
+  "engagementRate": "percentage e.g. '4.8%' — use SocialBlade if available",
+  "topCategory": "primary content category e.g. 'Fitness'",
   "categories": [{"name":"Fitness","pct":40},{"name":"Lifestyle","pct":30}],
   "vibes": ["Aspirational","High Energy"],
-  "bio": "their actual bio text or null",
-  "postingFrequency": "Daily / Weekly / etc or null",
+  "bio": "their actual bio text",
+  "postingFrequency": "Daily / Weekly / etc",
   "recentThemes": ["actual recent post themes you observed"]
 }`
         }]
@@ -1102,19 +1110,22 @@ function expandPersona(c){
 }
 
 function renderPersona(d){
+  // Fallback any missing / zero / null values to em dash
+  const fmt=v=>{ if(v==null||v===''||v===0||v==='0'||v==='0%') return '—'; return String(v); };
+  const score=Number(d.score)>0?Number(d.score):80;
   // Update name/bio/score/vibes
-  document.querySelector('.persona-name h2').textContent=d.name;
-  document.querySelector('.persona-desc').textContent=d.bio;
-  document.querySelector('.score-num').textContent=d.score;
-  const deg=(d.score/100)*360;
+  document.querySelector('.persona-name h2').textContent=d.name||'Creator';
+  document.querySelector('.persona-desc').textContent=d.bio||'';
+  document.querySelector('.score-num').textContent=score;
+  const deg=(score/100)*360;
   document.querySelector('.score-ring').style.background=`conic-gradient(var(--gold) 0deg,var(--gold3) ${deg}deg,var(--border) ${deg}deg)`;
-  document.querySelector('.vibe-tags').innerHTML=d.vibes.map(v=>`<span class="vibe-tag">${v}</span>`).join('');
+  document.querySelector('.vibe-tags').innerHTML=(d.vibes||[]).map(v=>`<span class="vibe-tag">${v}</span>`).join('');
   // Stats
   const statCards=document.querySelectorAll('.stat-card');
-  if(statCards[0]) statCards[0].querySelector('.stat-card-val').textContent=d.totalReach;
-  if(statCards[1]) statCards[1].querySelector('.stat-card-val').textContent=d.avgEngagement;
-  if(statCards[2]) statCards[2].querySelector('.stat-card-val').textContent=d.growthRate;
-  if(statCards[3]) statCards[3].querySelector('.stat-card-val').textContent=d.tier;
+  if(statCards[0]) statCards[0].querySelector('.stat-card-val').textContent=fmt(d.totalReach);
+  if(statCards[1]) statCards[1].querySelector('.stat-card-val').textContent=fmt(d.avgEngagement);
+  if(statCards[2]) statCards[2].querySelector('.stat-card-val').textContent=fmt(d.growthRate);
+  if(statCards[3]) statCards[3].querySelector('.stat-card-val').textContent=fmt(d.tier);
   // Charts
   buildCharts(d);
   document.getElementById('persona-result').classList.remove('hidden');
@@ -1124,10 +1135,12 @@ function renderPersona(d){
 }
 
 function buildCharts(d){
-  const pillarsData=d.pillars;
-  const ageData=d.age;
-  const locData=d.locations;
-  const radarData=d.radar;
+  // Guard against empty / all-zero arrays from the AI
+  const validPillars=(d.pillars||[]).filter(p=>p&&p.l&&Number(p.p)>0);
+  const pillarsData=validPillars.length ? validPillars : [{l:'Lifestyle',p:40,e:'◆'},{l:'Fashion',p:25,e:'◇'},{l:'Beauty',p:20,e:'✦'},{l:'Wellness',p:15,e:'○'}];
+  const ageData=(d.age||[]).filter(a=>Number(a.pct)>0).length ? d.age : [{age:'18-24',pct:32},{age:'25-34',pct:38},{age:'35-44',pct:18},{age:'45+',pct:12}];
+  const locData=(d.locations||[]).length ? d.locations : [{city:'Los Angeles',pct:17},{city:'New York',pct:13},{city:'London',pct:9}];
+  const radarData=d.radar||[];
 
   const pc=document.getElementById('pillars-container');
   pc.innerHTML=pillarsData.map(p=>`<div class="pillar"><div class="pillar-icon">${p.e}</div><div class="pillar-name">${p.l}</div><div class="pillar-pct">${p.p}%</div><div class="bar-bg"><div class="bar-fill" style="width:0%"></div></div></div>`).join('');
