@@ -245,6 +245,262 @@ function toggleTheme(){
 </body>
 </html>
 `;
+const DATA_DELETION_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Deletion Instructions — CreatorClaw</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0A0A;--card:#111111;--card2:#161616;--border:#1E1E1E;--border2:#2A2A2A;
+  --text:#F0EDE8;--muted:#6B6560;--muted2:#4A4641;
+  --gold:#C9A96E;--gold2:#E8D5A3;--gold3:#B8965A;--gold-dim:rgba(201,169,110,0.12);--gold-border:rgba(201,169,110,0.2);
+  --scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#F5F1E8;--card:#FFFEF9;--card2:#F0EAD8;--border:#E5DDC9;--border2:#D4CAB0;
+  --text:#2A251D;--muted:#7A6F5F;--muted2:#A09484;
+  --gold:#A67B3D;--gold2:#C99B5A;--gold3:#8A6431;
+  --gold-dim:rgba(166,123,61,0.10);--gold-border:rgba(166,123,61,0.25);
+}
+:root[data-theme="light"] .header{background:rgba(245,241,232,0.9)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 0.3s ease}
+.gold-text{background:linear-gradient(135deg,var(--gold3),var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header{background:rgba(10,10,10,0.9);border-bottom:1px solid var(--border);padding:0 32px;position:sticky;top:0;z-index:50;backdrop-filter:blur(20px)}
+.header-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.logo-mark{width:26px;height:16px;flex-shrink:0}
+.logo-text{font-size:18px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase}
+.theme-toggle{background:transparent;border:1px solid var(--border);border-radius:6px;padding:7px 9px;color:var(--muted);cursor:pointer;display:flex;align-items:center;transition:all 0.3s}
+.theme-toggle:hover{color:var(--gold);border-color:var(--gold-border)}
+.theme-toggle svg{width:14px;height:14px;display:block}
+.main{max-width:760px;margin:0 auto;padding:60px 32px 100px}
+.doc-eyebrow{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:0.25em;text-transform:uppercase;margin-bottom:16px}
+.doc-title{font-size:36px;font-weight:300;letter-spacing:-0.01em;margin-bottom:12px}
+.doc-meta{font-size:12px;color:var(--muted);margin-bottom:48px}
+.doc-section{margin-bottom:40px}
+.doc-section h2{font-size:14px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.doc-section p{font-size:14px;line-height:1.8;color:var(--text);margin-bottom:14px}
+.doc-section ul{padding-left:20px;margin-bottom:14px}
+.doc-section ul li{font-size:14px;line-height:1.8;color:var(--text);margin-bottom:6px}
+.doc-section ul li::marker{color:var(--gold)}
+.doc-section ol{padding-left:20px;margin-bottom:14px}
+.doc-section ol li{font-size:14px;line-height:1.8;color:var(--text);margin-bottom:10px}
+.doc-section ol li::marker{color:var(--gold);font-weight:600}
+.doc-section a{color:var(--gold);text-decoration:none}
+.doc-section a:hover{text-decoration:underline}
+.back-link{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;margin-bottom:40px;transition:color 0.2s}
+.back-link:hover{color:var(--gold)}
+.cta-box{background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:10px;padding:24px 28px;margin-bottom:40px}
+.cta-box p{margin-bottom:0;font-size:14px;line-height:1.8}
+.cta-box a{color:var(--gold);font-weight:600;text-decoration:none}
+.cta-box a:hover{text-decoration:underline}
+.step-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px 28px;margin-bottom:16px;display:flex;gap:20px;align-items:flex-start}
+.step-num{width:32px;height:32px;border-radius:50%;border:1px solid var(--gold-border);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--gold);flex-shrink:0;margin-top:2px}
+.step-content h3{font-size:14px;font-weight:600;margin-bottom:6px;letter-spacing:0.02em}
+.step-content p{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:0}
+.footer-links{display:flex;gap:24px;margin-top:60px;padding-top:32px;border-top:1px solid var(--border)}
+.footer-links a{font-size:11px;color:var(--muted);text-decoration:none;letter-spacing:0.05em;transition:color 0.2s}
+.footer-links a:hover{color:var(--gold)}
+@media(max-width:768px){
+  .header{padding:0 16px}
+  .header-inner{height:52px}
+  .logo-text{font-size:14px}
+  .main{padding:24px 16px 60px}
+  .doc-title{font-size:26px}
+  .cta-box{padding:20px}
+  .step-box{padding:20px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <a href="/" class="logo">
+      <svg class="logo-mark" viewBox="0 0 130 80" shape-rendering="crispEdges" aria-hidden="true">
+        <defs>
+          <linearGradient id="cc-rainbow" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#A855F7"/><stop offset="18%" stop-color="#6366F1"/>
+            <stop offset="35%" stop-color="#3B82F6"/><stop offset="50%" stop-color="#10B981"/>
+            <stop offset="65%" stop-color="#EAB308"/><stop offset="82%" stop-color="#F97316"/>
+            <stop offset="100%" stop-color="#EC4899"/>
+          </linearGradient>
+        </defs>
+        <g fill="url(#cc-rainbow)">
+          <rect x="40" y="0" width="10" height="10"/><rect x="80" y="0" width="10" height="10"/>
+          <rect x="40" y="10" width="50" height="10"/><rect x="10" y="20" width="10" height="10"/>
+          <rect x="30" y="20" width="70" height="10"/><rect x="110" y="20" width="10" height="10"/>
+          <rect x="0" y="30" width="30" height="10"/><rect x="40" y="30" width="10" height="10"/>
+          <rect x="60" y="30" width="10" height="10"/><rect x="80" y="30" width="10" height="10"/>
+          <rect x="100" y="30" width="30" height="10"/><rect x="0" y="40" width="130" height="10"/>
+          <rect x="10" y="50" width="110" height="10"/><rect x="0" y="60" width="10" height="10"/>
+          <rect x="20" y="60" width="10" height="10"/><rect x="40" y="60" width="10" height="10"/>
+          <rect x="60" y="60" width="10" height="10"/><rect x="80" y="60" width="10" height="10"/>
+          <rect x="100" y="60" width="10" height="10"/><rect x="120" y="60" width="10" height="10"/>
+          <rect x="10" y="70" width="10" height="10"/><rect x="30" y="70" width="10" height="10"/>
+          <rect x="70" y="70" width="10" height="10"/><rect x="90" y="70" width="10" height="10"/>
+        </g>
+      </svg>
+      <span class="logo-text gold-text">CreatorClaw</span>
+    </a>
+    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+      <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>
+    </button>
+  </div>
+</div>
+
+<div class="main">
+  <a href="/" class="back-link">← Back to CreatorClaw</a>
+
+  <div class="doc-eyebrow">Legal</div>
+  <h1 class="doc-title">Data Deletion <span class="gold-text">Instructions</span></h1>
+  <p class="doc-meta">Last Updated: April 16, 2025</p>
+
+  <div class="cta-box">
+    <p>To request deletion of your data, email us at <a href="mailto:legal@creatorclaw.co">legal@creatorclaw.co</a> with the subject line <strong>"Data Deletion Request"</strong>. We will process your request within 30 days.</p>
+  </div>
+
+  <div class="doc-section">
+    <p>CreatorClaw respects your right to control your personal data. This page explains what data we hold, what gets deleted when you request it, and how to submit a deletion request.</p>
+  </div>
+
+  <div class="doc-section">
+    <h2>What Data We May Hold</h2>
+    <p>Depending on how you've used CreatorClaw, we may have collected:</p>
+    <ul>
+      <li>Social media handles or profile URLs you submitted for analysis</li>
+      <li>AI-generated persona reports, brand matches, or content ideas associated with your session</li>
+      <li>Usage logs and analytics data (e.g., pages visited, features used)</li>
+      <li>IP address and browser/device information from server logs</li>
+      <li>Any email address provided when contacting us</li>
+    </ul>
+    <p>Because CreatorClaw is primarily a client-side application, much of your session data (theme preferences, saved ideas, etc.) is stored locally in your browser and is never transmitted to our servers. You can clear this data at any time by clearing your browser's local storage.</p>
+  </div>
+
+  <div class="doc-section">
+    <h2>How to Delete Your Local Data</h2>
+    <p>To immediately remove all data stored locally in your browser:</p>
+
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h3>Open your browser settings</h3>
+        <p>In Chrome: Settings → Privacy and Security → Clear browsing data. In Safari: Preferences → Privacy → Manage Website Data.</p>
+      </div>
+    </div>
+
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h3>Find creatorclaw.co</h3>
+        <p>Search for "creatorclaw.co" in the site data list, or choose to clear all site data.</p>
+      </div>
+    </div>
+
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h3>Clear the data</h3>
+        <p>Select "Local Storage" and/or "Cookies" and confirm deletion. This immediately removes all locally stored CreatorClaw data from your device.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-section">
+    <h2>How to Request Server-Side Data Deletion</h2>
+    <p>To request deletion of any data we hold on our servers (logs, analytics, contact records), follow these steps:</p>
+
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h3>Send an email to legal@creatorclaw.co</h3>
+        <p>Use the subject line: <strong>"Data Deletion Request"</strong></p>
+      </div>
+    </div>
+
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h3>Include identifying information</h3>
+        <p>Provide the email address or social media handle(s) associated with your use of CreatorClaw so we can locate your data.</p>
+      </div>
+    </div>
+
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h3>We'll confirm and process</h3>
+        <p>We will acknowledge your request within 5 business days and complete deletion within 30 days. We'll send a confirmation email once your data has been removed.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-section">
+    <h2>What Happens After Deletion</h2>
+    <p>Once your deletion request is processed:</p>
+    <ul>
+      <li>Any server-side logs or analytics records associated with your identity will be deleted or anonymized</li>
+      <li>Any contact records (e.g., prior support emails) will be removed</li>
+      <li>Data that has been aggregated or anonymized and cannot be re-identified may be retained for analytics purposes</li>
+      <li>Data we are required to retain by law (e.g., for tax, legal, or compliance purposes) will be held only for the minimum required period</li>
+    </ul>
+  </div>
+
+  <div class="doc-section">
+    <h2>Facebook / Instagram Login Data</h2>
+    <p>If you connected CreatorClaw via Facebook Login or Instagram authorization, you can also revoke that access directly through Facebook:</p>
+    <ol>
+      <li>Go to your <a href="https://www.facebook.com/settings?tab=applications" target="_blank" rel="noopener">Facebook App Settings</a></li>
+      <li>Find "CreatorClaw" in the list of apps</li>
+      <li>Click "Remove" to revoke access and request deletion of associated data</li>
+    </ol>
+    <p>After revoking access, send us a deletion request at <a href="mailto:legal@creatorclaw.co">legal@creatorclaw.co</a> to ensure any data on our end is also removed.</p>
+  </div>
+
+  <div class="doc-section">
+    <h2>Contact Us</h2>
+    <p>If you have questions about your data or the deletion process, reach out at any time:</p>
+    <p><strong>CreatorClaw</strong><br>
+    Email: <a href="mailto:legal@creatorclaw.co">legal@creatorclaw.co</a><br>
+    Website: <a href="https://creatorclaw.co">creatorclaw.co</a></p>
+  </div>
+
+  <div class="footer-links">
+    <a href="/">Home</a>
+    <a href="/privacy.html">Privacy Policy</a>
+    <a href="/tos.html">Terms of Service</a>
+    <a href="mailto:legal@creatorclaw.co">Contact</a>
+  </div>
+</div>
+
+<script>
+const MOON_SVG='<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>';
+const SUN_SVG='<circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/>';
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  const icon=document.getElementById('theme-icon');
+  if(icon) icon.innerHTML=t==='light'?MOON_SVG:SUN_SVG;
+}
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme')||'dark';
+  const next=cur==='dark'?'light':'dark';
+  applyTheme(next);
+  try{localStorage.setItem('cc-theme',next)}catch(e){}
+}
+(function(){
+  let saved='dark';
+  try{saved=localStorage.getItem('cc-theme')||'dark'}catch(e){}
+  applyTheme(saved);
+})();
+</script>
+</body>
+</html>
+`;
 const TOS_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -485,6 +741,7 @@ export default {
     if (request.method === 'GET') {
       if (path === '/privacy.html' || path === '/privacy') return serveHTML(PRIVACY_HTML);
       if (path === '/tos.html' || path === '/tos') return serveHTML(TOS_HTML);
+      if (path === '/data-deletion.html' || path === '/data-deletion') return serveHTML(DATA_DELETION_HTML);
     }
 
     const origin = request.headers.get('Origin') || '';
