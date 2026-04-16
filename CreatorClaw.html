@@ -264,8 +264,8 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 .pulse-tag{font-size:9px;padding:3px 10px;border-radius:4px;background:transparent;color:var(--muted);border:1px solid var(--border);font-weight:500;letter-spacing:0.05em}
 .pulse-tag.persona{background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border)}
 .pulse-actions{display:flex;gap:8px}
-.pulse-save-btn{padding:9px 16px;border-radius:6px;font-size:10px;font-weight:600;background:transparent;color:var(--muted);border:1px solid var(--border2);display:flex;align-items:center;gap:5px;letter-spacing:0.08em;text-transform:uppercase}
-.pulse-save-btn.saved{background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border)}
+.pulse-save-btn{padding:9px 16px;border-radius:6px;font-size:10px;font-weight:600;background:transparent;color:var(--muted);border:1px solid var(--border2);display:flex;align-items:center;gap:5px;letter-spacing:0.08em;text-transform:uppercase;transition:all 0.3s}
+.pulse-save-btn:hover{color:var(--gold);border-color:var(--gold-border)}
 .pulse-draft-btn{padding:9px 16px;border-radius:6px;font-size:10px;font-weight:600;background:transparent;border:1px solid var(--gold-border);color:var(--gold);display:flex;align-items:center;gap:5px;letter-spacing:0.08em;text-transform:uppercase}
 .pulse-draft-btn:hover{background:var(--gold);color:var(--bg)}
 
@@ -1320,19 +1320,52 @@ function renderPulseCards(cat){
       ${idea.sound?`<div class="pulse-meta"><div class="pulse-meta-item">Sound: <span class="val">${idea.sound}</span></div></div>`:''}
       <div class="pulse-tags">${(idea.tags||[]).map(t=>`<span class="pulse-tag">${t}</span>`).join('')}${(idea.persona||[]).map(p=>`<span class="pulse-tag persona">${p}</span>`).join('')}</div>
       <div class="pulse-actions">
-        <button class="pulse-save-btn" onclick="togglePulseSave(this,'${safeTitle}')">Save</button>
         <button class="pulse-save-btn" onclick="openSchedule('${safeTitle}')">📅 Schedule</button>
-        <button class="pulse-draft-btn" onclick="this.innerHTML='✓ Drafted';this.style.opacity=0.6">Draft Script</button>
+        <button class="pulse-draft-btn" onclick="draftScript('${safeTitle}')">Draft Script</button>
       </div>`;
     frag.appendChild(card);
   });
   grid.appendChild(frag);
 }
 
-function togglePulseSave(btn,title){
-  state.saved[title]=!state.saved[title];
-  if(state.saved[title]){btn.className='pulse-save-btn saved';btn.innerHTML='✓ Saved'}
-  else{btn.className='pulse-save-btn';btn.innerHTML='Save'}
+// ── Draft Script (AI-generated content script modal) ─────────────────────────
+async function draftScript(encodedTitle){
+  const title=encodedTitle.replace(/&#39;/g,"'");
+  const idea=(state.pulseIdeas||[]).find(i=>i.title===title);
+  if(!idea) return;
+  const p=state.persona||{};
+  showModal(
+    '<div class="modal-title">Drafting script…</div>'+
+    '<div class="modal-sub">"'+title.replace(/</g,'&lt;')+'"</div>'+
+    '<div class="pitch-loading"><div class="spinner" data-crab></div><div class="loading-title">Writing your script…</div></div>'
+  );
+  const sys='Short-form video scriptwriter. Return ONLY JSON: {"hook":"...","body":"...","cta":"...","length":"..."} No markdown. The hook is the first 3 seconds (must stop the scroll). The body is the main content (25-40 seconds of spoken content). The cta is the closing line. Length is an estimated duration string like "45 seconds". Write in the creator\'s voice — use their vibes and tone.';
+  const personaLine=`Creator voice: ${p.name||''} — ${p.bio||''}. Vibes: ${(p.vibes||[]).join(', ')}. Content pillars: ${(p.pillars||[]).map(x=>x.l).join(', ')}.`;
+  const user=`${personaLine}\nContent idea: "${idea.title}". Format: ${idea.format||''}. Platform: ${idea.platform||''}. Hook context: ${idea.hook||''}. Tags: ${(idea.tags||[]).join(' ')}${idea.sound?`. Suggested audio: ${idea.sound}`:''}.\n\nScript JSON:`;
+  try {
+    const raw=await kimiChat(sys,user);
+    const script=parseJSON(raw);
+    const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const fullText=`HOOK (0-3s):\n${script.hook}\n\nBODY:\n${script.body}\n\nCTA:\n${script.cta}\n\nEstimated length: ${script.length}`;
+    const copyText=fullText.replace(/\\/g,'\\\\').replace(/`/g,'\\`').replace(/\$/g,'\\$');
+    showModal(
+      '<div class="modal-title">Script: '+esc(idea.title)+'</div>'+
+      '<div class="modal-sub">Written in your voice — '+esc(p.name||'the creator')+'. '+esc(script.length||'')+'.</div>'+
+      '<div class="modal-label">Hook (first 3 seconds)</div>'+
+      '<div class="pitch-subject-val">'+esc(script.hook)+'</div>'+
+      '<div class="modal-label">Body</div>'+
+      '<div class="pitch-body">'+esc(script.body)+'</div>'+
+      '<div class="modal-label">Call to Action</div>'+
+      '<div class="pitch-subject-val">'+esc(script.cta)+'</div>'+
+      '<div class="modal-row">'+
+        '<button class="copy-btn" onclick="copyPitch(this,`'+copyText+'`)">Copy to Clipboard</button>'+
+        '<button class="modal-cancel-btn" onclick="closeModal()">Close</button>'+
+      '</div>'
+    );
+  } catch(e){
+    closeModal();
+    showError('Script draft failed: '+e.message);
+  }
 }
 
 </script>
