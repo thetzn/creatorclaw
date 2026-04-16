@@ -61,6 +61,13 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 .main{max-width:1100px;margin:0 auto;padding:60px 32px 100px}
 .page-title{font-size:36px;font-weight:300;margin-bottom:10px;letter-spacing:-0.01em;line-height:1.2}
 .page-sub{color:var(--muted);font-size:14px;margin-bottom:48px;font-weight:400;line-height:1.6;max-width:500px}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:48px}
+.page-head .page-title,.page-head .page-sub{margin-bottom:0}
+.page-head .page-sub{margin-top:8px}
+@media(max-width:768px){
+  .page-head{flex-direction:column;align-items:stretch;margin-bottom:28px}
+  .page-head .cta-btn{width:100%;text-align:center;justify-content:center}
+}
 
 /* Cards */
 .card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:32px;transition:all 0.3s}
@@ -125,12 +132,15 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 .gen-btn:hover{background:var(--gold);color:var(--bg)}
 
 .loading{text-align:center;padding:100px 0}
+.loading-progress{margin:28px auto 0;max-width:320px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.loading-progress-fill{height:100%;background:linear-gradient(90deg,var(--gold3),var(--gold));border-radius:2px;width:0;transition:width 0.4s ease}
+.loading-sub{transition:opacity 0.3s ease}
 .spinner{display:inline-block;animation:spin 2s linear infinite;margin-bottom:24px;width:52px;height:32px}
 .spinner svg{width:100%;height:100%;display:block}
 .spinner-inline{display:inline-block;width:16px;height:10px;animation:spin 1.5s linear infinite;vertical-align:-1px}
 .spinner-inline svg{width:100%;height:100%;display:block}
 .loading-title{font-weight:400;font-size:16px;color:var(--text);letter-spacing:0.02em}
-.loading-sub{color:var(--muted);font-size:12px;margin-top:8px}
+.loading-sub{color:var(--muted);font-size:12px;margin-top:8px;min-height:1em}
 
 /* Persona */
 .persona-header{display:flex;gap:32px;margin-bottom:28px;align-items:flex-start}
@@ -264,14 +274,22 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
   .header{padding:0 16px}
   .header-inner{height:52px}
   .logo-text{font-size:14px}
-  .nav-btn{padding:8px 14px;font-size:10px}
+  .nav-btn{padding:10px 14px;font-size:10px;min-height:40px}
   .avatar{display:none}
-  .main{padding:32px 16px 60px}
+  .main{padding:24px 16px 60px}
   .page-title{font-size:26px}
-  .page-sub{font-size:13px;margin-bottom:32px}
-  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr!important;gap:12px}
-  .brand-grid,.pulse-grid{grid-template-columns:1fr}
-  .card,.login-card{padding:24px}
+  .page-sub{font-size:13px;margin-bottom:28px}
+  /* Keep stats as 2x2 on mobile — reads as a dashboard at a glance */
+  .grid-4{grid-template-columns:1fr 1fr!important;gap:10px}
+  .grid-2,.grid-3{grid-template-columns:1fr!important;gap:12px}
+  /* Brand matches become a horizontal swipe carousel — native app feel */
+  .brand-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;padding:4px 0 12px;margin:0 -16px;padding-left:16px;padding-right:16px;-webkit-overflow-scrolling:touch}
+  .brand-grid::-webkit-scrollbar{display:none}
+  .brand-grid{scrollbar-width:none}
+  .brand-card{flex:0 0 85%;scroll-snap-align:start;min-width:280px}
+  .brand-card:last-child{margin-right:16px}
+  .pulse-grid{grid-template-columns:1fr}
+  .card,.login-card{padding:22px}
   .persona-header{flex-direction:column;align-items:center;text-align:center}
   .persona-bio{text-align:center}
   .persona-name{justify-content:center}
@@ -279,20 +297,32 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
   .vibe-tags{justify-content:center}
   .pillars{flex-direction:column;gap:8px}
   .pillar{flex:none}
-  .cta-banner{flex-direction:column;gap:12px;text-align:center;padding:18px 20px}
+  .cta-banner{flex-direction:column;gap:14px;text-align:center;padding:20px 22px}
   .center-cta{padding:50px 0}
   .center-cta h2{font-size:22px}
-  .gen-btn{padding:14px 28px;font-size:11px}
+  /* Larger tap targets on all action buttons */
+  .gen-btn{padding:16px 32px;font-size:11px;min-height:48px}
+  .cta-btn{padding:14px 24px;min-height:44px}
+  .connect-btn{padding:16px 0;min-height:52px;font-size:13px}
   .brand-card,.pulse-card{padding:22px}
-  .brand-footer{flex-direction:column;gap:10px;align-items:flex-start}
-  .pulse-actions{flex-wrap:wrap}
+  .brand-footer{flex-direction:column;gap:12px;align-items:stretch}
+  .outreach-btn{padding:12px 16px;font-size:11px;min-height:40px;justify-content:center}
+  .pulse-actions{flex-wrap:wrap;gap:8px}
+  .pulse-save-btn,.pulse-draft-btn{padding:11px 14px;min-height:40px;flex:1;justify-content:center}
   .growth-bars{height:110px}
   .vbar-container{height:90px}
+  /* Modal tap targets + content fit */
+  .modal-box{padding:28px;max-height:94vh}
+  .modal-save-btn,.modal-cancel-btn,.copy-btn{padding:15px 0;min-height:48px}
+  .theme-toggle{padding:10px 12px}
+  .theme-toggle svg{width:16px;height:16px}
 }
 @media(max-width:480px){
   .stat-grid{grid-template-columns:1fr 1fr;gap:6px}
   .pulse-filters{gap:4px}
-  .pulse-filter{padding:6px 14px;font-size:9px}
+  .pulse-filter{padding:8px 14px;font-size:10px;min-height:34px}
+  .stat-card{padding:16px}
+  .stat-card-val{font-size:20px}
 }
 
 .hidden{display:none}
@@ -433,10 +463,15 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 
 <!-- PERSONA TAB -->
 <div id="tab-persona" class="hidden">
-  <h1 class="page-title">Your <span class="gold-text">Persona</span></h1>
-  <p class="page-sub">An AI-generated media kit built from your content, audience, and engagement patterns.</p>
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Your <span class="gold-text">Persona</span></h1>
+      <p class="page-sub" style="margin-bottom:0">An AI-generated media kit built from your content, audience, and engagement patterns.</p>
+    </div>
+    <button class="cta-btn hidden" id="persona-download-btn" onclick="downloadMediaKit()">↓ Download Media Kit</button>
+  </div>
   <div id="persona-cta" class="center-cta"><div class="center-icon">✦</div><h2>Ready to build your persona</h2><p>We'll analyze your content across platforms to create a comprehensive media kit.</p><button class="gen-btn" onclick="generatePersona()">Generate Persona</button></div>
-  <div id="persona-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Analyzing your content...</div><div class="loading-sub">Scanning your recent posts on Instagram</div></div>
+  <div id="persona-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Analyzing your content…</div><div class="loading-sub" id="persona-loading-sub">Scanning your recent posts…</div><div class="loading-progress"><div class="loading-progress-fill" id="persona-loading-bar"></div></div></div>
   <div id="persona-result" class="hidden">
     <div class="card persona-header" style="margin-bottom:20px">
       <div class="persona-avatar">JM</div>
@@ -446,9 +481,6 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
         <div class="vibe-tags"><span class="vibe-tag">Aspirational</span><span class="vibe-tag">Warm Tones</span><span class="vibe-tag">High Energy</span><span class="vibe-tag">Relatable</span><span class="vibe-tag">Polished Casual</span><span class="vibe-tag">Motivational</span></div>
       </div>
       <div class="score-wrap"><div class="score-ring"><div class="score-inner"><span class="score-num">87</span></div></div><div class="score-label">Persona Score</div></div>
-    </div>
-    <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
-      <button class="cta-btn" onclick="downloadMediaKit()">↓ Download Media Kit</button>
     </div>
     <div class="grid-4">
       <div class="stat-card reach"><div class="stat-card-icon" style="background:var(--gold-dim);color:var(--gold)">◎</div><div class="stat-card-val">549K</div><div class="stat-card-label">Total Reach<span class="stat-card-sub">+12%</span></div></div>
@@ -464,7 +496,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
     </div>
     <div class="grid-2">
       <div class="chart-card"><div class="chart-title">Creator Profile</div><div id="radar-bars" style="padding-top:4px"></div></div>
-      <div class="chart-card"><div class="chart-title">Follower Growth (12mo)</div><div class="growth-bars" id="growth-chart"></div><div class="growth-legend"><span><span class="pie-dot" style="background:var(--gold)"></span> Instagram</span><span><span class="pie-dot" style="background:var(--muted2)"></span> TikTok</span></div></div>
+      <div class="chart-card"><div class="chart-title">Follower Growth (12mo)</div><div class="growth-bars" id="growth-chart"></div><div class="growth-legend"><span><span class="pie-dot" style="background:var(--gold)"></span> Instagram</span></div></div>
     </div>
   </div>
 </div>
@@ -474,7 +506,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
   <h1 class="page-title">Brand <span class="gold-text">Matches</span></h1>
   <p class="page-sub">Brands aligned with your persona, ranked by audience fit and content compatibility.</p>
   <div id="brands-cta" class="center-cta"><div class="center-icon">♢</div><h2>Find your brand matches</h2><p>We'll match you with brands that align with your audience, content style, and niche.</p><button class="gen-btn" onclick="generateBrands()">Generate Matches</button></div>
-  <div id="brands-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Matching brands to your persona...</div><div class="loading-sub">Scanning 12,000+ brand profiles</div></div>
+  <div id="brands-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Matching brands to your persona…</div><div class="loading-sub" id="brands-loading-sub">Scanning 12,000+ brand profiles…</div><div class="loading-progress"><div class="loading-progress-fill" id="brands-loading-bar"></div></div></div>
   <div id="brands-result" class="brand-grid hidden"></div>
 </div>
 
@@ -483,7 +515,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
   <h1 class="page-title"><span class="gold-text">Pulse</span></h1>
   <p class="page-sub">Content ideas matched to your persona and what's trending right now.</p>
   <div id="pulse-cta" class="center-cta"><div class="center-icon">◎</div><h2>Discover what to post next</h2><p>We'll scan trending topics, sounds, and formats — then match them to your persona for high-engagement ideas.</p><button class="gen-btn" onclick="generatePulse()">Scan Trends</button></div>
-  <div id="pulse-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Scanning trends across platforms...</div><div class="loading-sub">Analyzing 50K+ trending posts, sounds, and hashtags</div></div>
+  <div id="pulse-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Scanning trends across platforms…</div><div class="loading-sub" id="pulse-loading-sub">Analyzing 50K+ trending posts…</div><div class="loading-progress"><div class="loading-progress-fill" id="pulse-loading-bar"></div></div></div>
   <div id="pulse-result" class="hidden"><div class="pulse-filters" id="pulse-filters"></div><div class="pulse-section-label"><span class="dot" style="background:var(--gold)"></span> Trending Now — Matched to Your Persona</div><div class="pulse-grid" id="pulse-grid"></div></div>
 </div>
 
@@ -512,6 +544,69 @@ function toggleTheme(){
 
 // ── Crab logo (reusable for spinners) ─────────────────────────────────────────
 const CRAB_RECTS='<rect x="40" y="0" width="10" height="10"/><rect x="80" y="0" width="10" height="10"/><rect x="40" y="10" width="50" height="10"/><rect x="10" y="20" width="10" height="10"/><rect x="30" y="20" width="70" height="10"/><rect x="110" y="20" width="10" height="10"/><rect x="0" y="30" width="30" height="10"/><rect x="40" y="30" width="10" height="10"/><rect x="60" y="30" width="10" height="10"/><rect x="80" y="30" width="10" height="10"/><rect x="100" y="30" width="30" height="10"/><rect x="0" y="40" width="130" height="10"/><rect x="10" y="50" width="110" height="10"/><rect x="0" y="60" width="10" height="10"/><rect x="20" y="60" width="10" height="10"/><rect x="40" y="60" width="10" height="10"/><rect x="60" y="60" width="10" height="10"/><rect x="80" y="60" width="10" height="10"/><rect x="100" y="60" width="10" height="10"/><rect x="120" y="60" width="10" height="10"/><rect x="10" y="70" width="10" height="10"/><rect x="30" y="70" width="10" height="10"/><rect x="70" y="70" width="10" height="10"/><rect x="90" y="70" width="10" height="10"/>';
+// ── Progress loading (rotating messages + growing bar) ───────────────────────
+const LOADING_MESSAGES={
+  persona:[
+    'Finding your profile…',
+    'Reading your recent 25 posts…',
+    'Measuring engagement patterns…',
+    'Analyzing sentiment in your comments…',
+    'Identifying your content pillars…',
+    'Mapping audience demographics…',
+    'Detecting your creator vibes…',
+    'Calculating growth signals…',
+    'Stitching your media kit together…'
+  ],
+  brands:[
+    'Indexing partnership opportunities…',
+    'Matching your niche to advertisers…',
+    'Scoring audience overlap…',
+    'Calculating compatibility scores…',
+    'Ranking by engagement fit…',
+    'Estimating deal value ranges…'
+  ],
+  pulse:[
+    'Scanning trending audio and formats…',
+    'Cross-referencing your pillars…',
+    'Measuring hashtag momentum…',
+    'Identifying high-match opportunities…',
+    'Estimating reach potential…',
+    'Curating your top 10 picks…'
+  ]
+};
+const _loadingTimers={};
+function startLoading(key, estSec){
+  stopLoading(key);
+  const sub=document.getElementById(key+'-loading-sub');
+  const bar=document.getElementById(key+'-loading-bar');
+  const msgs=LOADING_MESSAGES[key]||[];
+  let i=0;
+  if(sub && msgs.length){ sub.style.opacity='0'; setTimeout(()=>{ sub.textContent=msgs[0]; sub.style.opacity='1'; },150); }
+  const msgInterval=setInterval(()=>{
+    i=(i+1)%msgs.length;
+    if(!sub) return;
+    sub.style.opacity='0';
+    setTimeout(()=>{ sub.textContent=msgs[i]; sub.style.opacity='1'; },180);
+  },2800);
+  const start=Date.now();
+  if(bar) bar.style.width='0%';
+  const barInterval=setInterval(()=>{
+    const elapsed=(Date.now()-start)/1000;
+    // Asymptotic growth — feels fast early, never quite reaches 100%
+    const pct=Math.min(92, 100*(1-Math.exp(-elapsed/(estSec*0.5))));
+    if(bar) bar.style.width=pct+'%';
+  },180);
+  _loadingTimers[key]={msgInterval,barInterval,bar};
+}
+function stopLoading(key){
+  const t=_loadingTimers[key];
+  if(!t) return;
+  clearInterval(t.msgInterval);
+  clearInterval(t.barInterval);
+  if(t.bar){ t.bar.style.width='100%'; }
+  delete _loadingTimers[key];
+}
+
 // ── Modal helpers ─────────────────────────────────────────────────────────────
 function showModal(innerHTML){
   closeModal();
@@ -837,6 +932,7 @@ async function analyzeIGProfile(){
   document.getElementById('persona-cta').classList.add('hidden');
   document.getElementById('persona-result').classList.add('hidden');
   document.getElementById('persona-loading').classList.remove('hidden');
+  startLoading('persona', 25);
 
   try {
     const res=await fetch(PROXY_URL,{
@@ -895,7 +991,7 @@ Return ONLY this JSON (no markdown, no explanation):
     generatePersona();
 
   } catch(e){
-    // Analysis failed — send user back to Connect tab so they can retry
+    stopLoading('persona');
     document.getElementById('persona-loading').classList.add('hidden');
     document.getElementById('persona-cta').classList.remove('hidden');
     switchTab('connect');
@@ -939,6 +1035,8 @@ async function generatePersona(){
   state._personaLoading=true;
   document.getElementById('persona-cta').classList.add('hidden');
   document.getElementById('persona-loading').classList.remove('hidden');
+  // Only start a fresh progress run if one isn't already going (e.g., from analyzeIG)
+  if(!_loadingTimers.persona) startLoading('persona', 8);
 
   const system=`Creator analyst. Return ONLY JSON, no markdown. Exact structure:
 {"name":"Name","bio":"One sentence bio.","score":87,"vibes":["Tag1","Tag2","Tag3","Tag4","Tag5"],"totalReach":"549K","avgEngagement":"5.3%","growthRate":"+18K/mo","tier":"Rising Star","pillars":[{"l":"Fitness","p":40},{"l":"Lifestyle","p":30},{"l":"Beauty","p":20},{"l":"Other","p":10}]}
@@ -952,10 +1050,12 @@ pillars p must sum to 100. Keep 4-5 pillars.`;
     const core=parseJSON(raw);
     const data=expandPersona(core);
     state.persona=data;
+    stopLoading('persona');
     document.getElementById('persona-loading').classList.add('hidden');
     renderPersona(data);
     showContinueCTA('persona-result','Persona ready — discover <span class="hl">content ideas</span> matched to your profile.','Continue to Pulse',advanceToPulse);
   } catch(e){
+    stopLoading('persona');
     document.getElementById('persona-loading').classList.add('hidden');
     document.getElementById('persona-cta').classList.remove('hidden');
     showError(e.message);
@@ -1006,6 +1106,7 @@ function renderPersona(d){
   buildCharts(d);
   document.getElementById('persona-result').classList.remove('hidden');
   document.getElementById('persona-result').classList.add('fade-up');
+  document.getElementById('persona-download-btn').classList.remove('hidden');
   state.personaGen=true;
 }
 
@@ -1031,10 +1132,21 @@ function buildCharts(d){
 
   const gc=document.getElementById('growth-chart');
   const months=["May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr"];
-  const maxG=500000;
+  // Use real IG follower count if available, else fallback
+  const followersNum=(()=>{
+    const s=(d.totalReach||'').toString().trim();
+    const n=parseFloat(s);
+    if(!isFinite(n)) return 500000;
+    if(/k/i.test(s)) return n*1000;
+    if(/m/i.test(s)) return n*1000000;
+    return n;
+  })();
+  const startFollowers=followersNum*0.65;
+  const growthPerMonth=(followersNum-startFollowers)/(months.length-1);
+  const maxG=followersNum*1.05;
   gc.innerHTML=months.map((m,i)=>{
-    const ig=280000+i*18000;const tt=150000+i*22000;
-    return`<div class="growth-col"><div class="growth-stack"><div class="growth-bar-ig" style="height:0" data-h="${ig/maxG*120}"></div><div class="growth-bar-tt" style="height:0" data-h="${tt/maxG*120}"></div></div><div class="growth-label">${m}</div></div>`;
+    const ig=startFollowers+i*growthPerMonth;
+    return`<div class="growth-col"><div class="growth-stack"><div class="growth-bar-ig" style="height:0" data-h="${(ig/maxG*105).toFixed(1)}"></div></div><div class="growth-label">${m}</div></div>`;
   }).join('');
 
   // Single RAF to trigger all CSS transitions
@@ -1043,7 +1155,7 @@ function buildCharts(d){
     ab.querySelectorAll('.vbar-bar').forEach(b=>{b.style.height=b.dataset.h+'px'});
     lb.querySelectorAll('.hbar-fill').forEach(b=>{b.style.width=b.dataset.w+'%'});
     rb.querySelectorAll('.radar-fill').forEach(b=>{b.style.width=b.dataset.w+'%'});
-    gc.querySelectorAll('.growth-bar-ig,.growth-bar-tt').forEach(b=>{b.style.height=b.dataset.h+'px'});
+    gc.querySelectorAll('.growth-bar-ig').forEach(b=>{b.style.height=b.dataset.h+'px'});
   });
 }
 
@@ -1053,6 +1165,7 @@ async function generateBrands(){
   state._brandsLoading=true;
   document.getElementById('brands-cta').classList.add('hidden');
   document.getElementById('brands-loading').classList.remove('hidden');
+  startLoading('brands', 10);
 
   const system=`Brand matchmaker. Return ONLY a JSON array of 8 brands, no markdown. Structure:
 [{"name":"Gymshark","match":96,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"}]
@@ -1066,9 +1179,11 @@ Real brands. match 60-99. reasons exactly 3. deal is dollar range. Order by matc
   try {
     const raw=await kimiChat(system,user);
     const brands=parseJSON(raw);
+    stopLoading('brands');
     document.getElementById('brands-loading').classList.add('hidden');
     renderBrands(brands);
   } catch(e){
+    stopLoading('brands');
     document.getElementById('brands-loading').classList.add('hidden');
     document.getElementById('brands-cta').classList.remove('hidden');
     showError(e.message);
@@ -1119,6 +1234,7 @@ async function generatePulse(){
   state._pulseLoading=true;
   document.getElementById('pulse-cta').classList.add('hidden');
   document.getElementById('pulse-loading').classList.remove('hidden');
+  startLoading('pulse', 10);
 
   const system=`Content strategist. Return ONLY a JSON array of 10 ideas, no markdown. Structure:
 [{"title":"Title","hook":"Why this works.","trend":"hot","match":96,"format":"Reel / TikTok","platform":"Both","estReach":"45K – 80K","tags":["#tag1","#tag2","#tag3"],"persona":["Trait1","Trait2"],"cat":"fitness","sound":"Trending: song — artist"}]
@@ -1132,10 +1248,12 @@ trend: hot/rising/steady/new. platform: Both/Instagram/TikTok/YouTube. cat: fitn
   try {
     const raw=await kimiChat(system,user);
     const ideas=parseJSON(raw);
+    stopLoading('pulse');
     document.getElementById('pulse-loading').classList.add('hidden');
     renderPulse(ideas);
     showContinueCTA('pulse-result','Ideas locked in — find <span class="hl">brand partners</span> that match your persona.','Continue to Brands',advanceToBrands);
   } catch(e){
+    stopLoading('pulse');
     document.getElementById('pulse-loading').classList.add('hidden');
     document.getElementById('pulse-cta').classList.remove('hidden');
     showError(e.message);
