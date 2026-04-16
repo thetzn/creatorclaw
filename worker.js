@@ -113,10 +113,15 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   }
 
   // 2. Compute real engagement rate from recent posts
-  const posts = (p.latestPosts || []).filter(x => typeof x.likesCount === 'number');
-  const avgLikes = posts.length ? posts.reduce((s, x) => s + (x.likesCount || 0), 0) / posts.length : 0;
-  const avgComments = posts.length ? posts.reduce((s, x) => s + (x.commentsCount || 0), 0) / posts.length : 0;
-  const followers = p.followersCount || 0;
+  const posts = (p.latestPosts || p.posts || []).filter(x => typeof x.likesCount === 'number' || typeof x.likes === 'number');
+  const likeOf = x => (typeof x.likesCount === 'number' ? x.likesCount : (x.likes || 0));
+  const commentOf = x => (typeof x.commentsCount === 'number' ? x.commentsCount : (x.comments || 0));
+  const avgLikes = posts.length ? posts.reduce((s, x) => s + likeOf(x), 0) / posts.length : 0;
+  const avgComments = posts.length ? posts.reduce((s, x) => s + commentOf(x), 0) / posts.length : 0;
+  // Apify may return the count under several names depending on actor version
+  const followers = p.followersCount || p.followers_count || p.followers || p.edge_followed_by?.count || 0;
+  const following = p.followsCount || p.follows_count || p.following || p.edge_follow?.count || 0;
+  const totalPosts = p.postsCount || p.posts_count || p.edge_owner_to_timeline_media?.count || 0;
   const engagementPct = followers > 0 ? ((avgLikes + avgComments) / followers) * 100 : 0;
 
   // 3. Format follower count nicely
@@ -159,19 +164,19 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   // 6. Assemble the profile payload matching the frontend schema
   const profile = {
     username: '@' + (p.username || handle),
-    displayName: p.fullName || p.username || handle,
+    displayName: p.fullName || p.full_name || p.username || handle,
     followers: formatCount(followers),
-    following: formatCount(p.followsCount),
-    totalPosts: formatCount(p.postsCount),
+    following: formatCount(following),
+    totalPosts: formatCount(totalPosts),
     engagementRate: engagementPct > 0 ? (engagementPct < 1 ? engagementPct.toFixed(2) : engagementPct.toFixed(1)) + '%' : null,
     topCategory: interpretation.topCategory,
     categories: interpretation.categories,
     vibes: interpretation.vibes,
-    bio: p.biography || null,
+    bio: p.biography || p.bio || null,
     postingFrequency: postsCadence(posts),
     recentThemes: interpretation.recentThemes,
-    // raw counts for any downstream math
-    _raw: { followers, following: p.followsCount, posts: p.postsCount, avgLikes, avgComments, verified: !!p.verified, private: !!p.private },
+    // raw counts for any downstream math / debugging
+    _raw: { followers, following, posts: totalPosts, avgLikes, avgComments, verified: !!p.verified, private: !!p.private, actorFields: Object.keys(p).slice(0, 30) },
   };
 
   // Return in the same shape the frontend expects from kimiChat
