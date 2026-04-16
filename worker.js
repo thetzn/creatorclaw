@@ -165,11 +165,34 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     }
   }
 
+  // Fetch the profile pic server-side and embed as base64 data URL,
+  // since Instagram's CDN blocks direct browser loads from non-Instagram referrers.
+  const picUrl = p.profilePicUrlHD || p.profilePicUrl || p.profile_pic_url_hd || p.profile_pic_url || null;
+  let profilePicData = null;
+  if (picUrl) {
+    try {
+      const picRes = await fetch(picUrl);
+      if (picRes.ok) {
+        const buf = await picRes.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = '';
+        const chunk = 0x8000;
+        for (let i = 0; i < bytes.byteLength; i += chunk) {
+          binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+        }
+        const b64 = btoa(binary);
+        const contentType = picRes.headers.get('content-type') || 'image/jpeg';
+        profilePicData = `data:${contentType};base64,${b64}`;
+      }
+    } catch (_) { /* fall through to URL */ }
+  }
+
   // 6. Assemble the profile payload matching the frontend schema
   const profile = {
     username: '@' + (p.username || handle),
     displayName: p.fullName || p.full_name || p.username || handle,
-    profilePicUrl: p.profilePicUrlHD || p.profilePicUrl || p.profile_pic_url_hd || p.profile_pic_url || null,
+    profilePicUrl: picUrl,
+    profilePicData, // data URL — use this in <img src="...">, bypasses IG CDN referer checks
     followers: formatCount(followers),
     following: formatCount(following),
     totalPosts: formatCount(totalPosts),
