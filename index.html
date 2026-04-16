@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CreatorClaw</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <style>
 :root{
   --bg:#0A0A0A;--card:#111111;--card2:#161616;--border:#1E1E1E;--border2:#2A2A2A;
@@ -14,7 +15,23 @@
   --red:#C46E6E;--red-dim:rgba(196,110,110,0.15);
   --blue:#6E8EC4;--blue-dim:rgba(110,142,196,0.15);
   --plum:#8E6E8B;--plum-dim:rgba(142,110,139,0.15);
+  --scheme:dark;
 }
+:root[data-theme="light"]{
+  --bg:#F5F1E8;--card:#FFFEF9;--card2:#F0EAD8;--border:#E5DDC9;--border2:#D4CAB0;
+  --text:#2A251D;--muted:#7A6F5F;--muted2:#A09484;
+  --gold:#A67B3D;--gold2:#C99B5A;--gold3:#8A6431;
+  --gold-dim:rgba(166,123,61,0.10);--gold-border:rgba(166,123,61,0.25);
+  --green:#5A8A5A;--green-dim:rgba(90,138,90,0.12);
+  --red:#B35A5A;--red-dim:rgba(179,90,90,0.12);
+  --blue:#5A7AB0;--blue-dim:rgba(90,122,176,0.12);
+  --plum:#7A5E78;--plum-dim:rgba(122,94,120,0.12);
+  --scheme:light;
+}
+:root[data-theme="light"] .header{background:rgba(245,241,232,0.9)}
+:root[data-theme="light"] .connect-btn.tt{background:#1A1A1A;color:#fff}
+:root[data-theme="light"] .growth-bar-tt{background:var(--muted)}
+:root[data-theme="light"] input,:root[data-theme="light"] textarea{color-scheme:light}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
@@ -30,6 +47,9 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 .header-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
 .logo{display:flex;align-items:center;gap:10px}
 .logo-mark{width:26px;height:16px;flex-shrink:0}
+.theme-toggle{background:transparent;border:1px solid var(--border);border-radius:6px;padding:7px 9px;color:var(--muted);cursor:pointer;display:flex;align-items:center;transition:all 0.3s}
+.theme-toggle:hover{color:var(--gold);border-color:var(--gold-border)}
+.theme-toggle svg{width:14px;height:14px;display:block}
 .logo-text{font-size:18px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase}
 .nav{display:flex;gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .nav::-webkit-scrollbar{display:none}
@@ -45,6 +65,19 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 /* Cards */
 .card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:32px;transition:all 0.3s}
 .card:hover{border-color:var(--border2)}
+.card.persona-header{
+  position:relative;
+  background:radial-gradient(circle at 88% -15%, var(--gold-dim) 0%, transparent 50%),linear-gradient(135deg, var(--card) 0%, var(--card2) 100%);
+  border:1px solid var(--border);
+  box-shadow:0 1px 0 rgba(255,255,255,0.03) inset,0 20px 50px -25px rgba(0,0,0,0.5);
+  overflow:hidden;
+}
+.card.persona-header::before{
+  content:'';position:absolute;inset:0;border-radius:12px;padding:1px;
+  background:linear-gradient(135deg,var(--gold-border),transparent 40%,transparent 70%,var(--gold-border) 100%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;
+}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px}
 .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
@@ -92,7 +125,10 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 .gen-btn:hover{background:var(--gold);color:var(--bg)}
 
 .loading{text-align:center;padding:100px 0}
-.spinner{font-size:28px;display:inline-block;animation:spin 2s linear infinite;margin-bottom:24px;color:var(--gold)}
+.spinner{display:inline-block;animation:spin 2s linear infinite;margin-bottom:24px;width:52px;height:32px}
+.spinner svg{width:100%;height:100%;display:block}
+.spinner-inline{display:inline-block;width:16px;height:10px;animation:spin 1.5s linear infinite;vertical-align:-1px}
+.spinner-inline svg{width:100%;height:100%;display:block}
 .loading-title{font-weight:400;font-size:16px;color:var(--text);letter-spacing:0.02em}
 .loading-sub{color:var(--muted);font-size:12px;margin-top:8px}
 
@@ -112,7 +148,14 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 .score-num{font-size:20px;font-weight:700;color:var(--gold)}
 .score-label{font-size:9px;color:var(--muted);margin-top:8px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase}
 
-.stat-card{background:var(--card);border-radius:10px;padding:20px;border:1px solid var(--border)}
+.stat-card{background:var(--card);border-radius:10px;padding:20px;border:1px solid var(--border);position:relative;overflow:hidden;transition:transform 0.3s,border-color 0.3s}
+.stat-card:hover{transform:translateY(-2px);border-color:var(--border2)}
+.stat-card::after{content:'';position:absolute;top:-20px;right:-20px;width:90px;height:90px;background:radial-gradient(circle,var(--accent,var(--gold-dim)) 0%,transparent 70%);opacity:0.6;pointer-events:none}
+.stat-card.reach{--accent:var(--gold-dim)}
+.stat-card.engagement{--accent:var(--plum-dim)}
+.stat-card.growth{--accent:var(--green-dim)}
+.stat-card.tier{--accent:var(--gold-dim);border-color:var(--gold-border)}
+.stat-card > *{position:relative;z-index:1}
 .stat-card-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:12px}
 .stat-card-val{font-size:24px;font-weight:700;letter-spacing:-0.02em}
 .stat-card-label{font-size:10px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-top:4px}
@@ -171,6 +214,11 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 .brand-name{font-weight:600;font-size:15px;letter-spacing:0.02em}
 .brand-cat{font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase}
 .brand-match{color:var(--gold);font-weight:700;font-size:14px;letter-spacing:-0.02em}
+.match-meter{width:54px;height:54px;flex-shrink:0;position:relative}
+.match-meter-ring{width:54px;height:54px;border-radius:50%;background:conic-gradient(var(--gold3) 0deg,var(--gold) var(--deg,0deg),var(--border) var(--deg,0deg))}
+.match-meter-inner{position:absolute;inset:4px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;line-height:1}
+.match-meter-val{font-size:14px;font-weight:700;color:var(--gold);letter-spacing:-0.02em}
+.match-meter-lbl{font-size:7px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-top:2px}
 .brand-reasons{margin:16px 0}
 .brand-reason{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin-bottom:6px}
 .brand-reason .chk{color:var(--gold);font-weight:400}
@@ -249,18 +297,29 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 
 .hidden{display:none}
 
-/* Settings modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
-.modal-box{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:40px;width:100%;max-width:440px}
+/* Shared modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeUp 0.3s ease forwards;opacity:0}
+:root[data-theme="light"] .modal-overlay{background:rgba(42,37,29,0.4)}
+.modal-box{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:36px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
 .modal-title{font-size:18px;font-weight:500;margin-bottom:6px;letter-spacing:0.02em}
-.modal-sub{color:var(--muted);font-size:13px;margin-bottom:28px;line-height:1.6}
+.modal-sub{color:var(--muted);font-size:13px;margin-bottom:24px;line-height:1.6}
 .modal-label{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:8px}
-.modal-input{width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:14px 16px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;transition:border-color 0.2s;margin-bottom:20px}
-.modal-input:focus{border-color:var(--gold)}
-.modal-row{display:flex;gap:10px}
+.modal-row{display:flex;gap:10px;margin-top:16px}
 .modal-save-btn{flex:1;background:var(--gold);border-radius:8px;padding:13px 0;color:var(--bg);font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase}
 .modal-cancel-btn{background:transparent;border:1px solid var(--border2);border-radius:8px;padding:13px 20px;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase}
-.modal-saved{color:var(--green);font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-top:12px;text-align:center}
+
+/* Pitch modal specifics */
+.pitch-body{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:18px;font-size:13px;line-height:1.7;color:var(--text);white-space:pre-wrap;margin-bottom:16px;max-height:360px;overflow-y:auto}
+.pitch-subject-val{font-weight:600;color:var(--text);font-size:14px;margin-bottom:18px;padding:12px 16px;background:var(--card2);border:1px solid var(--border);border-radius:8px}
+.copy-btn{flex:1;background:var(--gold);border-radius:8px;padding:13px 0;color:var(--bg);font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;transition:all 0.3s}
+.copy-btn.copied{background:var(--green);color:var(--text)}
+.pitch-loading{text-align:center;padding:40px 0}
+
+/* Schedule modal specifics */
+.date-time-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.date-time-row input{width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:14px 16px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;color-scheme:dark}
+.date-time-row input:focus{border-color:var(--gold)}
+
 .settings-btn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--muted);font-size:11px;display:flex;align-items:center;gap:6px;letter-spacing:0.08em}
 .settings-btn:hover{border-color:var(--border2);color:var(--text)}
 .error-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1010;border:1px solid var(--red);border-radius:8px;padding:12px 20px;color:var(--red);font-size:12px;font-weight:500;z-index:200;max-width:90vw;text-align:center}
@@ -326,7 +385,10 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
       <button class="nav-btn" data-tab="brands" onclick="switchTab('brands')">Brands</button>
       <button class="nav-btn" data-tab="pulse" onclick="switchTab('pulse')">Pulse</button>
     </div>
-    <div class="avatar" id="avatar-initials">CC</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>
+      <div class="avatar" id="avatar-initials">CC</div>
+    </div>
   </div>
 </div>
 
@@ -354,7 +416,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
             <input id="ig-url-input" type="text" placeholder="@yourhandle" onkeydown="if(event.key==='Enter')analyzeIGProfile()" style="flex:1;background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'">
             <button id="ig-analyze-btn" onclick="analyzeIGProfile()" style="background:transparent;border:1px solid var(--gold-border);border-radius:6px;padding:10px 16px;color:var(--gold);font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;transition:all 0.3s" onmouseover="this.style.background='var(--gold)';this.style.color='var(--bg)'" onmouseout="this.style.background='transparent';this.style.color='var(--gold)'">Analyze</button>
           </div>
-          <div id="ig-analyze-loading" class="hidden" style="display:flex;align-items:center;gap:8px;padding:10px 0 0;font-size:11px;color:var(--muted)"><span style="display:inline-block;animation:spin 1.5s linear infinite">✦</span> Scanning profile with AI — this may take 15–30s…</div>
+          <div id="ig-analyze-loading" class="hidden" style="display:flex;align-items:center;gap:8px;padding:10px 0 0;font-size:11px;color:var(--muted)"><span class="spinner-inline" data-crab></span> Scanning profile with AI — this may take 15–30s…</div>
         </div>
       </div>
       <div class="stat-grid hidden" id="ig-stats">
@@ -410,7 +472,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
   <h1 class="page-title">Your <span class="gold-text">Persona</span></h1>
   <p class="page-sub">An AI-generated media kit built from your content, audience, and engagement patterns.</p>
   <div id="persona-cta" class="center-cta"><div class="center-icon">✦</div><h2>Ready to build your persona</h2><p>We'll analyze your content across platforms to create a comprehensive media kit.</p><button class="gen-btn" onclick="generatePersona()">Generate Persona</button></div>
-  <div id="persona-loading" class="loading hidden"><div class="spinner">✦</div><div class="loading-title">Analyzing your content...</div><div class="loading-sub">Scanning 2,070 posts across Instagram and TikTok</div></div>
+  <div id="persona-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Analyzing your content...</div><div class="loading-sub">Scanning 2,070 posts across Instagram and TikTok</div></div>
   <div id="persona-result" class="hidden">
     <div class="card persona-header" style="margin-bottom:20px">
       <div class="persona-avatar">JM</div>
@@ -421,11 +483,14 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
       </div>
       <div class="score-wrap"><div class="score-ring"><div class="score-inner"><span class="score-num">87</span></div></div><div class="score-label">Persona Score</div></div>
     </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
+      <button class="cta-btn" onclick="downloadMediaKit()">↓ Download Media Kit</button>
+    </div>
     <div class="grid-4">
-      <div class="stat-card"><div class="stat-card-icon" style="background:var(--gold-dim);color:var(--gold)">◎</div><div class="stat-card-val">549K</div><div class="stat-card-label">Total Reach<span class="stat-card-sub">+12%</span></div></div>
-      <div class="stat-card"><div class="stat-card-icon" style="background:var(--plum-dim);color:var(--plum)">♡</div><div class="stat-card-val">5.3%</div><div class="stat-card-label">Avg Engagement<span class="stat-card-sub">+0.8%</span></div></div>
-      <div class="stat-card"><div class="stat-card-icon" style="background:var(--green-dim);color:var(--green)">↗</div><div class="stat-card-val">+18K/mo</div><div class="stat-card-label">Growth Rate</div></div>
-      <div class="stat-card"><div class="stat-card-icon" style="background:var(--gold-dim);color:var(--gold)">★</div><div class="stat-card-val">Rising Star</div><div class="stat-card-label">Creator Tier</div></div>
+      <div class="stat-card reach"><div class="stat-card-icon" style="background:var(--gold-dim);color:var(--gold)">◎</div><div class="stat-card-val">549K</div><div class="stat-card-label">Total Reach<span class="stat-card-sub">+12%</span></div></div>
+      <div class="stat-card engagement"><div class="stat-card-icon" style="background:var(--plum-dim);color:var(--plum)">♡</div><div class="stat-card-val">5.3%</div><div class="stat-card-label">Avg Engagement<span class="stat-card-sub">+0.8%</span></div></div>
+      <div class="stat-card growth"><div class="stat-card-icon" style="background:var(--green-dim);color:var(--green)">↗</div><div class="stat-card-val">+18K/mo</div><div class="stat-card-label">Growth Rate</div></div>
+      <div class="stat-card tier"><div class="stat-card-icon" style="background:var(--gold-dim);color:var(--gold)">★</div><div class="stat-card-val">Rising Star</div><div class="stat-card-label">Creator Tier</div></div>
     </div>
     <div class="card" style="margin-bottom:20px;padding:28px"><div class="chart-title">Content Pillars</div><div class="pillars" id="pillars-container"></div></div>
     <div class="grid-3">
@@ -445,7 +510,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
   <h1 class="page-title">Brand <span class="gold-text">Matches</span></h1>
   <p class="page-sub">Brands aligned with your persona, ranked by audience fit and content compatibility.</p>
   <div id="brands-cta" class="center-cta"><div class="center-icon">♢</div><h2>Find your brand matches</h2><p>We'll match you with brands that align with your audience, content style, and niche.</p><button class="gen-btn" onclick="generateBrands()">Generate Matches</button></div>
-  <div id="brands-loading" class="loading hidden"><div class="spinner">♢</div><div class="loading-title">Matching brands to your persona...</div><div class="loading-sub">Scanning 12,000+ brand profiles</div></div>
+  <div id="brands-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Matching brands to your persona...</div><div class="loading-sub">Scanning 12,000+ brand profiles</div></div>
   <div id="brands-result" class="brand-grid hidden"></div>
 </div>
 
@@ -454,19 +519,271 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
   <h1 class="page-title"><span class="gold-text">Pulse</span></h1>
   <p class="page-sub">Content ideas matched to your persona and what's trending right now.</p>
   <div id="pulse-cta" class="center-cta"><div class="center-icon">◎</div><h2>Discover what to post next</h2><p>We'll scan trending topics, sounds, and formats — then match them to your persona for high-engagement ideas.</p><button class="gen-btn" onclick="generatePulse()">Scan Trends</button></div>
-  <div id="pulse-loading" class="loading hidden"><div class="spinner">◎</div><div class="loading-title">Scanning trends across platforms...</div><div class="loading-sub">Analyzing 50K+ trending posts, sounds, and hashtags</div></div>
+  <div id="pulse-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Scanning trends across platforms...</div><div class="loading-sub">Analyzing 50K+ trending posts, sounds, and hashtags</div></div>
   <div id="pulse-result" class="hidden"><div class="pulse-filters" id="pulse-filters"></div><div class="pulse-section-label"><span class="dot" style="background:var(--gold)"></span> Trending Now — Matched to Your Persona</div><div class="pulse-grid" id="pulse-grid"></div></div>
 </div>
 
 </div>
 
 <script>
+// ── Theme (apply ASAP to avoid flash) ─────────────────────────────────────────
+const MOON_SVG='<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>';
+const SUN_SVG='<circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/>';
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  const icon=document.getElementById('theme-icon');
+  if(icon) icon.innerHTML = t==='light' ? MOON_SVG : SUN_SVG;
+}
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme')||'dark';
+  const next=cur==='dark'?'light':'dark';
+  applyTheme(next);
+  try{localStorage.setItem('cc-theme',next)}catch(e){}
+}
+(function(){
+  let saved='dark';
+  try{saved=localStorage.getItem('cc-theme')||'dark'}catch(e){}
+  applyTheme(saved);
+})();
+
+// ── Crab logo (reusable for spinners) ─────────────────────────────────────────
+const CRAB_RECTS='<rect x="40" y="0" width="10" height="10"/><rect x="80" y="0" width="10" height="10"/><rect x="40" y="10" width="50" height="10"/><rect x="10" y="20" width="10" height="10"/><rect x="30" y="20" width="70" height="10"/><rect x="110" y="20" width="10" height="10"/><rect x="0" y="30" width="30" height="10"/><rect x="40" y="30" width="10" height="10"/><rect x="60" y="30" width="10" height="10"/><rect x="80" y="30" width="10" height="10"/><rect x="100" y="30" width="30" height="10"/><rect x="0" y="40" width="130" height="10"/><rect x="10" y="50" width="110" height="10"/><rect x="0" y="60" width="10" height="10"/><rect x="20" y="60" width="10" height="10"/><rect x="40" y="60" width="10" height="10"/><rect x="60" y="60" width="10" height="10"/><rect x="80" y="60" width="10" height="10"/><rect x="100" y="60" width="10" height="10"/><rect x="120" y="60" width="10" height="10"/><rect x="10" y="70" width="10" height="10"/><rect x="30" y="70" width="10" height="10"/><rect x="70" y="70" width="10" height="10"/><rect x="90" y="70" width="10" height="10"/>';
+// ── Modal helpers ─────────────────────────────────────────────────────────────
+function showModal(innerHTML){
+  closeModal();
+  const o=document.createElement('div');
+  o.className='modal-overlay';o.id='active-modal';
+  o.innerHTML='<div class="modal-box">'+innerHTML+'</div>';
+  o.addEventListener('click',e=>{ if(e.target===o) closeModal(); });
+  document.body.appendChild(o);
+  // Populate any crab placeholders inside the modal
+  o.querySelectorAll('[data-crab]').forEach(el=>{ el.innerHTML=crabSVG(); });
+}
+function closeModal(){ const m=document.getElementById('active-modal'); if(m) m.remove(); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+// ── Pitch drafter ─────────────────────────────────────────────────────────────
+async function draftPitch(idx){
+  const brand=(state.brands||[])[idx];
+  if(!brand) return;
+  const p=state.persona||{};
+  showModal(
+    '<div class="modal-title">Drafting pitch to '+brand.name+'…</div>'+
+    '<div class="modal-sub">Personalizing from your persona data.</div>'+
+    '<div class="pitch-loading"><div class="spinner" data-crab></div><div class="loading-title">Crafting your pitch…</div></div>'
+  );
+  const sys='Brand outreach writer. Return ONLY JSON: {"subject":"...","body":"..."} No markdown. 100-150 word body. First-person, warm but professional. Reference specific persona stats (reach, engagement, pillars, audience) to show the brand why this creator is a fit. End with a clear call to action.';
+  const ageTop=(p.age||[]).slice().sort((a,b)=>b.pct-a.pct)[0];
+  const topLoc=(p.locations||[])[0];
+  const personaLine=`${p.name||'Creator'}: ${p.bio||''} Reach: ${p.totalReach||'?'}, Engagement: ${p.avgEngagement||'?'}, Growth: ${p.growthRate||'?'}, Tier: ${p.tier||'?'}. Pillars: ${(p.pillars||[]).map(x=>x.l+' '+x.p+'%').join(', ')}. Vibes: ${(p.vibes||[]).join(', ')}. Top audience age: ${ageTop?ageTop.age+' ('+ageTop.pct+'%)':'?'}. Top city: ${topLoc?topLoc.city:'?'}.`;
+  const user=`${personaLine}\nBrand: ${brand.name} (${brand.cat}). Match score: ${brand.match}%. Deal: ${brand.deal}. Why it fits: ${(brand.reasons||[]).join('; ')}.\n\nPitch JSON:`;
+  try {
+    const raw=await kimiChat(sys,user);
+    const pitch=parseJSON(raw);
+    const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const copyText=(pitch.subject+'\n\n'+pitch.body).replace(/`/g,'\\`').replace(/\$/g,'\\$');
+    showModal(
+      '<div class="modal-title">Pitch to '+esc(brand.name)+'</div>'+
+      '<div class="modal-sub">Personalized from your '+esc(p.name||'')+' persona.</div>'+
+      '<div class="modal-label">Subject</div>'+
+      '<div class="pitch-subject-val">'+esc(pitch.subject)+'</div>'+
+      '<div class="modal-label">Body</div>'+
+      '<div class="pitch-body">'+esc(pitch.body)+'</div>'+
+      '<div class="modal-row">'+
+        '<button class="copy-btn" onclick="copyPitch(this,`'+copyText+'`)">Copy to Clipboard</button>'+
+        '<button class="modal-cancel-btn" onclick="closeModal()">Close</button>'+
+      '</div>'
+    );
+  } catch(e){
+    closeModal();
+    showError('Pitch draft failed: '+e.message);
+  }
+}
+function copyPitch(btn,text){
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.className='copy-btn copied';btn.textContent='✓ Copied';
+    setTimeout(()=>{ btn.className='copy-btn';btn.textContent='Copy to Clipboard'; },2000);
+  });
+}
+
+// ── PDF Media Kit ─────────────────────────────────────────────────────────────
+function downloadMediaKit(){
+  if(!state.persona){ showError('Generate a persona first'); return; }
+  if(typeof window.jspdf==='undefined'){ showError('PDF library still loading — try again in a moment'); return; }
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'pt',format:'letter'});
+  const p=state.persona;
+  const GOLD=[166,123,61], DARK=[42,37,29], CREAM=[245,241,232], MUTED=[122,111,95], OFFWHITE=[255,254,249], BORDER=[229,221,201];
+  const W=612, H=792, M=48;
+
+  // Background cream
+  doc.setFillColor(CREAM[0],CREAM[1],CREAM[2]); doc.rect(0,0,W,H,'F');
+
+  // Top-right "MEDIA KIT" label
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+  doc.text('CREATOR MEDIA KIT',W-M,60,{align:'right'});
+
+  // Name
+  doc.setFont('helvetica','bold'); doc.setFontSize(34); doc.setTextColor(DARK[0],DARK[1],DARK[2]);
+  doc.text(String(p.name||'Creator'),M,70);
+
+  // Gold rule
+  doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]); doc.setLineWidth(1.5); doc.line(M,85,W-M,85);
+
+  // Bio
+  doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(DARK[0],DARK[1],DARK[2]);
+  const bioLines=doc.splitTextToSize(String(p.bio||''),W-M*2);
+  doc.text(bioLines,M,108);
+  let y=108+bioLines.length*15+12;
+
+  // Vibe tags (pill row, wrap)
+  doc.setFontSize(8); doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]);
+  doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]); doc.setLineWidth(0.75);
+  let vx=M;
+  (p.vibes||[]).forEach(v=>{
+    const text=String(v);
+    const w=doc.getTextWidth(text)+14;
+    if(vx+w > W-M){ vx=M; y+=20; }
+    doc.roundedRect(vx,y-10,w,14,4,4,'S');
+    doc.text(text,vx+7,y);
+    vx+=w+6;
+  });
+  y+=28;
+
+  // 4 stat tiles (bento)
+  const tileH=78, tileW=(W-M*2-18)/4;
+  const tiles=[
+    {l:'TOTAL REACH',v:p.totalReach||'—'},
+    {l:'ENGAGEMENT',v:p.avgEngagement||'—'},
+    {l:'GROWTH',v:p.growthRate||'—'},
+    {l:'TIER',v:p.tier||'—'}
+  ];
+  tiles.forEach((t,i)=>{
+    const x=M+i*(tileW+6);
+    doc.setFillColor(OFFWHITE[0],OFFWHITE[1],OFFWHITE[2]);
+    doc.setDrawColor(BORDER[0],BORDER[1],BORDER[2]); doc.setLineWidth(0.75);
+    doc.roundedRect(x,y,tileW,tileH,8,8,'FD');
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+    doc.text(t.l,x+12,y+20);
+    doc.setFont('helvetica','bold');
+    const valStr=String(t.v);
+    doc.setFontSize(valStr.length>8?14:20);
+    doc.setTextColor(DARK[0],DARK[1],DARK[2]);
+    doc.text(valStr,x+12,y+52);
+  });
+  y+=tileH+36;
+
+  // Content pillars
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+  doc.text('CONTENT PILLARS',M,y); y+=18;
+  (p.pillars||[]).forEach(pl=>{
+    doc.setFontSize(11); doc.setTextColor(DARK[0],DARK[1],DARK[2]);
+    doc.text(String(pl.l||''),M,y);
+    doc.text(String(pl.p||0)+'%',W-M,y,{align:'right'});
+    doc.setFillColor(BORDER[0],BORDER[1],BORDER[2]);
+    doc.rect(M,y+5,W-M*2,3,'F');
+    doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]);
+    doc.rect(M,y+5,(W-M*2)*((pl.p||0)/100),3,'F');
+    y+=24;
+  });
+  y+=12;
+
+  // Audience block
+  doc.setFontSize(9); doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+  doc.text('AUDIENCE',M,y); y+=18;
+  doc.setFontSize(10); doc.setTextColor(DARK[0],DARK[1],DARK[2]);
+  doc.text('Age',M,y);
+  doc.setFontSize(9);
+  const ageLine=(p.age||[]).map(a=>`${a.age}: ${a.pct}%`).join('   ');
+  doc.text(ageLine,M+40,y);
+  y+=18;
+  doc.setFontSize(10); doc.text('Locations',M,y);
+  doc.setFontSize(9);
+  const locLine=(p.locations||[]).slice(0,5).map(l=>`${l.city} ${l.pct}%`).join('   ');
+  doc.text(locLine,M+70,y);
+
+  // Footer
+  doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]); doc.setLineWidth(0.5); doc.line(M,H-60,W-M,H-60);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+  doc.text('Generated by CreatorClaw  •  creatorclaw.com',M,H-42);
+  doc.text(new Date().toLocaleDateString(),W-M,H-42,{align:'right'});
+
+  doc.save(String(p.name||'creator').replace(/\s+/g,'-').toLowerCase()+'-media-kit.pdf');
+}
+
+// ── Save to Calendar ──────────────────────────────────────────────────────────
+function openSchedule(encodedTitle){
+  const title=encodedTitle.replace(/&#39;/g,"'");
+  const idea=(state.pulseIdeas||[]).find(i=>i.title===title);
+  if(!idea) return;
+  const today=new Date().toISOString().slice(0,10);
+  const safeTitle=title.replace(/</g,'&lt;');
+  showModal(
+    '<div class="modal-title">Schedule content</div>'+
+    '<div class="modal-sub">"'+safeTitle+'"</div>'+
+    '<div class="date-time-row">'+
+      '<div><div class="modal-label">Date</div><input type="date" id="sched-date" value="'+today+'"></div>'+
+      '<div><div class="modal-label">Time</div><input type="time" id="sched-time" value="10:00"></div>'+
+    '</div>'+
+    '<div class="modal-row">'+
+      '<button class="modal-save-btn" onclick="downloadICS(\''+encodedTitle+'\')">Download .ics</button>'+
+      '<button class="modal-cancel-btn" onclick="closeModal()">Cancel</button>'+
+    '</div>'
+  );
+}
+
+function downloadICS(encodedTitle){
+  const title=encodedTitle.replace(/&#39;/g,"'");
+  const idea=(state.pulseIdeas||[]).find(i=>i.title===title);
+  if(!idea) return;
+  const date=document.getElementById('sched-date').value;
+  const time=document.getElementById('sched-time').value;
+  if(!date||!time){ showError('Pick a date and time'); return; }
+  const pad=n=>String(n).padStart(2,'0');
+  const [y,m,d]=date.split('-');
+  const [hh,mm]=time.split(':');
+  const dtStart=`${y}${m}${d}T${hh}${mm}00`;
+  const endDt=new Date(`${date}T${time}:00`);
+  endDt.setHours(endDt.getHours()+1);
+  const dtEnd=`${endDt.getFullYear()}${pad(endDt.getMonth()+1)}${pad(endDt.getDate())}T${pad(endDt.getHours())}${pad(endDt.getMinutes())}00`;
+  const now=new Date();
+  const dtStamp=`${now.getUTCFullYear()}${pad(now.getUTCMonth()+1)}${pad(now.getUTCDate())}T${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}Z`;
+  const uid=`pulse-${Date.now()}@creatorclaw`;
+  const esc=s=>String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+  const desc=`${idea.hook||''}\\n\\nFormat: ${idea.format||''}\\nPlatform: ${idea.platform||''}\\nEst. reach: ${idea.estReach||''}`;
+  const ics=[
+    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//CreatorClaw//EN','CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',`UID:${uid}`,`DTSTAMP:${dtStamp}`,
+    `DTSTART:${dtStart}`,`DTEND:${dtEnd}`,
+    `SUMMARY:${esc(idea.title)}`,
+    `DESCRIPTION:${esc(desc)}`,
+    'END:VEVENT','END:VCALENDAR'
+  ].join('\r\n');
+  const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=(idea.title||'content').replace(/[^a-z0-9]+/gi,'-').toLowerCase().replace(/^-|-$/g,'')+'.ics';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  closeModal();
+}
+
+let _crabUid=0;
+function crabSVG(){
+  const id='cc-rainbow-'+(++_crabUid);
+  return '<svg viewBox="0 0 130 80" shape-rendering="crispEdges"><defs><linearGradient id="'+id+'" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#A855F7"/><stop offset="18%" stop-color="#6366F1"/><stop offset="35%" stop-color="#3B82F6"/><stop offset="50%" stop-color="#10B981"/><stop offset="65%" stop-color="#EAB308"/><stop offset="82%" stop-color="#F97316"/><stop offset="100%" stop-color="#EC4899"/></linearGradient></defs><g fill="url(#'+id+')">'+CRAB_RECTS+'</g></svg>';
+}
+document.querySelectorAll('[data-crab]').forEach(el=>{ el.innerHTML=crabSVG(); });
+
 // ── State ─────────────────────────────────────────────────────────────────────
 const state={
   igConnected:false,ttConnected:false,ytConnected:false,
   googleLoggedIn:false,personaGen:false,brandsGen:false,pulseGen:false,
   sent:{},saved:{},pulseFilter:'all',
   persona:null,  // holds AI-generated persona data
+  brands:null,   // holds AI-generated brand list
 };
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -793,6 +1110,7 @@ Real brands. match 60-99. reasons exactly 3. deal is dollar range. Order by matc
 }
 
 function renderBrands(brands){
+  state.brands=brands;
   const grid=document.getElementById('brands-result');
   grid.innerHTML='';
   grid.classList.remove('hidden');
@@ -808,13 +1126,15 @@ function renderBrands(brands){
           <div class="brand-logo" style="background:var(--card2);border:1px solid var(--border2);color:var(--gold)">${b.name[0]}</div>
           <div><div class="brand-name">${b.name}</div><div class="brand-cat">${b.cat}</div></div>
         </div>
-        <div class="brand-match">${b.match}%</div>
+        <div class="match-meter"><div class="match-meter-ring" style="--deg:${b.match*3.6}deg"></div><div class="match-meter-inner"><span class="match-meter-val">${b.match}</span><span class="match-meter-lbl">Match</span></div></div>
       </div>
-      <div class="bar-bg"><div class="bar-fill" style="width:${b.match}%"></div></div>
       <div class="brand-reasons">${(b.reasons||[]).map(r=>`<div class="brand-reason"><span class="chk">✓</span>${r}</div>`).join('')}</div>
       <div class="brand-footer">
         <div class="brand-deal">${b.deal}</div>
-        <button class="outreach-btn" onclick="toggleSent(this,'${b.name.replace(/'/g,"&#39;")}')">Start Outreach</button>
+        <div style="display:flex;gap:6px">
+          <button class="outreach-btn" onclick="draftPitch(${i})">Draft Pitch</button>
+          <button class="outreach-btn" onclick="toggleSent(this,'${b.name.replace(/'/g,"&#39;")}')">Outreach</button>
+        </div>
       </div>`;
     frag.appendChild(card);
   });
@@ -904,6 +1224,7 @@ function renderPulseCards(cat){
       <div class="pulse-tags">${(idea.tags||[]).map(t=>`<span class="pulse-tag">${t}</span>`).join('')}${(idea.persona||[]).map(p=>`<span class="pulse-tag persona">${p}</span>`).join('')}</div>
       <div class="pulse-actions">
         <button class="pulse-save-btn" onclick="togglePulseSave(this,'${safeTitle}')">Save</button>
+        <button class="pulse-save-btn" onclick="openSchedule('${safeTitle}')">📅 Schedule</button>
         <button class="pulse-draft-btn" onclick="this.innerHTML='✓ Drafted';this.style.opacity=0.6">Draft Script</button>
       </div>`;
     frag.appendChild(card);
