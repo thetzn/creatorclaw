@@ -399,65 +399,29 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
   <h1 class="page-title">Connect your <span class="gold-text">platforms</span></h1>
   <p class="page-sub">Link your social accounts so we can analyze your content, audience, and engagement patterns.</p>
 
-  <div class="grid-2" style="margin-bottom:16px">
-    <div class="card" id="ig-card">
-      <div class="plat-head">
-        <div class="plat-info">
-          <div class="plat-icon" style="background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff">📷</div>
-          <div><div class="plat-name">Instagram</div><div class="plat-desc">Photos, Reels, Stories</div></div>
-        </div>
-        <div class="connected-badge hidden" id="ig-badge">✓ Connected</div>
-      </div>
-      <div id="ig-connect">
-        <button class="connect-btn ig" id="ig-btn" onclick="connectPlatform('ig')">Connect Instagram</button>
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-          <div style="font-size:10px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:10px">Or analyze your public profile</div>
-          <div style="display:flex;gap:8px">
-            <input id="ig-url-input" type="text" placeholder="@yourhandle" onkeydown="if(event.key==='Enter')analyzeIGProfile()" style="flex:1;background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'">
-            <button id="ig-analyze-btn" onclick="analyzeIGProfile()" style="background:transparent;border:1px solid var(--gold-border);border-radius:6px;padding:10px 16px;color:var(--gold);font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;transition:all 0.3s" onmouseover="this.style.background='var(--gold)';this.style.color='var(--bg)'" onmouseout="this.style.background='transparent';this.style.color='var(--gold)'">Analyze</button>
-          </div>
-          <div id="ig-analyze-loading" class="hidden" style="display:flex;align-items:center;gap:8px;padding:10px 0 0;font-size:11px;color:var(--muted)"><span class="spinner-inline" data-crab></span> Scanning profile with AI — this may take 15–30s…</div>
-        </div>
-      </div>
-      <div class="stat-grid hidden" id="ig-stats">
-        <div class="stat-box"><div class="stat-val" id="ig-val-followers">—</div><div class="stat-label">Followers</div></div>
-        <div class="stat-box"><div class="stat-val" id="ig-val-engagement">—</div><div class="stat-label">Engagement</div></div>
-        <div class="stat-box"><div class="stat-val" id="ig-val-posts">—</div><div class="stat-label">Posts</div></div>
-        <div class="stat-box"><div class="stat-val" id="ig-val-category">—</div><div class="stat-label">Top Category</div></div>
-      </div>
-    </div>
-    <div class="card" id="tt-card">
-      <div class="plat-head">
-        <div class="plat-info">
-          <div class="plat-icon" style="background:#fff;color:#000">🎵</div>
-          <div><div class="plat-name">TikTok</div><div class="plat-desc">Short-form Video</div></div>
-        </div>
-        <div class="connected-badge hidden" id="tt-badge">✓ Connected</div>
-      </div>
-      <div id="tt-connect"><button class="connect-btn tt" id="tt-btn" onclick="connectPlatform('tt')">Connect TikTok</button></div>
-      <div class="stat-grid hidden" id="tt-stats">
-        <div class="stat-box"><div class="stat-val">412K</div><div class="stat-label">Followers</div></div>
-        <div class="stat-box"><div class="stat-val">6.2%</div><div class="stat-label">Engagement</div></div>
-        <div class="stat-box"><div class="stat-val">823</div><div class="stat-label">Videos</div></div>
-        <div class="stat-box"><div class="stat-val">Lifestyle</div><div class="stat-label">Top Category</div></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card" id="yt-card">
+  <div class="card" id="ig-card" style="margin-bottom:16px">
     <div class="plat-head">
       <div class="plat-info">
-        <div class="plat-icon" style="background:#FF0000;color:#fff">▶</div>
-        <div><div class="plat-name">YouTube</div><div class="plat-desc">Long-form, Shorts, Community</div></div>
+        <div class="plat-icon" style="background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff">📷</div>
+        <div><div class="plat-name">Instagram</div><div class="plat-desc">Photos, Reels, Stories</div></div>
       </div>
-      <div class="connected-badge hidden" id="yt-badge">✓ Connected</div>
+      <div class="connected-badge hidden" id="ig-badge">✓ Connected</div>
     </div>
-    <div id="yt-connect"><button class="connect-btn" id="yt-btn" onclick="connectPlatform('yt')" style="background:#FF0000;color:#fff">Connect YouTube</button></div>
-    <div class="stat-grid hidden" id="yt-stats">
-      <div class="stat-box"><div class="stat-val">89K</div><div class="stat-label">Subscribers</div></div>
-      <div class="stat-box"><div class="stat-val">3.2%</div><div class="stat-label">Engagement</div></div>
-      <div class="stat-box"><div class="stat-val">214</div><div class="stat-label">Videos</div></div>
-      <div class="stat-box"><div class="stat-val">Fitness</div><div class="stat-label">Top Category</div></div>
+    <div id="ig-connect">
+      <button class="connect-btn ig" id="ig-btn" onclick="connectPlatform('ig')">Connect Instagram</button>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <div style="font-size:10px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:10px">Or analyze your public profile</div>
+        <div style="display:flex;gap:8px">
+          <input id="ig-url-input" type="text" placeholder="@yourhandle" onkeydown="if(event.key==='Enter')analyzeIGProfile()" style="flex:1;background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'">
+          <button id="ig-analyze-btn" onclick="analyzeIGProfile()" style="background:transparent;border:1px solid var(--gold-border);border-radius:6px;padding:10px 16px;color:var(--gold);font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;transition:all 0.3s" onmouseover="this.style.background='var(--gold)';this.style.color='var(--bg)'" onmouseout="this.style.background='transparent';this.style.color='var(--gold)'">Analyze</button>
+        </div>
+      </div>
+    </div>
+    <div class="stat-grid hidden" id="ig-stats">
+      <div class="stat-box"><div class="stat-val" id="ig-val-followers">—</div><div class="stat-label">Followers</div></div>
+      <div class="stat-box"><div class="stat-val" id="ig-val-engagement">—</div><div class="stat-label">Engagement</div></div>
+      <div class="stat-box"><div class="stat-val" id="ig-val-posts">—</div><div class="stat-label">Posts</div></div>
+      <div class="stat-box"><div class="stat-val" id="ig-val-category">—</div><div class="stat-label">Top Category</div></div>
     </div>
   </div>
 
@@ -472,7 +436,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
   <h1 class="page-title">Your <span class="gold-text">Persona</span></h1>
   <p class="page-sub">An AI-generated media kit built from your content, audience, and engagement patterns.</p>
   <div id="persona-cta" class="center-cta"><div class="center-icon">✦</div><h2>Ready to build your persona</h2><p>We'll analyze your content across platforms to create a comprehensive media kit.</p><button class="gen-btn" onclick="generatePersona()">Generate Persona</button></div>
-  <div id="persona-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Analyzing your content...</div><div class="loading-sub">Scanning 2,070 posts across Instagram and TikTok</div></div>
+  <div id="persona-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Analyzing your content...</div><div class="loading-sub">Scanning your recent posts on Instagram</div></div>
   <div id="persona-result" class="hidden">
     <div class="card persona-header" style="margin-bottom:20px">
       <div class="persona-avatar">JM</div>
@@ -866,9 +830,13 @@ async function analyzeIGProfile(){
   const url='instagram.com/'+raw;
 
   const btn=document.getElementById('ig-analyze-btn');
-  const loading=document.getElementById('ig-analyze-loading');
-  btn.disabled=true; btn.textContent='Analyzing…';
-  loading.classList.remove('hidden');
+  btn.disabled=true;
+
+  // Jump to Persona tab immediately — user sees one continuous crab spinner through analysis + persona gen
+  switchTab('persona');
+  document.getElementById('persona-cta').classList.add('hidden');
+  document.getElementById('persona-result').classList.add('hidden');
+  document.getElementById('persona-loading').classList.remove('hidden');
 
   try {
     const res=await fetch(PROXY_URL,{
@@ -913,28 +881,26 @@ Return ONLY this JSON (no markdown, no explanation):
     state.igData=profile;
     state.igConnected=true;
 
-    // Populate stat boxes with real values
+    // Quietly populate the Connect tab so it reflects reality if user navigates back
     document.getElementById('ig-val-followers').textContent=profile.followers||'—';
     document.getElementById('ig-val-engagement').textContent=profile.engagementRate||'—';
     document.getElementById('ig-val-posts').textContent=profile.totalPosts||'—';
     document.getElementById('ig-val-category').textContent=profile.topCategory||profile.categories?.[0]?.name||'—';
-
-    // Show stats, hide connect section
     document.getElementById('ig-connect').classList.add('hidden');
     document.getElementById('ig-stats').classList.remove('hidden');
     document.getElementById('ig-badge').innerHTML=`✓ Analyzed`;
     document.getElementById('ig-badge').classList.remove('hidden');
-    document.getElementById('both-banner').classList.remove('hidden');
 
-    // Auto-advance: switch to Persona and generate
-    switchTab('persona');
+    // Kick off persona — spinner keeps running, no visible "handoff"
     generatePersona();
 
   } catch(e){
+    // Analysis failed — send user back to Connect tab so they can retry
+    document.getElementById('persona-loading').classList.add('hidden');
+    document.getElementById('persona-cta').classList.remove('hidden');
+    switchTab('connect');
     showError('Could not analyze profile: '+e.message);
-    btn.disabled=false; btn.textContent='Analyze';
-  } finally {
-    loading.classList.add('hidden');
+    btn.disabled=false;
   }
 }
 
