@@ -169,6 +169,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   const profile = {
     username: '@' + (p.username || handle),
     displayName: p.fullName || p.full_name || p.username || handle,
+    profilePicUrl: p.profilePicUrlHD || p.profilePicUrl || p.profile_pic_url_hd || p.profile_pic_url || null,
     followers: formatCount(followers),
     following: formatCount(following),
     totalPosts: formatCount(totalPosts),
@@ -179,8 +180,9 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     bio: p.biography || p.bio || null,
     postingFrequency: postsCadence(posts),
     recentThemes: interpretation.recentThemes,
+    verified: !!p.verified,
     // raw counts for any downstream math / debugging
-    _raw: { followers, following, posts: totalPosts, avgLikes, avgComments, verified: !!p.verified, private: !!p.private, actorFields: Object.keys(p).slice(0, 30) },
+    _raw: { followers, following, posts: totalPosts, avgLikes, avgComments, private: !!p.private, actorFields: Object.keys(p).slice(0, 30) },
   };
 
   // Return in the same shape the frontend expects from kimiChat

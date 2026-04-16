@@ -144,7 +144,8 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 
 /* Persona */
 .persona-header{display:flex;gap:32px;margin-bottom:28px;align-items:flex-start}
-.persona-avatar{width:80px;height:80px;border-radius:50%;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:300;color:var(--gold);flex-shrink:0;letter-spacing:0.05em}
+.persona-avatar{width:80px;height:80px;border-radius:50%;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:300;color:var(--gold);flex-shrink:0;letter-spacing:0.05em;overflow:hidden;background:var(--card2)}
+.persona-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
 .persona-bio{flex:1}
 .persona-name{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .persona-name h2{font-size:22px;font-weight:400;letter-spacing:0.02em}
@@ -1082,6 +1083,16 @@ function renderPersona(d){
   // Fallback any missing / zero / null values to em dash
   const fmt=v=>{ if(v==null||v===''||v===0||v==='0'||v==='0%') return '—'; return String(v); };
   const score=Number(d.score)>0?Number(d.score):80;
+  // Profile picture from Apify (if present) — else show initials
+  const avatarEl=document.querySelector('.persona-avatar');
+  const picUrl=(state.igData&&state.igData.profilePicUrl)||null;
+  if(picUrl){
+    const alt=(d.name||'Creator').replace(/"/g,'&quot;');
+    avatarEl.innerHTML=`<img src="${picUrl}" alt="${alt}" referrerpolicy="no-referrer" onerror="this.parentElement.textContent='${(d.name||'??').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase()}'">`;
+  } else {
+    const initials=(d.name||'??').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
+    avatarEl.textContent=initials;
+  }
   // Update name/bio/score/vibes
   document.querySelector('.persona-name h2').textContent=d.name||'Creator';
   document.querySelector('.persona-desc').textContent=d.bio||'';
