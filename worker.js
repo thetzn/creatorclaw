@@ -12,6 +12,8 @@ const MODEL = 'gpt-4o-mini';
 const MODEL_SEARCH = 'gpt-4o';
 
 const ALLOWED_ORIGINS = [
+  'https://creatorclaw.co',
+  'https://www.creatorclaw.co',
   'https://thetzn.github.io',
   'http://localhost',
   'http://127.0.0.1',
