@@ -942,27 +942,34 @@ async function analyzeIGProfile(){
         webSearch:true,
         messages:[{
           role:'system',
-          content:'You are a social media analyst. Use web search to look up Instagram profiles. Respond ONLY with valid JSON, no explanation.'
+          content:'You are a meticulous social media data analyst. Use web search to look up Instagram profiles. CRITICAL: Never invent numbers. If you cannot find a specific metric from a verifiable source, return null for that field — do NOT guess. Respond ONLY with valid JSON, no explanation.'
         },{
           role:'user',
-          content:`Analyze this Instagram profile: ${url}
+          content:`Find Instagram profile: ${url}
 
-Use web search to find the profile. Look at their most recent 25 posts and extract as much data as possible. Also try searching picuki.com or similar public viewers if instagram.com blocks you.
+Use web search to locate the REAL profile and extract verified data. Search priorities:
+1. The actual instagram.com page
+2. socialblade.com/instagram/user/{handle}
+3. picuki.com/profile/{handle}
+4. news articles / wiki pages that cite their follower count
+5. Their linked website or other social profiles
 
-Return ONLY this JSON (no markdown, no explanation):
+Cross-reference at least 2 sources for the follower count when possible.
+
+Return ONLY this JSON (no markdown, no explanation). Use null for any field you cannot verify — DO NOT GUESS or round wildly:
 {
   "username": "@handle",
-  "displayName": "Full Name",
-  "followers": "284K",
-  "following": "1.2K",
-  "totalPosts": "1,247",
-  "engagementRate": "4.8%",
-  "topCategory": "Fitness",
-  "categories": [{"name":"Fitness","pct":40},{"name":"Lifestyle","pct":30},{"name":"Beauty","pct":20},{"name":"Other","pct":10}],
-  "vibes": ["Aspirational","High Energy","Relatable"],
-  "bio": "their actual bio text",
-  "postingFrequency": "Daily",
-  "recentThemes": ["morning routines","gym workouts","product reviews","day-in-my-life"]
+  "displayName": "Full Name (from profile)",
+  "followers": "EXACT count e.g. '297M' or '284K' or '1,247' — whatever format the source shows",
+  "following": "exact or null",
+  "totalPosts": "exact or null",
+  "engagementRate": "percentage string e.g. '4.8%' or null if you can't calculate it",
+  "topCategory": "primary content category",
+  "categories": [{"name":"Fitness","pct":40},{"name":"Lifestyle","pct":30}],
+  "vibes": ["Aspirational","High Energy"],
+  "bio": "their actual bio text or null",
+  "postingFrequency": "Daily / Weekly / etc or null",
+  "recentThemes": ["actual recent post themes you observed"]
 }`
         }]
       })
@@ -1049,6 +1056,12 @@ pillars p must sum to 100. Keep 4-5 pillars.`;
     const raw=await kimiChat(system,user);
     const core=parseJSON(raw);
     const data=expandPersona(core);
+    // Hard override AI-generated values with real scraped data so nothing hallucinates
+    if(state.igData){
+      if(state.igData.displayName) data.name=state.igData.displayName;
+      if(state.igData.followers) data.totalReach=state.igData.followers;
+      if(state.igData.engagementRate) data.avgEngagement=state.igData.engagementRate;
+    }
     state.persona=data;
     stopLoading('persona');
     document.getElementById('persona-loading').classList.add('hidden');
