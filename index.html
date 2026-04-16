@@ -220,7 +220,8 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 .brand-card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:28px}
 .brand-card:hover{border-color:var(--border2)}
 .brand-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.brand-logo{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700}
+.brand-logo{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;overflow:hidden}
+.brand-logo img{width:70%;height:70%;object-fit:contain}
 .brand-info{display:flex;align-items:center;gap:14px}
 .brand-name{font-weight:600;font-size:15px;letter-spacing:0.02em}
 .brand-cat{font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase}
@@ -1174,8 +1175,8 @@ async function generateBrands(){
   startLoading('brands', 10);
 
   const system=`Brand matchmaker. Return ONLY a JSON array of 8 brands, no markdown. Structure:
-[{"name":"Gymshark","match":96,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"}]
-Real brands. match 60-99. reasons exactly 3. deal is dollar range. Order by match desc.`;
+[{"name":"Gymshark","domain":"gymshark.com","match":96,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"}]
+Real brands. domain is the primary website (no https:// or trailing slash). match 60-99. reasons exactly 3. deal is dollar range. Order by match desc.`;
 
   const personaSummary=state.persona
     ? `${state.persona.name}: ${state.persona.bio} Pillars: ${state.persona.pillars.map(p=>p.l).join(', ')}. Vibes: ${state.persona.vibes.join(', ')}. Reach: ${state.persona.totalReach}, Engagement: ${state.persona.avgEngagement}`
@@ -1210,7 +1211,7 @@ function renderBrands(brands){
     card.innerHTML=`
       <div class="brand-head">
         <div class="brand-info">
-          <div class="brand-logo" style="background:var(--card2);border:1px solid var(--border2);color:var(--gold)">${b.name[0]}</div>
+          <div class="brand-logo" style="background:#fff;border:1px solid var(--border2);color:var(--gold)">${b.domain?`<img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(b.domain)}&sz=128" alt="${b.name}" onerror="this.parentElement.style.background='var(--card2)';this.parentElement.textContent='${(b.name[0]||'').toUpperCase()}'">`:(b.name[0]||'').toUpperCase()}</div>
           <div><div class="brand-name">${b.name}</div><div class="brand-cat">${b.cat}</div></div>
         </div>
         <div class="match-meter"><div class="match-meter-ring" style="--deg:${b.match*3.6}deg"></div><div class="match-meter-inner"><span class="match-meter-val">${b.match}</span><span class="match-meter-lbl">Match</span></div></div>
