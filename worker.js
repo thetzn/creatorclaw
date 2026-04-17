@@ -742,6 +742,111 @@ export default {
       if (path === '/privacy.html' || path === '/privacy') return serveHTML(PRIVACY_HTML);
       if (path === '/tos.html' || path === '/tos') return serveHTML(TOS_HTML);
       if (path === '/data-deletion.html' || path === '/data-deletion') return serveHTML(DATA_DELETION_HTML);
+
+      // ── Instagram OAuth routes ─────────────────────────────────────────
+      // Step 1: redirect user to Meta's OAuth dialog
+      if (path === '/auth/instagram') {
+        const redirectUri = encodeURIComponent(`https://creatorclaw-proxy.creatorclaw.workers.dev/auth/callback`);
+        const scope = encodeURIComponent('instagram_basic,user_profile,user_media');
+        const metaOAuthUrl = `https://api.instagram.com/oauth/authorize?client_id=${env.IG_APP_ID}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
+        return Response.redirect(metaOAuthUrl, 302);
+      }
+
+      // Step 2: handle callback, exchange code for token, fetch profile + media
+      if (path === '/auth/callback') {
+        const code = url.searchParams.get('code');
+        const error = url.searchParams.get('error');
+        const REDIRECT_URI = `https://creatorclaw-proxy.creatorclaw.workers.dev/auth/callback`;
+        const FRONTEND_URL = 'https://creatorclaw.co';
+
+        if (error || !code) {
+          return Response.redirect(`${FRONTEND_URL}/?igError=1`, 302);
+        }
+
+        try {
+          // Exchange code for short-lived access token
+          const tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              client_id: env.IG_APP_ID,
+              client_secret: env.IG_APP_SECRET,
+              grant_type: 'authorization_code',
+              redirect_uri: REDIRECT_URI,
+              code,
+            }),
+          });
+          const tokenData = await tokenRes.json();
+          if (!tokenData.access_token) throw new Error('Token exchange failed');
+
+          const shortToken = tokenData.access_token;
+
+          // Exchange for long-lived token (60 days)
+          const longRes = await fetch(
+            `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${env.IG_APP_SECRET}&access_token=${shortToken}`
+          );
+          const longData = await longRes.json();
+          const token = longData.access_token || shortToken;
+
+          // Fetch profile
+          const profileRes = await fetch(
+            `https://graph.instagram.com/me?fields=id,username,name,biography,website,followers_count,follows_count,media_count,profile_picture_url,account_type&access_token=${token}`
+          );
+          const profile = await profileRes.json();
+
+          // Fetch recent media (for engagement calc + AI analysis)
+          const mediaRes = await fetch(
+            `https://graph.instagram.com/me/media?fields=id,caption,media_type,timestamp,like_count,comments_count&limit=20&access_token=${token}`
+          );
+          const mediaData = await mediaRes.json();
+          const posts = mediaData.data || [];
+
+          // Calculate real engagement rate
+          let engagementRate = null;
+          if (posts.length > 0 && profile.followers_count > 0) {
+            const totalEngagement = posts.reduce((sum, p) => sum + (p.like_count || 0) + (p.comments_count || 0), 0);
+            const avgEngagement = totalEngagement / posts.length;
+            const rate = (avgEngagement / profile.followers_count) * 100;
+            engagementRate = (rate < 1 ? rate.toFixed(2) : rate.toFixed(1)) + '%';
+          }
+
+          // Format follower count
+          const formatCount = (n) => {
+            if (!n) return null;
+            if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+            if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+            return String(n);
+          };
+
+          // Build payload for frontend (same shape as igScrape output)
+          const igData = {
+            username: '@' + (profile.username || ''),
+            displayName: profile.name || profile.username || '',
+            followers: formatCount(profile.followers_count),
+            following: formatCount(profile.follows_count),
+            totalPosts: formatCount(profile.media_count),
+            engagementRate,
+            bio: profile.biography || null,
+            website: profile.website || null,
+            profilePicUrl: profile.profile_picture_url || null,
+            accountType: profile.account_type || null,
+            recentPosts: posts.slice(0, 10).map(p => ({
+              caption: p.caption || '',
+              mediaType: p.media_type,
+              timestamp: p.timestamp,
+              likes: p.like_count,
+              comments: p.comments_count,
+            })),
+            // No demographics — requires Business account Graph API (Phase 2)
+            _source: 'ig_basic_display',
+          };
+
+          const encoded = btoa(JSON.stringify(igData));
+          return Response.redirect(`${FRONTEND_URL}/?igData=${encodeURIComponent(encoded)}`, 302);
+        } catch (e) {
+          return Response.redirect(`https://creatorclaw.co/?igError=1&msg=${encodeURIComponent(e.message)}`, 302);
+        }
+      }
     }
 
     const origin = request.headers.get('Origin') || '';
