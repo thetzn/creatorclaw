@@ -11,6 +11,15 @@ const APIFY_IG_URL = 'https://api.apify.com/v2/acts/apify~instagram-profile-scra
 const MODEL = 'gpt-4o-mini';
 const MODEL_SEARCH = 'gpt-4o';
 
+// ── Instagram Graph API OAuth ─────────────────────────────────────────────────
+const IG_APP_ID = '922455490592826';
+// IG_APP_SECRET is read from env.IG_APP_SECRET (set as a Cloudflare Worker secret — never hardcode)
+const IG_REDIRECT_URI = 'https://creatorclaw-proxy.creatorclaw.workers.dev/callback';
+const IG_SCOPES = 'instagram_basic,instagram_manage_insights,pages_read_engagement,pages_show_list';
+const IG_AUTH_URL = 'https://www.facebook.com/dialog/oauth';
+const IG_TOKEN_URL = 'https://graph.facebook.com/oauth/access_token';
+const IG_GRAPH_URL = 'https://graph.facebook.com/v21.0';
+
 const ALLOWED_ORIGINS = [
   'https://creatorclaw.co',
   'http://creatorclaw.co',
@@ -742,6 +751,101 @@ export default {
       if (path === '/privacy.html' || path === '/privacy') return serveHTML(PRIVACY_HTML);
       if (path === '/tos.html' || path === '/tos') return serveHTML(TOS_HTML);
       if (path === '/data-deletion.html' || path === '/data-deletion') return serveHTML(DATA_DELETION_HTML);
+
+      // ── IG OAuth: initiate login ──────────────────────────────────────
+      if (path === '/auth') {
+        const state = crypto.randomUUID(); // CSRF protection
+        const authUrl = new URL(IG_AUTH_URL);
+        authUrl.searchParams.set('client_id', IG_APP_ID);
+        authUrl.searchParams.set('redirect_uri', IG_REDIRECT_URI);
+        authUrl.searchParams.set('scope', IG_SCOPES);
+        authUrl.searchParams.set('response_type', 'code');
+        authUrl.searchParams.set('state', state);
+        return Response.redirect(authUrl.toString(), 302);
+      }
+
+      // ── IG OAuth: handle callback from Facebook ───────────────────────
+      if (path === '/callback') {
+        const code = url.searchParams.get('code');
+        const error = url.searchParams.get('error');
+        const errorDesc = url.searchParams.get('error_description');
+
+        if (error || !code) {
+          return serveHTML(oauthErrorPage(error || 'unknown_error', errorDesc || 'Authorization was denied or cancelled.'));
+        }
+
+        // Exchange code for short-lived token
+        const tokenRes = await fetch(IG_TOKEN_URL + '?' + new URLSearchParams({
+          client_id: IG_APP_ID,
+          client_secret: env.IG_APP_SECRET,
+          redirect_uri: IG_REDIRECT_URI,
+          code,
+        }), { method: 'GET' });
+
+        if (!tokenRes.ok) {
+          const errText = await tokenRes.text();
+          return serveHTML(oauthErrorPage('token_exchange_failed', errText.slice(0, 300)));
+        }
+
+        const tokenData = await tokenRes.json();
+        const shortToken = tokenData.access_token;
+        if (!shortToken) {
+          return serveHTML(oauthErrorPage('no_token', JSON.stringify(tokenData).slice(0, 300)));
+        }
+
+        // Exchange short-lived token for long-lived token (60 days)
+        const longTokenRes = await fetch(IG_GRAPH_URL + '/oauth/access_token?' + new URLSearchParams({
+          grant_type: 'fb_exchange_token',
+          client_id: IG_APP_ID,
+          client_secret: env.IG_APP_SECRET,
+          fb_exchange_token: shortToken,
+        }), { method: 'GET' });
+
+        let accessToken = shortToken;
+        let expiresIn = 3600;
+        if (longTokenRes.ok) {
+          const longData = await longTokenRes.json();
+          if (longData.access_token) {
+            accessToken = longData.access_token;
+            expiresIn = longData.expires_in || 5183944; // ~60 days
+          }
+        }
+
+        // Fetch the user's IG Business/Creator accounts linked to this token
+        const accountsRes = await fetch(
+          IG_GRAPH_URL + '/me/accounts?fields=id,name,instagram_business_account&access_token=' + accessToken
+        );
+        let igUserId = null;
+        let igUsername = null;
+        if (accountsRes.ok) {
+          const accountsData = await accountsRes.json();
+          const page = (accountsData.data || []).find(p => p.instagram_business_account);
+          if (page) {
+            igUserId = page.instagram_business_account.id;
+            // Fetch IG username
+            const igRes = await fetch(IG_GRAPH_URL + '/' + igUserId + '?fields=username&access_token=' + accessToken);
+            if (igRes.ok) {
+              const igData = await igRes.json();
+              igUsername = igData.username;
+            }
+          }
+        }
+
+        // Return a success page that passes the token + metadata back to the opener window
+        return serveHTML(oauthSuccessPage(accessToken, expiresIn, igUserId, igUsername));
+      }
+
+      // ── IG Graph API: fetch real insights for a connected account ─────
+      if (path === '/ig-profile') {
+        const token = url.searchParams.get('token');
+        const igUserId = url.searchParams.get('ig_user_id');
+        const origin = request.headers.get('Origin') || '';
+        const allowed = ALLOWED_ORIGINS.some(o => origin.startsWith(o));
+        if (!token || !igUserId) {
+          return json({ error: { message: 'Missing token or ig_user_id' } }, 400, origin, allowed);
+        }
+        return runIGGraphProfile(token, igUserId, env, origin, allowed);
+      }
     }
 
     const origin = request.headers.get('Origin') || '';
@@ -958,7 +1062,224 @@ function json(obj, status, origin, allowed) {
 function cors(origin, allowed) {
   return {
     'Access-Control-Allow-Origin': allowed ? origin : 'null',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS, GET',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
+}
+
+// ── IG Graph API: fetch real profile + insights ───────────────────────────────
+async function runIGGraphProfile(token, igUserId, env, origin, allowed) {
+  const base = IG_GRAPH_URL + '/' + igUserId;
+
+  // Fetch basic profile fields
+  const profileRes = await fetch(
+    base + '?fields=id,username,name,biography,followers_count,follows_count,media_count,profile_picture_url,website&access_token=' + token
+  );
+  if (!profileRes.ok) {
+    const err = await profileRes.text();
+    return json({ error: { message: 'Graph API profile fetch failed: ' + err.slice(0, 200) } }, profileRes.status, origin, allowed);
+  }
+  const p = await profileRes.json();
+
+  // Fetch recent media (up to 25 posts) for engagement calculation
+  const mediaRes = await fetch(
+    base + '/media?fields=id,caption,like_count,comments_count,timestamp,media_type,permalink&limit=25&access_token=' + token
+  );
+  const mediaData = mediaRes.ok ? await mediaRes.json() : { data: [] };
+  const posts = mediaData.data || [];
+
+  // Fetch account insights (reach, impressions) — last 30 days
+  const insightsRes = await fetch(
+    base + '/insights?metric=reach,impressions,follower_count&period=day&since=' +
+    Math.floor((Date.now() - 30 * 86400000) / 1000) +
+    '&until=' + Math.floor(Date.now() / 1000) +
+    '&access_token=' + token
+  );
+  const insightsData = insightsRes.ok ? await insightsRes.json() : { data: [] };
+  const insights = insightsData.data || [];
+
+  // Compute engagement from real post data
+  const followers = p.followers_count || 0;
+  const following = p.follows_count || 0;
+  const totalPosts = p.media_count || 0;
+  const avgLikes = posts.length ? posts.reduce((s, x) => s + (x.like_count || 0), 0) / posts.length : 0;
+  const avgComments = posts.length ? posts.reduce((s, x) => s + (x.comments_count || 0), 0) / posts.length : 0;
+  const engagementPct = followers > 0 ? ((avgLikes + avgComments) / followers) * 100 : 0;
+
+  // Sum 30-day reach from insights
+  const reachMetric = insights.find(m => m.name === 'reach');
+  const totalReach30d = reachMetric
+    ? (reachMetric.values || []).reduce((s, v) => s + (v.value || 0), 0)
+    : null;
+
+  const formatCount = n => {
+    if (!n || n <= 0) return null;
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, '') + 'M';
+    if (n >= 1_000) return (n / 1_000).toFixed(n >= 10_000 ? 0 : 1).replace(/\.0$/, '') + 'K';
+    return String(n);
+  };
+
+  // Pull captions for OpenAI interpretation (same as Apify flow)
+  const captions = posts.slice(0, 25).map(x => x.caption || '').filter(Boolean).join('\n---\n').slice(0, 4000);
+  let interpretation = { categories: [], vibes: [], topCategory: null, recentThemes: [] };
+  if (captions) {
+    const interpRes = await fetch(CHAT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.API_KEY },
+      body: JSON.stringify({
+        model: MODEL,
+        temperature: 0.4,
+        messages: [
+          { role: 'system', content: 'You analyze Instagram post captions to identify content categories, vibes, and recurring themes. Return ONLY valid JSON, no markdown.' },
+          { role: 'user', content: 'Here are ' + posts.length + ' recent captions from @' + p.username + ':\n\n' + captions + '\n\nReturn this JSON:\n{\n  "topCategory": "primary category e.g. Fitness",\n  "categories": [{"name":"Fitness","pct":40},{"name":"Lifestyle","pct":30},{"name":"Beauty","pct":20},{"name":"Wellness","pct":10}],\n  "vibes": ["Aspirational","Warm Tones","Relatable","High Energy","Polished"],\n  "recentThemes": ["morning routines","gym workouts","product reviews","GRWM","day in my life"]\n}\n\nPct values must sum to 100. Give 4-5 categories, 5 vibes, 4-6 recent themes.' }
+        ],
+      }),
+    });
+    if (interpRes.ok) {
+      const interpData = await interpRes.json();
+      try {
+        let txt = interpData.choices[0].message.content;
+        txt = txt.replace(/\`\`\`(?:json)?/g, '').replace(/\`\`\`/g, '').trim();
+        const m = txt.match(/\{[\s\S]*\}/);
+        if (m) interpretation = { ...interpretation, ...JSON.parse(m[0]) };
+      } catch (e) { /* keep defaults */ }
+    }
+  }
+
+  // Proxy profile picture server-side (same as Apify flow)
+  const picUrl = p.profile_picture_url || null;
+  let profilePicData = null;
+  if (picUrl) {
+    try {
+      const picRes = await fetch(picUrl);
+      if (picRes.ok) {
+        const buf = await picRes.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = '';
+        const chunk = 0x8000;
+        for (let i = 0; i < bytes.byteLength; i += chunk) {
+          binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+        }
+        const b64 = btoa(binary);
+        const contentType = picRes.headers.get('content-type') || 'image/jpeg';
+        profilePicData = 'data:' + contentType + ';base64,' + b64;
+      }
+    } catch (_) { /* fall through */ }
+  }
+
+  const profile = {
+    username: '@' + (p.username || ''),
+    displayName: p.name || p.username || '',
+    profilePicUrl: picUrl,
+    profilePicData,
+    followers: formatCount(followers),
+    following: formatCount(following),
+    totalPosts: formatCount(totalPosts),
+    engagementRate: engagementPct > 0 ? (engagementPct < 1 ? engagementPct.toFixed(2) : engagementPct.toFixed(1)) + '%' : null,
+    reach30d: totalReach30d ? formatCount(totalReach30d) : null,
+    topCategory: interpretation.topCategory,
+    categories: interpretation.categories,
+    vibes: interpretation.vibes,
+    bio: p.biography || null,
+    website: p.website || null,
+    postingFrequency: postsCadenceFromGraph(posts),
+    recentThemes: interpretation.recentThemes,
+    verified: false, // Graph API doesn't return verified status
+    dataSource: 'graph_api', // flag so frontend knows this is real data
+    _raw: { followers, following, posts: totalPosts, avgLikes, avgComments },
+  };
+
+  return json({
+    choices: [{ message: { role: 'assistant', content: JSON.stringify(profile) } }],
+  }, 200, origin, allowed);
+}
+
+function postsCadenceFromGraph(posts) {
+  if (!posts || posts.length < 2) return null;
+  const times = posts.map(p => new Date(p.timestamp).getTime()).filter(t => !isNaN(t)).sort((a, b) => b - a);
+  if (times.length < 2) return null;
+  const dayMs = 86400000;
+  const spanDays = (times[0] - times[times.length - 1]) / dayMs;
+  const perDay = posts.length / Math.max(spanDays, 1);
+  if (perDay >= 0.9) return 'Daily';
+  if (perDay >= 0.4) return 'Several times per week';
+  if (perDay >= 0.2) return 'Weekly';
+  return 'Occasionally';
+}
+
+// ── OAuth HTML pages ──────────────────────────────────────────────────────────
+function oauthSuccessPage(token, expiresIn, igUserId, igUsername) {
+  return \`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Connected — CreatorClaw</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0A0A0A;color:#F0EDE8;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+  .card{background:#111;border:1px solid #1E1E1E;border-radius:12px;padding:40px;max-width:420px;text-align:center}
+  .icon{font-size:40px;margin-bottom:16px}
+  h2{font-size:20px;font-weight:600;margin-bottom:8px;letter-spacing:-0.01em}
+  p{font-size:13px;color:#6B6560;line-height:1.6;margin-bottom:4px}
+  .handle{color:#C9A96E;font-weight:600}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">✅</div>
+  <h2>Instagram Connected</h2>
+  \${igUsername ? '<p>Logged in as <span class="handle">@' + igUsername + '</span></p>' : ''}
+  <p style="margin-top:12px;font-size:12px">You can close this window.</p>
+</div>
+<script>
+  // Pass credentials back to the opener (creatorclaw.co) then close
+  if (window.opener) {
+    window.opener.postMessage({
+      type: 'cc_ig_auth',
+      token: \${JSON.stringify(token)},
+      igUserId: \${JSON.stringify(igUserId)},
+      igUsername: \${JSON.stringify(igUsername)},
+      expiresIn: \${expiresIn},
+    }, 'https://creatorclaw.co');
+    setTimeout(() => window.close(), 1500);
+  }
+</script>
+</body>
+</html>\`;
+}
+
+function oauthErrorPage(error, description) {
+  return \`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Connection Failed — CreatorClaw</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0A0A0A;color:#F0EDE8;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+  .card{background:#111;border:1px solid #1E1E1E;border-radius:12px;padding:40px;max-width:420px;text-align:center}
+  .icon{font-size:40px;margin-bottom:16px}
+  h2{font-size:20px;font-weight:600;margin-bottom:8px}
+  p{font-size:13px;color:#6B6560;line-height:1.6}
+  code{font-size:11px;color:#C46E6E;background:#1A1010;padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">❌</div>
+  <h2>Connection Failed</h2>
+  <p>\${description || 'Something went wrong during Instagram authorization.'}</p>
+  <p style="margin-top:12px"><code>\${error}</code></p>
+  <p style="margin-top:16px;font-size:12px">You can close this window and try again.</p>
+</div>
+<script>
+  if (window.opener) {
+    window.opener.postMessage({ type: 'cc_ig_auth_error', error: \${JSON.stringify(error)} }, 'https://creatorclaw.co');
+    setTimeout(() => window.close(), 3000);
+  }
+</script>
+</body>
+</html>\`;
 }
