@@ -329,6 +329,22 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
   .stat-card-val{font-size:20px}
 }
 
+/* Intro Screen */
+#intro-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center;transition:opacity 0.6s ease,visibility 0.6s ease}
+#intro-screen.done{opacity:0;visibility:hidden;pointer-events:none}
+.intro-inner{max-width:500px;padding:0 32px;width:100%}
+.intro-line{opacity:0;transform:translateY(8px);transition:opacity 0.4s ease,transform 0.4s ease;margin-bottom:16px}
+.intro-line.visible{opacity:1;transform:translateY(0)}
+.intro-cursor{display:inline-block;width:2px;height:1em;background:var(--gold);margin-left:2px;animation:blink 0.8s step-end infinite;vertical-align:text-bottom}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.intro-text{font-size:18px;font-weight:300;color:var(--text);line-height:1.6;letter-spacing:0.01em}
+.intro-text .gold{color:var(--gold);font-weight:500}
+.intro-cta{opacity:0;transform:translateY(8px);transition:opacity 0.4s ease,transform 0.4s ease}
+.intro-cta.visible{opacity:1;transform:translateY(0)}
+.intro-cta button{background:transparent;border:1px solid var(--gold);border-radius:8px;padding:14px 36px;color:var(--gold);font-size:12px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;transition:all 0.3s}
+.intro-cta button:hover{background:var(--gold);color:var(--bg)}
+@media(max-width:768px){.intro-text{font-size:16px}}
+
 .hidden{display:none}
 
 /* Shared modal */
@@ -360,6 +376,15 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 </style>
 </head>
 <body>
+
+<div id="intro-screen">
+  <div class="intro-inner">
+    <div class="intro-line" id="intro-1"><span class="intro-text" id="intro-text-1"></span><span class="intro-cursor" id="cursor-1"></span></div>
+    <div class="intro-line" id="intro-2"><span class="intro-text" id="intro-text-2"></span><span class="intro-cursor" id="cursor-2" style="display:none"></span></div>
+    <div class="intro-line" id="intro-3"><span class="intro-text" id="intro-text-3"></span><span class="intro-cursor" id="cursor-3" style="display:none"></span></div>
+    <div class="intro-cta" id="intro-cta" style="margin-top:32px"><button onclick="dismissIntro()">Get Started</button></div>
+  </div>
+</div>
 
 <div class="header">
   <div class="header-inner">
@@ -526,6 +551,60 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 </div>
 
 <script>
+// Intro typewriter
+const introLines=[
+  {el:'intro-text-1',cursor:'cursor-1',line:'intro-1',text:'Welcome to CreatorClaw.'},
+  {el:'intro-text-2',cursor:'cursor-2',line:'intro-2',text:'The AI agent for content creators.'},
+  {el:'intro-text-3',cursor:'cursor-3',line:'intro-3',text:"Let's get started."}
+];
+
+function typeWriter(el,text,speed,cb){
+  let i=0;
+  function tick(){
+    if(i<text.length){
+      // Wrap "CreatorClaw" in gold span
+      const current=text.substring(0,i+1).replace('CreatorClaw','<span class="gold">CreatorClaw</span>');
+      el.innerHTML=current;
+      i++;
+      setTimeout(tick,speed);
+    } else if(cb) cb();
+  }
+  tick();
+}
+
+function runIntro(){
+  let idx=0;
+  function nextLine(){
+    if(idx>=introLines.length){
+      // Hide last cursor, show CTA
+      document.getElementById(introLines[idx-1].cursor).style.display='none';
+      setTimeout(()=>{document.getElementById('intro-cta').classList.add('visible')},300);
+      return;
+    }
+    const l=introLines[idx];
+    // Show line
+    document.getElementById(l.line).classList.add('visible');
+    // Hide prev cursor, show current
+    if(idx>0) document.getElementById(introLines[idx-1].cursor).style.display='none';
+    document.getElementById(l.cursor).style.display='inline-block';
+    // Type
+    typeWriter(document.getElementById(l.el),l.text,40,()=>{
+      idx++;
+      setTimeout(nextLine,400);
+    });
+  }
+  setTimeout(nextLine,600);
+}
+
+function dismissIntro(){
+  document.getElementById('intro-screen').classList.add('done');
+  // Remove from DOM after animation
+  setTimeout(()=>{document.getElementById('intro-screen').remove()},700);
+}
+
+// Run on load
+window.addEventListener('DOMContentLoaded',runIntro);
+
 // ── Theme (apply ASAP to avoid flash) ─────────────────────────────────────────
 const MOON_SVG='<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>';
 const SUN_SVG='<circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/>';
