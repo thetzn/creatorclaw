@@ -1139,7 +1139,7 @@ async function runIGGraphProfile(token, igUserId, env, origin, allowed) {
       const interpData = await interpRes.json();
       try {
         let txt = interpData.choices[0].message.content;
-        txt = txt.replace(/\`\`\`(?:json)?/g, '').replace(/\`\`\`/g, '').trim();
+        txt = txt.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
         const m = txt.match(/\{[\s\S]*\}/);
         if (m) interpretation = { ...interpretation, ...JSON.parse(m[0]) };
       } catch (e) { /* keep defaults */ }
@@ -1209,7 +1209,7 @@ function postsCadenceFromGraph(posts) {
 
 // ── OAuth HTML pages ──────────────────────────────────────────────────────────
 function oauthSuccessPage(token, expiresIn, igUserId, igUsername) {
-  return \`<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
@@ -1229,7 +1229,7 @@ function oauthSuccessPage(token, expiresIn, igUserId, igUsername) {
 <div class="card">
   <div class="icon">✅</div>
   <h2>Instagram Connected</h2>
-  \${igUsername ? '<p>Logged in as <span class="handle">@' + igUsername + '</span></p>' : ''}
+  ${igUsername ? '<p>Logged in as <span class="handle">@' + igUsername + '</span></p>' : ''}
   <p style="margin-top:12px;font-size:12px">You can close this window.</p>
 </div>
 <script>
@@ -1237,20 +1237,20 @@ function oauthSuccessPage(token, expiresIn, igUserId, igUsername) {
   if (window.opener) {
     window.opener.postMessage({
       type: 'cc_ig_auth',
-      token: \${JSON.stringify(token)},
-      igUserId: \${JSON.stringify(igUserId)},
-      igUsername: \${JSON.stringify(igUsername)},
-      expiresIn: \${expiresIn},
+      token: ${JSON.stringify(token)},
+      igUserId: ${JSON.stringify(igUserId)},
+      igUsername: ${JSON.stringify(igUsername)},
+      expiresIn: ${expiresIn},
     }, 'https://creatorclaw.co');
     setTimeout(() => window.close(), 1500);
   }
 </script>
 </body>
-</html>\`;
+</html>`;
 }
 
 function oauthErrorPage(error, description) {
-  return \`<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
@@ -1270,16 +1270,16 @@ function oauthErrorPage(error, description) {
 <div class="card">
   <div class="icon">❌</div>
   <h2>Connection Failed</h2>
-  <p>\${description || 'Something went wrong during Instagram authorization.'}</p>
-  <p style="margin-top:12px"><code>\${error}</code></p>
+  <p>${description || 'Something went wrong during Instagram authorization.'}</p>
+  <p style="margin-top:12px"><code>${error}</code></p>
   <p style="margin-top:16px;font-size:12px">You can close this window and try again.</p>
 </div>
 <script>
   if (window.opener) {
-    window.opener.postMessage({ type: 'cc_ig_auth_error', error: \${JSON.stringify(error)} }, 'https://creatorclaw.co');
+    window.opener.postMessage({ type: 'cc_ig_auth_error', error: ${JSON.stringify(error)} }, 'https://creatorclaw.co');
     setTimeout(() => window.close(), 3000);
   }
 </script>
 </body>
-</html>\`;
+</html>`;
 }
