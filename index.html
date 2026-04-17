@@ -988,14 +988,8 @@ async function analyzeIGProfile(){
   }
 }
 
-// ── Connect ────────────────────────────────────────────────────────────────────────────
+// ── Connect ───────────────────────────────────────────────────────────────────
 function connectPlatform(p){
-  if(p==='ig'){
-    // Redirect to real Instagram OAuth flow via worker
-    window.location.href=PROXY_URL+'/auth/instagram';
-    return;
-  }
-  // TikTok / YouTube: keep existing stub for now
   const btn=document.getElementById(p+'-btn');
   btn.disabled=true;btn.textContent='Connecting...';
   setTimeout(()=>{
@@ -1007,55 +1001,6 @@ function connectPlatform(p){
     if(count>=2) document.getElementById('both-banner').classList.remove('hidden');
   },1500);
 }
-
-// ── Handle Instagram OAuth callback (?igData=...) ─────────────────────────
-function handleIGCallback(){
-  const params=new URLSearchParams(window.location.search);
-  const igDataParam=params.get('igData');
-  const igError=params.get('igError');
-
-  if(igError){
-    showError('Instagram connection failed. Please try again.');
-    history.replaceState({},'','/');
-    return;
-  }
-
-  if(!igDataParam) return;
-
-  try{
-    const igData=JSON.parse(atob(decodeURIComponent(igDataParam)));
-    state.igConnected=true;
-    state.igData=igData;
-
-    // Fill Connect tab stats
-    const fol=document.getElementById('ig-val-followers');
-    const eng=document.getElementById('ig-val-engagement');
-    const pos=document.getElementById('ig-val-posts');
-    const cat=document.getElementById('ig-val-category');
-    if(fol) fol.textContent=igData.followers||'—';
-    if(eng) eng.textContent=igData.engagementRate||'—';
-    if(pos) pos.textContent=igData.totalPosts||'—';
-    if(cat) cat.textContent=igData.topCategory||'Creator';
-
-    document.getElementById('ig-connect').classList.add('hidden');
-    document.getElementById('ig-stats').classList.remove('hidden');
-    document.getElementById('ig-badge').classList.remove('hidden');
-    document.getElementById('both-banner').classList.remove('hidden');
-
-    // Clean URL so a refresh doesn't re-trigger
-    history.replaceState({},'','/');
-
-    // Auto-advance to persona generation
-    switchTab('persona');
-    generatePersona();
-  } catch(e){
-    showError('Could not parse Instagram data: '+e.message);
-    history.replaceState({},'','/');
-  }
-}
-
-// Run on page load
-handleIGCallback();
 
 // ── Flow CTAs ─────────────────────────────────────────────────────────────────
 function showContinueCTA(containerId,msg,btnText,onclick){
