@@ -150,15 +150,10 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 .persona-bio{flex:1}
 .persona-name{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .persona-name h2{font-size:22px;font-weight:400;letter-spacing:0.02em}
-.persona-name .check{color:var(--gold);font-size:14px}
+.verified-badge{width:18px;height:18px;flex-shrink:0;display:inline-block;vertical-align:middle}
 .persona-desc{color:var(--muted);font-size:13px;line-height:1.7;margin-bottom:16px;max-width:480px}
 .vibe-tags{display:flex;gap:6px;flex-wrap:wrap}
 .vibe-tag{background:transparent;color:var(--muted);border-radius:4px;padding:4px 12px;font-size:10px;font-weight:500;border:1px solid var(--border2);letter-spacing:0.08em;text-transform:uppercase}
-.score-wrap{text-align:center;flex-shrink:0}
-.score-ring{width:72px;height:72px;border-radius:50%;background:conic-gradient(var(--gold) 0deg,var(--gold3) 313.2deg,var(--border) 313.2deg);display:flex;align-items:center;justify-content:center}
-.score-inner{width:58px;height:58px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center}
-.score-num{font-size:20px;font-weight:700;color:var(--gold)}
-.score-label{font-size:9px;color:var(--muted);margin-top:8px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase}
 
 .stat-card{background:var(--card);border-radius:10px;padding:20px;border:1px solid var(--border);position:relative;overflow:hidden;transition:transform 0.3s,border-color 0.3s}
 .stat-card:hover{transform:translateY(-2px);border-color:var(--border2)}
@@ -473,11 +468,10 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
     <div class="card persona-header" style="margin-bottom:20px">
       <div class="persona-avatar">JM</div>
       <div class="persona-bio">
-        <div class="persona-name"><h2>Jordan Mitchell</h2><span class="check">✓</span></div>
+        <div class="persona-name"><h2>Jordan Mitchell</h2><svg class="verified-badge hidden" viewBox="0 0 40 40" aria-label="Verified"><path fill="#0095F6" d="M19.998 3.094 14.638 0l-2.972 5.15H5.432v6.354L0 14.64 3.096 20 0 25.359l5.432 3.137v5.905h5.975L14.638 40l5.36-3.094L25.358 40l3.232-5.6h6.162v-6.01L40 25.359 36.04 20 40 14.641l-5.248-3.03v-6.46h-6.419L25.358 0z"/><path fill="#fff" d="M16.49 27.456 8.823 19.79l2.69-2.69 4.978 4.978 11.713-11.713 2.69 2.69z"/></svg></div>
         <p class="persona-desc">Fitness enthusiast &amp; lifestyle creator sharing workouts, wellness tips, and daily inspo. Building a community around balanced, real living.</p>
         <div class="vibe-tags"><span class="vibe-tag">Aspirational</span><span class="vibe-tag">Warm Tones</span><span class="vibe-tag">High Energy</span><span class="vibe-tag">Relatable</span><span class="vibe-tag">Polished Casual</span><span class="vibe-tag">Motivational</span></div>
       </div>
-      <div class="score-wrap"><div class="score-ring"><div class="score-inner"><span class="score-num">87</span></div></div><div class="score-label">Persona Score</div></div>
     </div>
     <div class="grid-4">
       <div class="stat-card reach"><div class="stat-card-icon" style="background:var(--gold-dim);color:var(--gold)">◎</div><div class="stat-card-val">549K</div><div class="stat-card-label">Total Reach<span class="stat-card-sub">+12%</span></div></div>
@@ -954,12 +948,11 @@ function renderPersona(d){
   } else {
     avatarEl.textContent=initials;
   }
-  // Update name/bio/score/vibes
+  // Update name/bio/vibes
   document.querySelector('.persona-name h2').textContent=d.name||'Creator';
   document.querySelector('.persona-desc').textContent=d.bio||'';
-  document.querySelector('.score-num').textContent=score;
-  const deg=(score/100)*360;
-  document.querySelector('.score-ring').style.background=`conic-gradient(var(--gold) 0deg,var(--gold3) ${deg}deg,var(--border) ${deg}deg)`;
+  // Show verified badge only if Apify confirmed the IG profile is verified
+  document.querySelector('.verified-badge').classList.toggle('hidden', !state.igData?.verified);
   document.querySelector('.vibe-tags').innerHTML=(d.vibes||[]).map(v=>`<span class="vibe-tag">${v}</span>`).join('');
   // Stats
   const statCards=document.querySelectorAll('.stat-card');
