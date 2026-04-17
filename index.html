@@ -44,7 +44,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 
 /* Header */
 .header{background:rgba(10,10,10,0.9);border-bottom:1px solid var(--border);padding:0 32px;position:sticky;top:0;z-index:50;backdrop-filter:blur(20px)}
-.header-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
+.header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
 .logo{display:flex;align-items:center;gap:10px}
 img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:contain}
 .logo-mark{width:26px;height:16px;flex-shrink:0}
@@ -59,7 +59,7 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 .nav-btn.active::after{content:'';position:absolute;bottom:0;left:20px;right:20px;height:1px;background:var(--gold)}
 .avatar{width:32px;height:32px;border-radius:50%;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.05em}
 
-.main{max-width:1100px;margin:0 auto;padding:60px 32px 100px}
+.main{max-width:1200px;margin:0 auto;padding:60px 32px 100px}
 .page-title{font-size:36px;font-weight:300;margin-bottom:10px;letter-spacing:-0.01em;line-height:1.2}
 .page-sub{color:var(--muted);font-size:14px;margin-bottom:48px;font-weight:400;line-height:1.6;max-width:500px}
 .page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:48px}
@@ -377,6 +377,29 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 .settings-btn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--muted);font-size:11px;display:flex;align-items:center;gap:6px;letter-spacing:0.08em}
 .settings-btn:hover{border-color:var(--border2);color:var(--text)}
 .error-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1010;border:1px solid var(--red);border-radius:8px;padding:12px 20px;color:var(--red);font-size:12px;font-weight:500;z-index:200;max-width:90vw;text-align:center}
+
+/* ── Site Footer ─────────────────────────────────────────────────────────── */
+.site-footer{background:var(--bg);border-top:1px solid var(--border);padding:32px 32px 28px;margin-top:auto}
+.site-footer-inner{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.site-footer-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
+.site-footer-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.site-footer-logo .logo-mark{width:22px;height:14px;flex-shrink:0}
+.site-footer-logo .logo-text{font-size:14px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase}
+.site-footer-tagline{font-size:11px;color:var(--muted);letter-spacing:0.05em}
+.site-footer-links{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.site-footer-links a{font-size:11px;color:var(--muted);text-decoration:none;letter-spacing:0.05em;transition:color 0.2s}
+.site-footer-links a:hover{color:var(--gold)}
+.site-footer-divider{height:1px;background:var(--border);width:100%}
+.site-footer-bottom{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.site-footer-copy{font-size:11px;color:var(--muted2)}
+.site-footer-legal{display:flex;align-items:center;gap:20px}
+.site-footer-legal a{font-size:11px;color:var(--muted2);text-decoration:none;transition:color 0.2s}
+.site-footer-legal a:hover{color:var(--muted)}
+@media(max-width:768px){
+  .site-footer{padding:24px 16px 20px}
+  .site-footer-top{flex-direction:column;align-items:flex-start;gap:12px}
+  .site-footer-bottom{flex-direction:column;align-items:flex-start;gap:8px}
+}
 </style>
 </head>
 <body>
@@ -1216,5 +1239,55 @@ async function draftScript(encodedTitle){
 }
 
 </script>
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div class="site-footer-top">
+      <a href="/" class="site-footer-logo">
+        <svg class="logo-mark" viewBox="0 0 130 80" shape-rendering="crispEdges" aria-hidden="true">
+          <defs>
+            <linearGradient id="footer-rainbow" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#A855F7"/><stop offset="18%" stop-color="#6366F1"/>
+              <stop offset="35%" stop-color="#3B82F6"/><stop offset="50%" stop-color="#10B981"/>
+              <stop offset="65%" stop-color="#EAB308"/><stop offset="82%" stop-color="#F97316"/>
+              <stop offset="100%" stop-color="#EC4899"/>
+            </linearGradient>
+          </defs>
+          <g fill="url(#footer-rainbow)">
+            <rect x="40" y="0" width="10" height="10"/><rect x="80" y="0" width="10" height="10"/>
+            <rect x="40" y="10" width="50" height="10"/><rect x="10" y="20" width="10" height="10"/>
+            <rect x="30" y="20" width="70" height="10"/><rect x="110" y="20" width="10" height="10"/>
+            <rect x="0" y="30" width="30" height="10"/><rect x="40" y="30" width="10" height="10"/>
+            <rect x="60" y="30" width="10" height="10"/><rect x="80" y="30" width="10" height="10"/>
+            <rect x="100" y="30" width="30" height="10"/><rect x="0" y="40" width="130" height="10"/>
+            <rect x="10" y="50" width="110" height="10"/><rect x="0" y="60" width="10" height="10"/>
+            <rect x="20" y="60" width="10" height="10"/><rect x="40" y="60" width="10" height="10"/>
+            <rect x="60" y="60" width="10" height="10"/><rect x="80" y="60" width="10" height="10"/>
+            <rect x="100" y="60" width="10" height="10"/><rect x="120" y="60" width="10" height="10"/>
+            <rect x="10" y="70" width="10" height="10"/><rect x="30" y="70" width="10" height="10"/>
+            <rect x="70" y="70" width="10" height="10"/><rect x="90" y="70" width="10" height="10"/>
+          </g>
+        </svg>
+        <span class="logo-text gold-text">CreatorClaw</span>
+      </a>
+      <span class="site-footer-tagline">The AI management system for creators.</span>
+      <nav class="site-footer-links" aria-label="Footer navigation">
+        <a href="https://creatorclaw-proxy.creatorclaw.workers.dev/privacy">Privacy Policy</a>
+        <a href="https://creatorclaw-proxy.creatorclaw.workers.dev/tos">Terms of Service</a>
+        <a href="https://creatorclaw-proxy.creatorclaw.workers.dev/data-deletion">Data Deletion</a>
+        <a href="mailto:support@creatorclaw.co">Contact</a>
+      </nav>
+    </div>
+    <div class="site-footer-divider"></div>
+    <div class="site-footer-bottom">
+      <span class="site-footer-copy">&copy; 2026 CreatorClaw. All rights reserved.</span>
+      <div class="site-footer-legal">
+        <a href="https://creatorclaw-proxy.creatorclaw.workers.dev/privacy">Privacy</a>
+        <a href="https://creatorclaw-proxy.creatorclaw.workers.dev/tos">Terms</a>
+        <a href="https://creatorclaw-proxy.creatorclaw.workers.dev/data-deletion">Data Deletion</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
 </body>
 </html>
