@@ -381,8 +381,6 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
   <div class="intro-inner">
     <div class="intro-line" id="intro-1"><span class="intro-text" id="intro-text-1"></span><span class="intro-cursor" id="cursor-1"></span></div>
     <div class="intro-line" id="intro-2"><span class="intro-text" id="intro-text-2"></span><span class="intro-cursor" id="cursor-2" style="display:none"></span></div>
-    <div class="intro-line" id="intro-3"><span class="intro-text" id="intro-text-3"></span><span class="intro-cursor" id="cursor-3" style="display:none"></span></div>
-    <div class="intro-cta" id="intro-cta" style="margin-top:32px"><button onclick="dismissIntro()">Get Started</button></div>
   </div>
 </div>
 
@@ -554,8 +552,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 // Intro typewriter
 const introLines=[
   {el:'intro-text-1',cursor:'cursor-1',line:'intro-1',text:'Welcome to CreatorClaw.'},
-  {el:'intro-text-2',cursor:'cursor-2',line:'intro-2',text:'The AI agent for content creators.'},
-  {el:'intro-text-3',cursor:'cursor-3',line:'intro-3',text:"Let's get started."}
+  {el:'intro-text-2',cursor:'cursor-2',line:'intro-2',text:'The AI agent for content creators.'}
 ];
 
 function typeWriter(el,text,speed,cb){
@@ -576,9 +573,9 @@ function runIntro(){
   let idx=0;
   function nextLine(){
     if(idx>=introLines.length){
-      // Hide last cursor, show CTA
+      // Hide last cursor, then auto-dismiss into the app
       document.getElementById(introLines[idx-1].cursor).style.display='none';
-      setTimeout(()=>{document.getElementById('intro-cta').classList.add('visible')},300);
+      setTimeout(dismissIntro,700);
       return;
     }
     const l=introLines[idx];
@@ -588,7 +585,7 @@ function runIntro(){
     if(idx>0) document.getElementById(introLines[idx-1].cursor).style.display='none';
     document.getElementById(l.cursor).style.display='inline-block';
     // Type
-    typeWriter(document.getElementById(l.el),l.text,40,()=>{
+    typeWriter(document.getElementById(l.el),l.text,30,()=>{
       idx++;
       setTimeout(nextLine,400);
     });
