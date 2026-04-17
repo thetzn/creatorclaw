@@ -344,7 +344,15 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 .intro-cta.visible{opacity:1;transform:translateY(0)}
 .intro-cta button{background:transparent;border:1px solid var(--gold);border-radius:8px;padding:14px 36px;color:var(--gold);font-size:12px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;transition:all 0.3s}
 .intro-cta button:hover{background:var(--gold);color:var(--bg)}
-@media(max-width:768px){.intro-text{font-size:16px}}
+.intro-connect{opacity:0;transform:translateY(8px);transition:opacity 0.5s ease,transform 0.5s ease;margin-top:36px}
+.intro-connect.visible{opacity:1;transform:translateY(0)}
+.intro-label{font-size:10px;color:var(--muted);letter-spacing:0.18em;text-transform:uppercase;margin-bottom:12px;font-weight:600}
+.intro-form{display:flex;gap:8px}
+.intro-form input{flex:1;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:14px 16px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none;transition:border-color 0.2s;min-width:0}
+.intro-form input:focus{border-color:var(--gold)}
+.intro-form button{background:var(--gold);border:none;border-radius:8px;padding:14px 26px;color:var(--bg);font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;white-space:nowrap;transition:opacity 0.2s}
+.intro-form button:hover{opacity:0.88}
+@media(max-width:768px){.intro-text{font-size:16px}.intro-form{flex-direction:column}.intro-form button{padding:16px 24px}}
 
 .hidden{display:none}
 
@@ -382,6 +390,13 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
   <div class="intro-inner">
     <div class="intro-line" id="intro-1"><span class="intro-text" id="intro-text-1"></span><span class="intro-cursor" id="cursor-1"></span></div>
     <div class="intro-line" id="intro-2"><span class="intro-text" id="intro-text-2"></span><span class="intro-cursor" id="cursor-2" style="display:none"></span></div>
+    <div class="intro-connect" id="intro-connect">
+      <div class="intro-label">Your Instagram handle</div>
+      <div class="intro-form">
+        <input id="intro-ig-input" type="text" placeholder="@yourhandle" onkeydown="if(event.key==='Enter')introAnalyze()">
+        <button onclick="introAnalyze()">Analyze</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -394,8 +409,8 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
     <div class="nav" id="nav">
       <button class="nav-btn active" data-tab="connect" onclick="switchTab('connect')">Connect</button>
       <button class="nav-btn" data-tab="persona" onclick="switchTab('persona')">Persona</button>
-      <button class="nav-btn" data-tab="brands" onclick="switchTab('brands')">Brands</button>
-      <button class="nav-btn" data-tab="pulse" onclick="switchTab('pulse')">Pulse</button>
+      <button class="nav-btn" data-tab="pulse" onclick="switchTab('pulse')">Create</button>
+      <button class="nav-btn" data-tab="brands" onclick="switchTab('brands')">Pitch</button>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>
@@ -485,18 +500,18 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 
 <!-- BRANDS TAB -->
 <div id="tab-brands" class="hidden">
-  <h1 class="page-title">Brand <span class="gold-text">Matches</span></h1>
+  <h1 class="page-title">Your <span class="gold-text">Pitch</span> matches</h1>
   <p class="page-sub">Brands aligned with your persona, ranked by audience fit and content compatibility.</p>
-  <div id="brands-cta" class="center-cta"><div class="center-icon">♢</div><h2>Find your brand matches</h2><p>We'll match you with brands that align with your audience, content style, and niche.</p><button class="gen-btn" onclick="generateBrands()">Generate Matches</button></div>
+  <div id="brands-cta" class="center-cta"><div class="center-icon">♢</div><h2>Find brands worth pitching</h2><p>We'll match you with brands that align with your audience, content style, and niche — and draft pitches for each.</p><button class="gen-btn" onclick="generateBrands()">Find Pitches</button></div>
   <div id="brands-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Matching brands to your persona…</div><div class="loading-sub" id="brands-loading-sub">Scanning 12,000+ brand profiles…</div><div class="loading-progress"><div class="loading-progress-fill" id="brands-loading-bar"></div></div></div>
   <div id="brands-result" class="brand-grid hidden"></div>
 </div>
 
 <!-- PULSE TAB -->
 <div id="tab-pulse" class="hidden">
-  <h1 class="page-title"><span class="gold-text">Pulse</span></h1>
+  <h1 class="page-title">What to <span class="gold-text">Create</span></h1>
   <p class="page-sub">Content ideas matched to your persona and what's trending right now.</p>
-  <div id="pulse-cta" class="center-cta"><div class="center-icon">◎</div><h2>Discover what to post next</h2><p>We'll scan trending topics, sounds, and formats — then match them to your persona for high-engagement ideas.</p><button class="gen-btn" onclick="generatePulse()">Scan Trends</button></div>
+  <div id="pulse-cta" class="center-cta"><div class="center-icon">◎</div><h2>Discover what to create next</h2><p>We'll scan trending topics, sounds, and formats — then match them to your persona for high-engagement ideas.</p><button class="gen-btn" onclick="generatePulse()">Generate Ideas</button></div>
   <div id="pulse-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Scanning trends across platforms…</div><div class="loading-sub" id="pulse-loading-sub">Analyzing 50K+ trending posts…</div><div class="loading-progress"><div class="loading-progress-fill" id="pulse-loading-bar"></div></div></div>
   <div id="pulse-result" class="hidden"><div class="pulse-filters" id="pulse-filters"></div><div class="pulse-section-label"><span class="dot" style="background:var(--gold)"></span> Trending Now — Matched to Your Persona</div><div class="pulse-grid" id="pulse-grid"></div></div>
 </div>
@@ -528,9 +543,13 @@ function runIntro(){
   let idx=0;
   function nextLine(){
     if(idx>=introLines.length){
-      // Hide last cursor, then auto-dismiss into the app
+      // Hide last cursor, then reveal the IG connect form right here
       document.getElementById(introLines[idx-1].cursor).style.display='none';
-      setTimeout(dismissIntro,700);
+      setTimeout(()=>{
+        document.getElementById('intro-connect').classList.add('visible');
+        const inp=document.getElementById('intro-ig-input');
+        if(inp) inp.focus();
+      },350);
       return;
     }
     const l=introLines[idx];
@@ -540,12 +559,23 @@ function runIntro(){
     if(idx>0) document.getElementById(introLines[idx-1].cursor).style.display='none';
     document.getElementById(l.cursor).style.display='inline-block';
     // Type
-    typeWriter(document.getElementById(l.el),l.text,30,()=>{
+    typeWriter(document.getElementById(l.el),l.text,22,()=>{
       idx++;
       setTimeout(nextLine,400);
     });
   }
   setTimeout(nextLine,600);
+}
+
+function introAnalyze(){
+  const inp=document.getElementById('intro-ig-input');
+  const v=inp.value.trim();
+  if(!v){ inp.style.borderColor='var(--red)'; return; }
+  // Pipe value into the existing Connect-tab input + reuse analyzeIGProfile
+  const target=document.getElementById('ig-url-input');
+  if(target) target.value=v;
+  dismissIntro();
+  analyzeIGProfile();
 }
 
 function dismissIntro(){
@@ -721,6 +751,10 @@ async function analyzeIGProfile(){
     document.getElementById('ig-badge').innerHTML=`✓ Analyzed`;
     document.getElementById('ig-badge').classList.remove('hidden');
 
+    // Once connected, the Connect tab isn't needed anymore — hide its nav button
+    const connectTab=document.querySelector('#nav .nav-btn[data-tab="connect"]');
+    if(connectTab) connectTab.style.display='none';
+
     // Kick off persona — spinner keeps running, no visible "handoff"
     generatePersona();
 
@@ -793,7 +827,7 @@ pillars p must sum to 100. Keep 4-5 pillars.`;
     stopLoading('persona');
     document.getElementById('persona-loading').classList.add('hidden');
     renderPersona(data);
-    showContinueCTA('persona-result','Persona ready — discover <span class="hl">content ideas</span> matched to your profile.','Continue to Pulse',advanceToPulse);
+    showContinueCTA('persona-result','Persona ready — discover what to <span class="hl">create</span> next.','Continue to Create',advanceToPulse);
   } catch(e){
     stopLoading('persona');
     document.getElementById('persona-loading').classList.add('hidden');
@@ -1006,7 +1040,7 @@ trend: hot/rising/steady/new. platform: Both/Instagram/TikTok/YouTube. cat: fitn
     stopLoading('pulse');
     document.getElementById('pulse-loading').classList.add('hidden');
     renderPulse(ideas);
-    showContinueCTA('pulse-result','Ideas locked in — find <span class="hl">brand partners</span> that match your persona.','Continue to Brands',advanceToBrands);
+    showContinueCTA('pulse-result','Ideas locked in — now <span class="hl">pitch</span> brands that fit your persona.','Continue to Pitch',advanceToBrands);
   } catch(e){
     stopLoading('pulse');
     document.getElementById('pulse-loading').classList.add('hidden');
