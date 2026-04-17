@@ -616,6 +616,84 @@ function crabSVG(){
 document.querySelectorAll('[data-crab-img]').forEach(el=>{ el.src=LOGO_DATA_URI; });
 document.querySelectorAll('[data-crab]').forEach(el=>{ el.innerHTML=crabSVG(); });
 
+// ── Progress loading (rotating messages + growing bar) ───────────────────────
+const LOADING_MESSAGES={
+  persona:[
+    'Finding your profile…',
+    'Reading your recent content…',
+    'Measuring engagement patterns…',
+    'Analyzing sentiment in your comments…',
+    'Identifying your content pillars…',
+    'Mapping audience demographics…',
+    'Detecting your creator vibes…',
+    'Calculating growth signals…',
+    'Stitching your media kit together…'
+  ],
+  brands:[
+    'Indexing partnership opportunities…',
+    'Matching your niche to advertisers…',
+    'Scoring audience overlap…',
+    'Calculating compatibility scores…',
+    'Ranking by engagement fit…',
+    'Estimating deal value ranges…'
+  ],
+  pulse:[
+    'Scanning trending audio and formats…',
+    'Cross-referencing your pillars…',
+    'Measuring hashtag momentum…',
+    'Identifying high-match opportunities…',
+    'Estimating reach potential…',
+    'Curating your top 10 picks…'
+  ]
+};
+const _loadingTimers={};
+function startLoading(key, estSec){
+  stopLoading(key);
+  const sub=document.getElementById(key+'-loading-sub');
+  const bar=document.getElementById(key+'-loading-bar');
+  const msgs=LOADING_MESSAGES[key]||[];
+  let i=0;
+  if(sub && msgs.length){ sub.style.opacity='0'; setTimeout(()=>{ sub.textContent=msgs[0]; sub.style.opacity='1'; },150); }
+  const msgInterval=setInterval(()=>{
+    i=(i+1)%msgs.length;
+    if(!sub) return;
+    sub.style.opacity='0';
+    setTimeout(()=>{ sub.textContent=msgs[i]; sub.style.opacity='1'; },180);
+  },2800);
+  const start=Date.now();
+  if(bar) bar.style.width='0%';
+  const barInterval=setInterval(()=>{
+    const elapsed=(Date.now()-start)/1000;
+    // Asymptotic growth — feels fast early, never quite reaches 100%
+    const pct=Math.min(92, 100*(1-Math.exp(-elapsed/(estSec*0.5))));
+    if(bar) bar.style.width=pct+'%';
+  },180);
+  _loadingTimers[key]={msgInterval,barInterval,bar};
+}
+function stopLoading(key){
+  const t=_loadingTimers[key];
+  if(!t) return;
+  clearInterval(t.msgInterval);
+  clearInterval(t.barInterval);
+  if(t.bar){ t.bar.style.width='100%'; }
+  delete _loadingTimers[key];
+}
+
+// ── Modal helpers ─────────────────────────────────────────────────────────────
+function showModal(innerHTML){
+  closeModal();
+  const o=document.createElement('div');
+  o.className='modal-overlay';o.id='active-modal';
+  o.innerHTML='<div class="modal-box">'+innerHTML+'</div>';
+  o.addEventListener('click',e=>{ if(e.target===o) closeModal(); });
+  document.body.appendChild(o);
+  // Populate any crab placeholders inside the modal
+  o.querySelectorAll('[data-crab]').forEach(el=>{ el.innerHTML=crabSVG(); });
+}
+function closeModal(){ const m=document.getElementById('active-modal'); if(m) m.remove(); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+
 // ── State ─────────────────────────────────────────────────────────────────────
 const state={
   igConnected:false,ttConnected:false,ytConnected:false,
