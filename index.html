@@ -486,6 +486,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <span class="logo-text gold-text">CreatorClaw</span>
     </div>
     <div class="nav" id="nav">
+      <button class="nav-btn" id="nav-back-to-chat" onclick="showChatView()" style="display:none;color:var(--gold)">← Chat</button>
       <button class="nav-btn active" data-tab="connect" onclick="switchTab('connect')">Connect</button>
       <button class="nav-btn" data-tab="persona" onclick="switchTab('persona')">Persona</button>
       <button class="nav-btn" data-tab="pulse" onclick="switchTab('pulse')">Create</button>
@@ -930,7 +931,9 @@ function updateAuthUI(user){
   const avatar = document.getElementById('avatar-initials');
   const chatAvatar = document.getElementById('chat-avatar');
   const chatName = document.getElementById('chat-user-name');
+  const backToChat = document.getElementById('nav-back-to-chat');
   document.body.classList.toggle('logged-out', !user);
+  if(backToChat) backToChat.style.display = user ? '' : 'none';
   if(user){
     const name = user.user_metadata?.full_name || user.email || '';
     const initials = name.trim().split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase() || 'U';
