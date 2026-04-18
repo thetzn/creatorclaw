@@ -6,6 +6,7 @@
 <title>CreatorClaw</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root{
   --bg:#0A0A0A;--card:#111111;--card2:#161616;--border:#1E1E1E;--border2:#2A2A2A;
@@ -44,7 +45,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 
 /* Header */
 .header{background:rgba(10,10,10,0.9);border-bottom:1px solid var(--border);padding:0 32px;position:sticky;top:0;z-index:50;backdrop-filter:blur(20px)}
-.header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
+.header-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
 .logo{display:flex;align-items:center;gap:10px}
 img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:contain}
 .logo-mark{width:26px;height:16px;flex-shrink:0}
@@ -59,7 +60,7 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 .nav-btn.active::after{content:'';position:absolute;bottom:0;left:20px;right:20px;height:1px;background:var(--gold)}
 .avatar{width:32px;height:32px;border-radius:50%;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.05em}
 
-.main{max-width:1200px;margin:0 auto;padding:60px 32px 100px}
+.main{max-width:1100px;margin:0 auto;padding:60px 32px 100px}
 .page-title{font-size:36px;font-weight:300;margin-bottom:10px;letter-spacing:-0.01em;line-height:1.2}
 .page-sub{color:var(--muted);font-size:14px;margin-bottom:48px;font-weight:400;line-height:1.6;max-width:500px}
 .page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:48px}
@@ -69,6 +70,22 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
   .page-head{flex-direction:column;align-items:stretch;margin-bottom:28px}
   .page-head .cta-btn{width:100%;text-align:center;justify-content:center}
 }
+
+/* Teaser gates (free-tier paywall) */
+.teaser-section{position:relative}
+body.logged-out .teaser-section > .teaser-content{filter:blur(10px);pointer-events:none;user-select:none;transition:filter 0.4s}
+body.logged-out .teaser-section::after{content:'';position:absolute;left:0;right:0;bottom:0;top:0;pointer-events:none;background:linear-gradient(to bottom,transparent 0%,transparent 30%,var(--bg) 85%);border-radius:12px}
+.teaser-gate{display:none}
+body.logged-out .teaser-gate{display:flex;position:absolute;left:0;right:0;bottom:0;top:25%;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center;z-index:5;pointer-events:auto}
+.teaser-gate-icon{width:44px;height:44px;border-radius:50%;background:var(--gold-dim);border:1px solid var(--gold-border);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:18px;margin-bottom:14px}
+.teaser-gate h3{font-size:20px;font-weight:500;margin-bottom:6px;color:var(--text);letter-spacing:-0.01em}
+.teaser-gate p{font-size:13px;color:var(--muted);margin-bottom:18px;max-width:360px;line-height:1.5}
+.teaser-gate .google-btn{display:inline-flex;align-items:center;gap:10px;padding:12px 22px;background:var(--gold);border-radius:8px;color:#1a1a1a;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;border:none;cursor:pointer;transition:all 0.3s;white-space:nowrap}
+.teaser-gate .google-btn:hover{background:var(--gold2);transform:translateY(-1px)}
+.teaser-gate .google-btn svg{width:14px;height:14px;background:#fff;border-radius:2px;padding:1px}
+/* Individual card locking (for idea grid + brand grid) */
+body.logged-out .is-locked{filter:blur(10px);pointer-events:none;user-select:none;transition:filter 0.4s}
+body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:auto}
 
 /* Cards */
 .card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:32px;transition:all 0.3s}
@@ -377,32 +394,9 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 .settings-btn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--muted);font-size:11px;display:flex;align-items:center;gap:6px;letter-spacing:0.08em}
 .settings-btn:hover{border-color:var(--border2);color:var(--text)}
 .error-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1010;border:1px solid var(--red);border-radius:8px;padding:12px 20px;color:var(--red);font-size:12px;font-weight:500;z-index:200;max-width:90vw;text-align:center}
-
-/* ── Site Footer ─────────────────────────────────────────────────────────── */
-.site-footer{background:var(--bg);border-top:1px solid var(--border);padding:32px 32px 28px;margin-top:auto}
-.site-footer-inner{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
-.site-footer-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
-.site-footer-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
-.site-footer-logo .logo-mark{width:22px;height:14px;flex-shrink:0}
-.site-footer-logo .logo-text{font-size:14px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase}
-.site-footer-tagline{font-size:11px;color:var(--muted);letter-spacing:0.05em}
-.site-footer-links{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
-.site-footer-links a{font-size:11px;color:var(--muted);text-decoration:none;letter-spacing:0.05em;transition:color 0.2s}
-.site-footer-links a:hover{color:var(--gold)}
-.site-footer-divider{height:1px;background:var(--border);width:100%}
-.site-footer-bottom{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
-.site-footer-copy{font-size:11px;color:var(--muted2)}
-.site-footer-legal{display:flex;align-items:center;gap:20px}
-.site-footer-legal a{font-size:11px;color:var(--muted2);text-decoration:none;transition:color 0.2s}
-.site-footer-legal a:hover{color:var(--muted)}
-@media(max-width:768px){
-  .site-footer{padding:24px 16px 20px}
-  .site-footer-top{flex-direction:column;align-items:flex-start;gap:12px}
-  .site-footer-bottom{flex-direction:column;align-items:flex-start;gap:8px}
-}
 </style>
 </head>
-<body>
+<body class="logged-out">
 
 <div id="intro-screen">
   <div class="intro-inner">
@@ -488,6 +482,10 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
   <div id="persona-cta" class="center-cta"><div class="center-icon">✦</div><h2>Ready to build your persona</h2><p>We'll analyze your content across platforms to create a comprehensive media kit.</p><button class="gen-btn" onclick="generatePersona()">Generate Persona</button></div>
   <div id="persona-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Analyzing your content…</div><div class="loading-sub" id="persona-loading-sub">Scanning your recent posts…</div><div class="loading-progress"><div class="loading-progress-fill" id="persona-loading-bar"></div></div></div>
   <div id="persona-result" class="hidden">
+    <div id="saved-banner" class="hidden" style="background:var(--green-dim);border:1px solid rgba(107,158,107,0.3);border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--text)">
+      <span style="color:var(--green)">✓</span> <span id="saved-banner-text">Persona saved to your account</span>
+      <button onclick="signOut()" style="float:right;background:transparent;border:none;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline">Sign out</button>
+    </div>
     <div class="card persona-header" style="margin-bottom:20px">
       <div class="persona-avatar">JM</div>
       <div class="persona-bio">
@@ -503,14 +501,27 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
       <div class="stat-card tier"><div class="stat-card-icon" style="background:var(--gold-dim);color:var(--gold)">★</div><div class="stat-card-val">Rising Star</div><div class="stat-card-label">Creator Tier</div></div>
     </div>
     <div class="card" style="margin-bottom:20px;padding:28px"><div class="chart-title">Content Pillars</div><div class="pillars" id="pillars-container"></div></div>
-    <div class="grid-3">
-      <div class="chart-card"><div class="chart-title">Gender Split</div><div class="pie-container"><div class="pie"><div class="pie-hole"></div></div></div><div class="pie-legend"><span class="pie-legend-item"><span class="pie-dot" style="background:var(--gold)"></span>Female 62%</span><span class="pie-legend-item"><span class="pie-dot" style="background:var(--plum)"></span>Male 34%</span><span class="pie-legend-item"><span class="pie-dot" style="background:var(--muted2)"></span>Other 4%</span></div></div>
-      <div class="chart-card"><div class="chart-title">Age Distribution</div><div class="vbar-container" id="age-bars"></div></div>
-      <div class="chart-card"><div class="chart-title">Top Locations</div><div id="loc-bars" style="padding-top:8px"></div></div>
-    </div>
-    <div class="grid-2">
-      <div class="chart-card"><div class="chart-title">Creator Profile</div><div id="radar-bars" style="padding-top:4px"></div></div>
-      <div class="chart-card"><div class="chart-title">Follower Growth (12mo)</div><div class="growth-bars" id="growth-chart"></div><div class="growth-legend"><span><span class="pie-dot" style="background:var(--gold)"></span> Instagram</span></div></div>
+    <div class="teaser-section">
+      <div class="teaser-content">
+        <div class="grid-3">
+          <div class="chart-card"><div class="chart-title">Gender Split</div><div class="pie-container"><div class="pie"><div class="pie-hole"></div></div></div><div class="pie-legend"><span class="pie-legend-item"><span class="pie-dot" style="background:var(--gold)"></span>Female 62%</span><span class="pie-legend-item"><span class="pie-dot" style="background:var(--plum)"></span>Male 34%</span><span class="pie-legend-item"><span class="pie-dot" style="background:var(--muted2)"></span>Other 4%</span></div></div>
+          <div class="chart-card"><div class="chart-title">Age Distribution</div><div class="vbar-container" id="age-bars"></div></div>
+          <div class="chart-card"><div class="chart-title">Top Locations</div><div id="loc-bars" style="padding-top:8px"></div></div>
+        </div>
+        <div class="grid-2">
+          <div class="chart-card"><div class="chart-title">Creator Profile</div><div id="radar-bars" style="padding-top:4px"></div></div>
+          <div class="chart-card"><div class="chart-title">Follower Growth (12mo)</div><div class="growth-bars" id="growth-chart"></div><div class="growth-legend"><span><span class="pie-dot" style="background:var(--gold)"></span> Instagram</span></div></div>
+        </div>
+      </div>
+      <div class="teaser-gate">
+        <div class="teaser-gate-icon">✦</div>
+        <h3>Unlock your full persona</h3>
+        <p>Sign in to see your audience demographics, creator profile radar, and growth trajectory.</p>
+        <button class="google-btn" onclick="signInWithGoogle()">
+          <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>
+          Sign in with Google
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -521,7 +532,18 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
   <p class="page-sub">Brands aligned with your persona, ranked by audience fit and content compatibility.</p>
   <div id="brands-cta" class="center-cta"><div class="center-icon">♢</div><h2>Find brands worth pitching</h2><p>We'll match you with brands that align with your audience, content style, and niche — and draft pitches for each.</p><button class="gen-btn" onclick="generateBrands()">Find Pitches</button></div>
   <div id="brands-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Matching brands to your persona…</div><div class="loading-sub" id="brands-loading-sub">Scanning 12,000+ brand profiles…</div><div class="loading-progress"><div class="loading-progress-fill" id="brands-loading-bar"></div></div></div>
-  <div id="brands-result" class="brand-grid hidden"></div>
+  <div style="position:relative">
+    <div id="brands-result" class="brand-grid hidden"></div>
+    <div class="teaser-gate" id="brands-gate" style="top:auto;bottom:-20px;padding:60px 24px 40px">
+      <div class="teaser-gate-icon">♢</div>
+      <h3>See all your brand matches</h3>
+      <p>Sign in to unlock the full list of brands ranked by audience fit — plus AI-drafted pitch emails in your voice.</p>
+      <button class="google-btn" onclick="signInWithGoogle()">
+        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>
+        Sign in with Google
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- PULSE TAB -->
@@ -530,7 +552,7 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
   <p class="page-sub">Content ideas matched to your persona and what's trending right now.</p>
   <div id="pulse-cta" class="center-cta"><div class="center-icon">◎</div><h2>Discover what to create next</h2><p>We'll scan trending topics, sounds, and formats — then match them to your persona for high-engagement ideas.</p><button class="gen-btn" onclick="generatePulse()">Generate Ideas</button></div>
   <div id="pulse-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Scanning trends across platforms…</div><div class="loading-sub" id="pulse-loading-sub">Analyzing 50K+ trending posts…</div><div class="loading-progress"><div class="loading-progress-fill" id="pulse-loading-bar"></div></div></div>
-  <div id="pulse-result" class="hidden"><div class="pulse-filters" id="pulse-filters"></div><div class="pulse-section-label"><span class="dot" style="background:var(--gold)"></span> Trending Now — Matched to Your Persona</div><div class="pulse-grid" id="pulse-grid"></div></div>
+  <div id="pulse-result" class="hidden"><div class="pulse-filters" id="pulse-filters"></div><div class="pulse-section-label"><span class="dot" style="background:var(--gold)"></span> Trending Now — Matched to Your Persona</div><div style="position:relative"><div class="pulse-grid" id="pulse-grid"></div><div class="teaser-gate" id="pulse-gate" style="top:auto;bottom:-20px;padding:60px 24px 40px"><div class="teaser-gate-icon">◎</div><h3>Unlock all 10 content ideas</h3><p>Sign in to see the full list of AI-generated ideas, save them to your calendar, and auto-draft scripts in your voice.</p><button class="google-btn" onclick="signInWithGoogle()"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>Sign in with Google</button></div></div></div>
 </div>
 
 </div>
@@ -721,9 +743,129 @@ const state={
 };
 
 // ── Config ────────────────────────────────────────────────────────────────────
-// After deploying the Cloudflare Worker, replace this with your Worker URL.
-// e.g. 'https://creatorclaw-proxy.YOUR-SUBDOMAIN.workers.dev'
 const PROXY_URL = 'https://creatorclaw-proxy.creatorclaw.workers.dev';
+const SUPABASE_URL = 'https://ctohycrbzennyzgffodo.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_MsXw1OuEe9ZTBnSU8LSHwA_X19dr90J';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function signInWithGoogle(){
+  // Stash any in-progress persona so it survives the OAuth redirect
+  if(state.persona && state.igData){
+    const handle = (state.igData.username || '').replace(/^@/,'');
+    if(handle){
+      sessionStorage.setItem('pendingPersona', JSON.stringify({
+        handle, scraped: state.igData, analysis: state.persona
+      }));
+    }
+  }
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + window.location.pathname }
+  });
+  if(error) showError('Sign-in failed: '+error.message);
+}
+
+async function signOut(){
+  await sb.auth.signOut();
+  window.location.reload();
+}
+
+async function getCurrentUser(){
+  const { data: { user } } = await sb.auth.getUser();
+  return user;
+}
+
+async function savePersona(igHandle, scrapedData, aiAnalysis){
+  const user = await getCurrentUser();
+  if(!user) return;
+  const { error } = await sb.from('personas').upsert({
+    user_id: user.id,
+    ig_handle: igHandle,
+    scraped_data: scrapedData,
+    ai_analysis: aiAnalysis,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id,ig_handle' });
+  if(error) console.error('Save persona failed', error);
+}
+
+async function loadLatestPersona(){
+  const user = await getCurrentUser();
+  if(!user) return null;
+  const { data, error } = await sb.from('personas')
+    .select('*').eq('user_id', user.id)
+    .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+  if(error){ console.error('Load persona failed', error); return null; }
+  return data;
+}
+
+function updateAuthUI(user){
+  const saved = document.getElementById('saved-banner');
+  const avatar = document.getElementById('avatar-initials');
+  document.body.classList.toggle('logged-out', !user);
+  if(user){
+    if(saved) saved.classList.remove('hidden');
+    if(avatar){
+      const name = user.user_metadata?.full_name || user.email || '';
+      const initials = name.trim().split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase() || 'U';
+      avatar.textContent = initials;
+      avatar.title = name;
+    }
+  } else {
+    if(saved) saved.classList.add('hidden');
+    if(avatar){ avatar.textContent='CC'; avatar.title=''; }
+  }
+}
+
+async function initAuth(){
+  // Check auth state on load
+  const user = await getCurrentUser();
+  updateAuthUI(user);
+
+  // If signed in, try loading saved persona and skipping intro
+  if(user){
+    const saved = await loadLatestPersona();
+    if(saved && saved.ai_analysis){
+      // Restore state + skip intro
+      const intro = document.getElementById('intro-screen');
+      if(intro) intro.remove();
+      state.igConnected = true;
+      state.igData = saved.scraped_data;
+      state.persona = saved.ai_analysis;
+      state.personaGen = true;
+      switchTab('persona');
+      document.getElementById('persona-cta').classList.add('hidden');
+      renderPersona(saved.ai_analysis);
+      const connectTab = document.querySelector('#nav .nav-btn[data-tab="connect"]');
+      if(connectTab) connectTab.style.display = 'none';
+      const savedText = document.getElementById('saved-banner-text');
+      if(savedText) savedText.textContent = 'Loaded saved persona for @' + saved.ig_handle;
+      return;
+    }
+    // Signed in but no persona yet — if we have pending scrape in session, save it
+    const pending = sessionStorage.getItem('pendingPersona');
+    if(pending){
+      try{
+        const p = JSON.parse(pending);
+        await savePersona(p.handle, p.scraped, p.analysis);
+        sessionStorage.removeItem('pendingPersona');
+      }catch(e){ console.error('pending save failed', e); }
+    }
+  }
+
+  // Subscribe to changes (sign-in / sign-out while tab open)
+  sb.auth.onAuthStateChange(async (event, session) => {
+    updateAuthUI(session?.user || null);
+    if(event === 'SIGNED_IN' && state.persona && state.igData){
+      const handle = (state.igData.username || '').replace(/^@/,'');
+      if(handle) await savePersona(handle, state.igData, state.persona);
+      const savedText = document.getElementById('saved-banner-text');
+      if(savedText) savedText.textContent = 'Persona saved to your account';
+    }
+  });
+}
+
+window.addEventListener('DOMContentLoaded', initAuth);
 
 
 // ── Kimi API call (via Worker proxy) ─────────────────────────────────────────
@@ -1082,7 +1224,7 @@ function renderBrands(brands){
   const frag=document.createDocumentFragment();
   brands.forEach((b,i)=>{
     const card=document.createElement('div');
-    card.className='brand-card fade-up';
+    card.className='brand-card fade-up'+(i>=3?' is-locked':'');
     card.style.animationDelay=(i*80)+'ms';
     card.innerHTML=`
       <div class="brand-head">
@@ -1170,7 +1312,7 @@ function renderPulseCards(cat){
   const frag=document.createDocumentFragment();
   filtered.forEach((idea,i)=>{
     const card=document.createElement('div');
-    card.className='pulse-card fade-up';
+    card.className='pulse-card fade-up'+(i>=3?' is-locked':'');
     card.style.animationDelay=(i*60)+'ms';
     const trendLabel={hot:'Hot',rising:'Rising',steady:'Steady',new:'New'}[idea.trend]||idea.trend;
     const safeTitle=(idea.title||'').replace(/'/g,"&#39;");
@@ -1239,27 +1381,5 @@ async function draftScript(encodedTitle){
 }
 
 </script>
-<footer class="site-footer">
-  <div class="site-footer-inner">
-    <div class="site-footer-top">
-      <a href="/" class="site-footer-logo">
-        <img data-crab-img class="logo-mark" alt="CreatorClaw">
-        <span class="logo-text gold-text">CreatorClaw</span>
-      </a>
-      <span class="site-footer-tagline">The AI management system for creators.</span>
-      <nav class="site-footer-links" aria-label="Footer navigation">
-        <a href="/privacy">Privacy Policy</a>
-        <a href="/tos">Terms of Service</a>
-        <a href="/data-deletion">Data Deletion</a>
-        <a href="mailto:support@creatorclaw.co">Contact</a>
-      </nav>
-    </div>
-    <div class="site-footer-divider"></div>
-    <div class="site-footer-bottom">
-      <span class="site-footer-copy">&copy; 2026 CreatorClaw. All rights reserved.</span>
-    </div>
-  </div>
-</footer>
-
 </body>
 </html>
