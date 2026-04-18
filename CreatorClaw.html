@@ -994,17 +994,20 @@ async function initAuth(){
   }
 
   // Subscribe to changes (sign-in / sign-out while tab open)
+  let handledSignIn = !!user;  // if already signed in on load, don't re-fire
   sb.auth.onAuthStateChange(async (event, session) => {
     updateAuthUI(session?.user || null);
-    if(event === 'SIGNED_IN' && session?.user){
+    // Only react to fresh sign-ins, not token refreshes or re-emits on tab focus
+    if(event === 'SIGNED_IN' && session?.user && !handledSignIn){
+      handledSignIn = true;
       if(state.persona && state.igData){
         const handle = (state.igData.username || '').replace(/^@/,'');
         if(handle) await savePersona(handle, state.igData, state.persona);
       }
-      // Route to chat
       showChatView();
       loadConversations();
     }
+    if(event === 'SIGNED_OUT'){ handledSignIn = false; }
   });
 }
 
@@ -1221,6 +1224,14 @@ async function saveMessage(role, content){
     .eq('id', chatState.conversationId);
 }
 
+function resetChatSend(){
+  chatState.streaming = false;
+  if(chatState.abortController){ try{ chatState.abortController.abort(); }catch{} chatState.abortController = null; }
+  if(chatState.watchdogTimer){ clearTimeout(chatState.watchdogTimer); chatState.watchdogTimer = null; }
+  const btn = document.getElementById('chat-send-btn');
+  if(btn) btn.disabled = false;
+}
+
 async function sendChatMessage(){
   if(chatState.streaming) return;
   const input = document.getElementById('chat-input');
@@ -1230,7 +1241,18 @@ async function sendChatMessage(){
   autoResizeChat(input);
 
   chatState.streaming = true;
+  chatState.abortController = new AbortController();
   document.getElementById('chat-send-btn').disabled = true;
+
+  // Watchdog: if nothing happens for 60s, force reset
+  const resetWatchdog = () => {
+    if(chatState.watchdogTimer) clearTimeout(chatState.watchdogTimer);
+    chatState.watchdogTimer = setTimeout(() => {
+      console.warn('Chat watchdog: stream stalled, aborting');
+      try{ chatState.abortController?.abort(); }catch{}
+    }, 60000);
+  };
+  resetWatchdog();
 
   // Append user message
   chatState.messages.push({ role: 'user', content: text });
@@ -1258,9 +1280,13 @@ async function sendChatMessage(){
     const res = await fetch(PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stream: true, messages: apiMessages, temperature: 0.7 })
+      body: JSON.stringify({ stream: true, messages: apiMessages, temperature: 0.7 }),
+      signal: chatState.abortController.signal
     });
-    if(!res.ok) throw new Error('API error '+res.status);
+    if(!res.ok){
+      const errText = await res.text().catch(()=>res.statusText);
+      throw new Error('API '+res.status+': '+errText.slice(0,200));
+    }
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -1268,6 +1294,7 @@ async function sendChatMessage(){
     while(true){
       const { done, value } = await reader.read();
       if(done) break;
+      resetWatchdog();  // got data — reset the stall timer
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop();
@@ -1290,15 +1317,21 @@ async function sendChatMessage(){
       }
     }
     cursor.remove();
-    chatState.messages.push({ role: 'assistant', content: fullText });
-    await saveMessage('assistant', fullText);
+    if(fullText){
+      chatState.messages.push({ role: 'assistant', content: fullText });
+      await saveMessage('assistant', fullText);
+    } else {
+      bodyEl.textContent = '(no response — try again)';
+      bodyEl.style.color = 'var(--muted)';
+    }
   } catch(e){
     cursor.remove();
-    bodyEl.textContent = '(error: '+e.message+')';
+    const isAbort = e.name === 'AbortError';
+    bodyEl.textContent = isAbort ? '(request timed out — try again)' : '(error: '+e.message+')';
     bodyEl.style.color = 'var(--red)';
+    console.error('Chat error:', e);
   } finally {
-    chatState.streaming = false;
-    document.getElementById('chat-send-btn').disabled = false;
+    resetChatSend();
     input.focus();
   }
 }
