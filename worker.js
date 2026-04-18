@@ -898,7 +898,34 @@ export default {
       });
     }
 
-    // Regular Chat Completions
+    // Streaming chat (Server-Sent Events pass-through)
+    if (body.stream) {
+      res = await fetch(CHAT_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model: MODEL,
+          temperature: body.temperature || 0.7,
+          messages: body.messages || [],
+          stream: true,
+        }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        return new Response(errText, { status: res.status, headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) } });
+      }
+      return new Response(res.body, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          ...cors(origin, allowed),
+        },
+      });
+    }
+
+    // Regular Chat Completions (non-streaming)
     res = await fetch(CHAT_URL, {
       method: 'POST',
       headers,
