@@ -58,7 +58,9 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 .nav-btn{padding:10px 20px;font-size:11px;font-weight:600;color:var(--muted);background:transparent;letter-spacing:0.15em;text-transform:uppercase;white-space:nowrap;position:relative}
 .nav-btn.active{color:var(--gold)}
 .nav-btn.active::after{content:'';position:absolute;bottom:0;left:20px;right:20px;height:1px;background:var(--gold)}
-.avatar{width:32px;height:32px;border-radius:50%;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.05em}
+.avatar{width:32px;height:32px;border-radius:50%;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.05em;overflow:hidden;background-size:cover;background-position:center}
+.avatar.has-pic{border:none}
+.avatar.has-pic{color:transparent}
 
 .main{max-width:1100px;margin:0 auto;padding:60px 32px 100px}
 .page-title{font-size:36px;font-weight:300;margin-bottom:10px;letter-spacing:-0.01em;line-height:1.2}
@@ -930,6 +932,38 @@ async function loadLatestPersona(){
   return data;
 }
 
+function getUserAvatarSrc(user){
+  // Prefer IG profile pic, fall back to Google avatar, else null
+  if(state.igData?.profilePicData) return state.igData.profilePicData;
+  if(state.igData?.profilePicUrl) return state.igData.profilePicUrl;
+  if(user?.user_metadata?.avatar_url) return user.user_metadata.avatar_url;
+  return null;
+}
+function applyAvatar(el, user, initials){
+  if(!el) return;
+  const src = getUserAvatarSrc(user);
+  if(src){
+    el.classList.add('has-pic');
+    el.style.backgroundImage = `url("${src}")`;
+    el.textContent = '';
+  } else {
+    el.classList.remove('has-pic');
+    el.style.backgroundImage = '';
+    el.textContent = initials;
+  }
+}
+function refreshUserAvatars(){
+  // Call after state.igData is populated so avatars swap from initials to photo
+  (async () => {
+    const user = await getCurrentUser();
+    if(!user) return;
+    const name = user.user_metadata?.full_name || user.email || '';
+    const initials = name.trim().split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase() || 'U';
+    applyAvatar(document.getElementById('avatar-initials'), user, initials);
+    applyAvatar(document.getElementById('chat-avatar'), user, initials);
+  })();
+}
+
 function updateAuthUI(user){
   const saved = document.getElementById('saved-banner');
   const avatar = document.getElementById('avatar-initials');
@@ -944,13 +978,15 @@ function updateAuthUI(user){
     const name = user.user_metadata?.full_name || user.email || '';
     const initials = name.trim().split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase() || 'U';
     if(saved) saved.classList.remove('hidden');
-    if(avatar){ avatar.textContent = initials; avatar.title = name; }
-    if(chatAvatar){ chatAvatar.textContent = initials; chatAvatar.title = name; }
+    applyAvatar(avatar, user, initials);
+    applyAvatar(chatAvatar, user, initials);
+    if(avatar) avatar.title = name;
+    if(chatAvatar) chatAvatar.title = name;
     if(chatName) chatName.textContent = name.split(/\s+/)[0] || name;
   } else {
     if(saved) saved.classList.add('hidden');
-    if(avatar){ avatar.textContent='CC'; avatar.title=''; }
-    if(chatAvatar){ chatAvatar.textContent='CC'; chatAvatar.title=''; }
+    applyAvatar(avatar, null, 'CC');
+    applyAvatar(chatAvatar, null, 'CC');
     if(chatName) chatName.textContent = '—';
   }
 }
@@ -968,6 +1004,7 @@ async function initAuth(){
       state.igData = saved.scraped_data;
       state.persona = saved.ai_analysis;
       state.personaGen = true;
+      refreshUserAvatars();
       // Pre-render persona tab (so tool link works without re-fetching)
       document.getElementById('persona-cta').classList.add('hidden');
       renderPersona(saved.ai_analysis);
@@ -987,6 +1024,7 @@ async function initAuth(){
           state.igData = p.scraped;
           state.persona = p.analysis;
           state.personaGen = true;
+          refreshUserAvatars();
           document.getElementById('persona-cta').classList.add('hidden');
           renderPersona(p.analysis);
           const connectTab = document.querySelector('#nav .nav-btn[data-tab="connect"]');
@@ -1257,7 +1295,16 @@ function appendMessage(role, content, scroll=true){
     if(typeof LOGO_DATA_URI !== 'undefined') img.src = LOGO_DATA_URI;
     avatar.appendChild(img);
   } else {
-    avatar.textContent = 'You';
+    const pic = state.igData?.profilePicData || state.igData?.profilePicUrl;
+    if(pic){
+      avatar.classList.add('has-pic');
+      avatar.style.backgroundImage = `url("${pic}")`;
+      avatar.style.backgroundSize = 'cover';
+      avatar.style.backgroundPosition = 'center';
+      avatar.style.border = 'none';
+    } else {
+      avatar.textContent = 'You';
+    }
   }
   const body = document.createElement('div');
   body.className = 'chat-msg-body';
@@ -1562,6 +1609,7 @@ async function analyzeIGProfile(){
     // Store enriched data for persona generation
     state.igData=profile;
     state.igConnected=true;
+    refreshUserAvatars();
 
     // Quietly populate the Connect tab so it reflects reality if user navigates back
     document.getElementById('ig-val-followers').textContent=profile.followers||'—';
