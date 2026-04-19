@@ -643,6 +643,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
     </div>
     <div class="chat-tools">
       <div class="chat-section-label" style="padding:0 8px 6px">Tools</div>
+      <button class="chat-tool-btn" id="ig-connect-btn" style="display:none" onclick="connectInstagram()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></svg><span id="ig-connect-label">Connect Instagram</span></button>
       <button class="chat-tool-btn" onclick="openTool('persona')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg>Persona</button>
       <button class="chat-tool-btn" onclick="openTool('pulse')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>Create ideas</button>
       <button class="chat-tool-btn" onclick="openTool('brands')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6"/><path d="M15 15l3 3-3 3"/><path d="M18 18h-4"/></svg>Pitch brands</button>
@@ -935,8 +936,10 @@ function updateAuthUI(user){
   const chatAvatar = document.getElementById('chat-avatar');
   const chatName = document.getElementById('chat-user-name');
   const backToChat = document.getElementById('nav-back-to-chat');
+  const igBtn = document.getElementById('ig-connect-btn');
   document.body.classList.toggle('logged-out', !user);
   if(backToChat) backToChat.style.display = user ? '' : 'none';
+  if(igBtn) igBtn.style.display = canConnectInstagram(user) ? '' : 'none';
   if(user){
     const name = user.user_metadata?.full_name || user.email || '';
     const initials = name.trim().split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase() || 'U';
@@ -994,6 +997,7 @@ async function initAuth(){
     // Route signed-in users to chat as primary screen
     showChatView();
     loadConversations();
+    if(canConnectInstagram(user)) loadIgConnection();
   }
 
   // Subscribe to changes (sign-in / sign-out while tab open)
@@ -1009,12 +1013,99 @@ async function initAuth(){
       }
       showChatView();
       loadConversations();
+      if(canConnectInstagram(session.user)) loadIgConnection();
     }
-    if(event === 'SIGNED_OUT'){ handledSignIn = false; }
+    if(event === 'SIGNED_OUT'){ handledSignIn = false; igConnection = null; }
   });
 }
 
 window.addEventListener('DOMContentLoaded', initAuth);
+
+// ── Instagram Graph API connection (beta — dev-mode test users only) ─────────
+const ALLOWED_IG_CONNECT_EMAILS = ['austin@vaultmgt.com'];
+let igConnection = null;  // { token, igUserId, igUsername, insights }
+
+function canConnectInstagram(user){
+  return !!(user && ALLOWED_IG_CONNECT_EMAILS.includes((user.email||'').toLowerCase()));
+}
+
+async function loadIgConnection(){
+  const user = await getCurrentUser();
+  if(!user) return null;
+  const { data, error } = await sb.from('ig_connections').select('*').eq('user_id', user.id).maybeSingle();
+  if(error){ console.error('Load ig_connection failed', error); return null; }
+  if(!data) return null;
+  igConnection = {
+    token: data.access_token,
+    igUserId: data.ig_user_id,
+    igUsername: data.ig_username
+  };
+  updateIgConnectUI();
+  // Fetch insights (fire-and-forget; failures don't block chat)
+  fetchIgInsights().catch(e => console.warn('IG insights fetch failed:', e));
+  return igConnection;
+}
+
+async function fetchIgInsights(){
+  if(!igConnection) return null;
+  const u = `${PROXY_URL}/ig-profile?token=${encodeURIComponent(igConnection.token)}&ig_user_id=${encodeURIComponent(igConnection.igUserId)}`;
+  const res = await fetch(u);
+  if(!res.ok) throw new Error('ig-profile '+res.status);
+  const data = await res.json();
+  igConnection.insights = data;
+  return data;
+}
+
+function connectInstagram(){
+  const w = 520, h = 720;
+  const left = (screen.width - w) / 2;
+  const top = (screen.height - h) / 2;
+  const popup = window.open(`${PROXY_URL}/auth`, 'cc_ig_auth', `width=${w},height=${h},left=${left},top=${top}`);
+  if(!popup){ showError('Popup blocked — please allow popups for creatorclaw.co'); return; }
+}
+
+window.addEventListener('message', async (e) => {
+  // Only trust messages from the Worker origin
+  if(!String(e.origin||'').includes('creatorclaw.workers.dev')) return;
+  const msg = e.data;
+  if(!msg || typeof msg !== 'object') return;
+  if(msg.type === 'cc_ig_auth'){
+    const user = await getCurrentUser();
+    if(!user){ showError('Sign in first, then connect Instagram.'); return; }
+    if(!msg.igUserId){
+      showError('Instagram not linked to a Facebook Page. See docs.');
+      return;
+    }
+    const expiresAt = msg.expiresIn ? new Date(Date.now() + msg.expiresIn * 1000).toISOString() : null;
+    const { error } = await sb.from('ig_connections').upsert({
+      user_id: user.id,
+      ig_user_id: msg.igUserId,
+      ig_username: msg.igUsername,
+      access_token: msg.token,
+      token_expires_at: expiresAt
+    });
+    if(error){ console.error('Save ig_connection failed', error); showError('Could not save IG connection'); return; }
+    igConnection = { token: msg.token, igUserId: msg.igUserId, igUsername: msg.igUsername };
+    updateIgConnectUI();
+    fetchIgInsights().catch(e => console.warn('IG insights fetch failed:', e));
+  }
+  if(msg.type === 'cc_ig_auth_error'){
+    showError('Instagram connection failed: ' + (msg.error || 'unknown'));
+  }
+});
+
+function updateIgConnectUI(){
+  const btn = document.getElementById('ig-connect-btn');
+  const label = document.getElementById('ig-connect-label');
+  if(!btn || !label) return;
+  if(igConnection){
+    label.textContent = '✓ @' + (igConnection.igUsername || 'connected');
+    btn.title = 'Instagram connected';
+  } else {
+    label.textContent = 'Connect Instagram';
+    btn.title = '';
+  }
+}
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
 const chatState = {
@@ -1184,17 +1275,38 @@ function buildSystemPrompt(){
   const name = p.name || d.displayName || d.username || 'the creator';
   const parts = [
     `You are CreatorClaw, a personal AI assistant for ${name}, an Instagram content creator. Be warm, direct, and actionable.`,
+    `\n--- What you know about this creator ---`
   ];
-  if(d.username) parts.push(`Instagram: @${String(d.username).replace(/^@/,'')}`);
+  if(d.username) parts.push(`Instagram handle: @${String(d.username).replace(/^@/,'')}`);
   if(d.followers) parts.push(`Followers: ${d.followers}`);
   if(d.engagementRate) parts.push(`Engagement rate: ${d.engagementRate}`);
-  if((p.vibes||[]).length) parts.push(`Their voice/vibes: ${p.vibes.join(', ')}`);
+  if(d.totalPosts) parts.push(`Total posts: ${d.totalPosts}`);
+  if((p.vibes||[]).length) parts.push(`Voice/vibes: ${p.vibes.join(', ')}`);
   if((p.pillars||[]).length){
     const pillars = p.pillars.map(x=>typeof x==='string'?x:x.l||x.label).filter(Boolean).join(', ');
     if(pillars) parts.push(`Content pillars: ${pillars}`);
   }
+  if((d.categories||[]).length){
+    const cats = d.categories.filter(c=>c.name).map(c=>c.name+(c.pct?` (${c.pct}%)`:'')).join(', ');
+    if(cats) parts.push(`Content categories: ${cats}`);
+  }
+  if((d.recentThemes||[]).length) parts.push(`Recent content themes: ${d.recentThemes.join(', ')}`);
   if(d.bio) parts.push(`Bio: "${d.bio}"`);
-  parts.push('Keep responses concise unless asked for more detail. Match their voice when drafting content. Never fabricate data — say you don\'t have that information if asked about metrics you haven\'t been told.');
+
+  // Real Graph API insights (if connected)
+  if(igConnection?.insights){
+    const i = igConnection.insights;
+    parts.push(`\n--- Live Instagram Graph API data (real, current) ---`);
+    if(i.followers) parts.push(`Live followers: ${i.followers}`);
+    if(i.engagementRate) parts.push(`Live engagement rate: ${i.engagementRate}`);
+    if(i.reach30d) parts.push(`Reach (last 30 days): ${i.reach30d}`);
+    if(i.totalPosts) parts.push(`Total posts: ${i.totalPosts}`);
+    if((i.recentThemes||[]).length) parts.push(`Recent post themes: ${i.recentThemes.join(', ')}`);
+    parts.push(`This is live data pulled from Instagram's official API. You can cite exact numbers confidently.`);
+  }
+
+  parts.push(`\n--- Style ---`);
+  parts.push(`Use the data above freely when answering questions about their audience, performance, or strategy. Cite specific numbers and themes rather than speaking generically. When drafting content, match their voice (vibes + content pillars). Keep responses concise unless the user asks for detail. Only say you don't have certain data if the specific metric they asked about isn't listed above.`);
   return parts.join('\n');
 }
 
