@@ -500,6 +500,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <button class="nav-btn" data-tab="persona" onclick="switchTab('persona')">Persona</button>
       <button class="nav-btn" data-tab="pulse" onclick="switchTab('pulse')">Create</button>
       <button class="nav-btn" data-tab="brands" onclick="switchTab('brands')">Pitch</button>
+      <button class="nav-btn hidden" id="nav-accounts" data-tab="accounts" onclick="switchTab('accounts')">Connect</button>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>
@@ -544,6 +545,23 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
   <div class="cta-banner hidden" id="both-banner">
     <span>Platforms connected — head to <span class="hl">Persona</span> to build your media kit.</span>
     <button class="cta-btn" onclick="switchTab('persona')">Build Persona</button>
+  </div>
+</div>
+
+<!-- ACCOUNTS TAB (post-onboarding connection manager) -->
+<div id="tab-accounts" class="hidden">
+  <h1 class="page-title">Connect your <span class="gold-text">accounts</span></h1>
+  <p class="page-sub">Link social accounts for richer analytics and chat context.</p>
+
+  <div class="card">
+    <div class="plat-head">
+      <div class="plat-info">
+        <div class="plat-icon" style="background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff">📷</div>
+        <div><div class="plat-name">Instagram</div><div class="plat-desc">Sign in via Facebook Business Login</div></div>
+      </div>
+      <div class="connected-badge hidden" id="accounts-ig-badge">✓ Connected</div>
+    </div>
+    <button class="connect-btn ig" id="accounts-ig-btn" onclick="connectInstagram()">Connect Instagram</button>
   </div>
 </div>
 
@@ -987,9 +1005,11 @@ function updateAuthUI(user){
   const chatName = document.getElementById('chat-user-name');
   const backToChat = document.getElementById('nav-back-to-chat');
   const igBtn = document.getElementById('ig-connect-btn');
+  const navAccounts = document.getElementById('nav-accounts');
   document.body.classList.toggle('logged-out', !user);
   if(backToChat) backToChat.style.display = user ? '' : 'none';
   if(igBtn) igBtn.style.display = canConnectInstagram(user) ? '' : 'none';
+  if(navAccounts) navAccounts.classList.toggle('hidden', !user);
   if(user){
     const name = user.user_metadata?.full_name || user.email || '';
     const initials = name.trim().split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase() || 'U';
@@ -1151,13 +1171,27 @@ window.addEventListener('message', async (e) => {
 function updateIgConnectUI(){
   const btn = document.getElementById('ig-connect-btn');
   const label = document.getElementById('ig-connect-label');
-  if(!btn || !label) return;
-  if(igConnection){
-    label.textContent = '✓ @' + (igConnection.igUsername || 'connected');
-    btn.title = 'Instagram connected';
-  } else {
-    label.textContent = 'Connect Instagram';
-    btn.title = '';
+  if(btn && label){
+    if(igConnection){
+      label.textContent = '✓ @' + (igConnection.igUsername || 'connected');
+      btn.title = 'Instagram connected';
+    } else {
+      label.textContent = 'Connect Instagram';
+      btn.title = '';
+    }
+  }
+  const accountsBtn = document.getElementById('accounts-ig-btn');
+  const accountsBadge = document.getElementById('accounts-ig-badge');
+  if(accountsBtn && accountsBadge){
+    if(igConnection){
+      accountsBtn.textContent = '✓ Connected as @' + (igConnection.igUsername || '');
+      accountsBtn.disabled = true;
+      accountsBadge.classList.remove('hidden');
+    } else {
+      accountsBtn.textContent = 'Connect Instagram';
+      accountsBtn.disabled = false;
+      accountsBadge.classList.add('hidden');
+    }
   }
 }
 
@@ -1587,7 +1621,7 @@ function getConnectedStats(){
 // ── Tab navigation ────────────────────────────────────────────────────────────
 function switchTab(id){
   document.querySelectorAll('#nav .nav-btn').forEach(b=>{b.classList.toggle('active',b.dataset.tab===id)});
-  ['connect','persona','brands','pulse'].forEach(t=>{document.getElementById('tab-'+t).classList.toggle('hidden',t!==id)});
+  ['connect','persona','brands','pulse','accounts'].forEach(t=>{document.getElementById('tab-'+t).classList.toggle('hidden',t!==id)});
 }
 
 // ── Instagram URL Analysis ────────────────────────────────────────────────────
