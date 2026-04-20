@@ -1008,7 +1008,7 @@ function updateAuthUI(user){
   const navAccounts = document.getElementById('nav-accounts');
   document.body.classList.toggle('logged-out', !user);
   if(backToChat) backToChat.style.display = user ? '' : 'none';
-  if(igBtn) igBtn.style.display = canConnectInstagram(user) ? '' : 'none';
+  if(igBtn) igBtn.style.display = user ? '' : 'none';
   if(navAccounts) navAccounts.classList.toggle('hidden', !user);
   if(user){
     const name = user.user_metadata?.full_name || user.email || '';
