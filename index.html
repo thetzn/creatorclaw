@@ -140,6 +140,13 @@ body.logged-out #chat-view #chat-input{cursor:not-allowed}
 .chat-msg-body .inline-analyzing{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--text)}
 .chat-msg-body .inline-analyzing .spinner-mini{width:22px;height:22px;flex-shrink:0;color:var(--gold)}
 .chat-msg-body .inline-analyzing-sub{font-size:11px;margin-top:2px;color:var(--muted);letter-spacing:0.05em}
+.chat-msg-body .inline-loader{display:flex;gap:14px;align-items:center}
+.chat-msg-body .inline-loader .spinner-mini{width:28px;height:18px;flex-shrink:0;color:var(--gold);animation:spin 2s linear infinite}
+.chat-msg-body .inline-loader-text{flex:1;min-width:0}
+.chat-msg-body .inline-loader-title{font-weight:500;font-size:13px;color:var(--text);margin-bottom:4px;letter-spacing:0.01em}
+.chat-msg-body .inline-loading-sub{font-size:11px;color:var(--muted);min-height:1em;transition:opacity 0.3s ease;letter-spacing:0.02em}
+.chat-msg-body .inline-loading-progress{margin-top:10px;max-width:260px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.chat-msg-body .inline-loading-bar{height:100%;background:linear-gradient(90deg,var(--gold3),var(--gold));border-radius:2px;width:0;transition:width 0.4s ease}
 .chat-msg-body .inline-persona{display:flex;flex-direction:column;gap:12px;background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:16px 18px;margin-top:6px}
 .chat-msg-body .inline-persona-head{display:flex;gap:14px;align-items:center}
 .chat-msg-body .inline-persona-avatar{width:48px;height:48px;border-radius:50%;background-size:cover;background-position:center;flex-shrink:0;border:1px solid var(--border2);background-color:var(--card)}
@@ -1644,6 +1651,34 @@ function setComposerLock(locked){
   if(btn) btn.disabled = !!locked;
 }
 
+function startInlineLoading(bodyEl, key, estSec){
+  const sub = bodyEl.querySelector('.inline-loading-sub');
+  const bar = bodyEl.querySelector('.inline-loading-bar');
+  const msgs = LOADING_MESSAGES[key] || [];
+  let i = 0;
+  if(sub && msgs.length) sub.textContent = msgs[0];
+  const msgInterval = setInterval(()=>{
+    if(!sub || !msgs.length) return;
+    i = (i + 1) % msgs.length;
+    sub.style.opacity = '0';
+    setTimeout(()=>{ sub.textContent = msgs[i]; sub.style.opacity = '1'; }, 180);
+  }, 2800);
+  const start = Date.now();
+  if(bar) bar.style.width = '0%';
+  const barInterval = setInterval(()=>{
+    const elapsed = (Date.now() - start) / 1000;
+    const pct = Math.min(92, 100 * (1 - Math.exp(-elapsed / (estSec * 0.5))));
+    if(bar) bar.style.width = pct + '%';
+  }, 180);
+  return {
+    stop(){
+      clearInterval(msgInterval);
+      clearInterval(barInterval);
+      if(bar) bar.style.width = '100%';
+    }
+  };
+}
+
 // ── Chat-first onboarding ─────────────────────────────────────────────────────
 async function startOnboardingChat(handle){
   document.getElementById('intro-screen')?.remove();
@@ -1888,10 +1923,19 @@ async function skipToSignin(btn){
 
 async function runInlinePulsePreview(){
   const body = appendInlineCard('assistant', `
-    <div class="inline-analyzing"><div class="spinner-mini" data-crab></div><div>Scanning trends for you…</div></div>
+    <div class="inline-loader">
+      <div class="spinner-mini" data-crab></div>
+      <div class="inline-loader-text">
+        <div class="inline-loader-title">Building your content ideas</div>
+        <div class="inline-loading-sub">Scanning trending audio and formats…</div>
+        <div class="inline-loading-progress"><div class="inline-loading-bar"></div></div>
+      </div>
+    </div>
   `);
+  const loader = startInlineLoading(body, 'pulse', 10);
   try {
     await generatePulse();
+    loader.stop();
     const ideas = (state.pulseIdeas||[]).slice(0,4);
     body.innerHTML = `
       <div style="margin-bottom:8px">Here are a few ideas matched to your pillars:</div>
@@ -1924,6 +1968,7 @@ async function runInlinePulsePreview(){
     });
     requestAnimationFrame(()=>revealBubble(body));
   } catch(e){
+    loader.stop();
     body.textContent = 'Couldn\'t generate ideas right now — let\'s come back to that.';
     console.error('Pulse preview error:', e);
   }
@@ -1931,10 +1976,19 @@ async function runInlinePulsePreview(){
 
 async function runInlineBrandsPreview(){
   const body = appendInlineCard('assistant', `
-    <div class="inline-analyzing"><div class="spinner-mini" data-crab></div><div>Matching brands to your persona…</div></div>
+    <div class="inline-loader">
+      <div class="spinner-mini" data-crab></div>
+      <div class="inline-loader-text">
+        <div class="inline-loader-title">Matching brands to your persona</div>
+        <div class="inline-loading-sub">Indexing partnership opportunities…</div>
+        <div class="inline-loading-progress"><div class="inline-loading-bar"></div></div>
+      </div>
+    </div>
   `);
+  const loader = startInlineLoading(body, 'brands', 10);
   try {
     await generateBrands();
+    loader.stop();
     const brands = (state.brands||[]).slice(0,4);
     body.innerHTML = `
       <div style="margin-bottom:8px">A sample of brands that fit:</div>
@@ -1969,6 +2023,7 @@ async function runInlineBrandsPreview(){
     });
     requestAnimationFrame(()=>revealBubble(body));
   } catch(e){
+    loader.stop();
     body.textContent = 'Couldn\'t pull brand matches right now — we can revisit.';
     console.error('Brands preview error:', e);
   }
