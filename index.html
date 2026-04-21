@@ -1100,7 +1100,7 @@ async function streamAgentAcknowledgement(){
 const state={
   igConnected:false,ttConnected:false,ytConnected:false,
   googleLoggedIn:false,personaGen:false,brandsGen:false,pulseGen:false,
-  sent:{},saved:{},pulseFilter:'all',
+  sent:{},saved:(function(){try{return JSON.parse(localStorage.getItem('cc_schedule')||'{}')}catch{return {}}})(),pulseFilter:'all',
   persona:null,  // holds AI-generated persona data
   brands:null,   // holds AI-generated brand list
   agent:{ name:null, persona:null },  // user-defined agent identity
@@ -2754,6 +2754,82 @@ function renderPulseCards(cat){
 }
 
 // ── Draft Script (AI-generated content script modal) ─────────────────────────
+function openSchedule(encodedTitle){
+  const title = encodedTitle.replace(/&#39;/g,"'");
+  const idea = (state.pulseIdeas||[]).find(i => i.title === title);
+  const existing = state.saved[title];
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const now = new Date();
+  const defaultDt = new Date(now.getTime() + 24*60*60*1000);
+  const pad = n => String(n).padStart(2,'0');
+  const defaultDate = existing?.date || `${defaultDt.getFullYear()}-${pad(defaultDt.getMonth()+1)}-${pad(defaultDt.getDate())}`;
+  const defaultTime = existing?.time || '09:00';
+  const defaultPlat = existing?.plat || idea?.platform || 'Instagram';
+  const platforms = ['Instagram','TikTok','YouTube'];
+  showModal(
+    '<div class="modal-title">Schedule content</div>'+
+    '<div class="modal-sub">"'+esc(title)+'"</div>'+
+    '<div class="modal-label">Date &amp; time</div>'+
+    '<div class="date-time-row">'+
+      '<input id="schedule-date" type="date" value="'+esc(defaultDate)+'">'+
+      '<input id="schedule-time" type="time" value="'+esc(defaultTime)+'">'+
+    '</div>'+
+    '<div class="modal-label" style="margin-top:14px">Platform</div>'+
+    '<div id="schedule-plat-row" style="display:flex;gap:6px;margin-bottom:18px">'+
+      platforms.map(p =>
+        '<button type="button" class="modal-cancel-btn schedule-plat-btn'+(p===defaultPlat?' active':'')+'" '+
+        'data-plat="'+esc(p)+'" onclick="pickSchedulePlat(this)" '+
+        'style="flex:1;'+(p===defaultPlat?'border-color:var(--gold);color:var(--gold)':'')+'">'+esc(p)+'</button>'
+      ).join('')+
+    '</div>'+
+    '<div class="modal-row">'+
+      '<button class="modal-cancel-btn" onclick="closeModal()">Cancel</button>'+
+      '<button class="modal-save-btn" onclick="confirmSchedule(\''+encodedTitle+'\')">'+(existing?'Update':'Add to calendar')+'</button>'+
+    '</div>'
+  );
+}
+
+function pickSchedulePlat(btn){
+  const row = btn.parentElement;
+  if(!row) return;
+  row.querySelectorAll('.schedule-plat-btn').forEach(b => {
+    b.classList.remove('active');
+    b.style.borderColor = '';
+    b.style.color = '';
+  });
+  btn.classList.add('active');
+  btn.style.borderColor = 'var(--gold)';
+  btn.style.color = 'var(--gold)';
+}
+
+function confirmSchedule(encodedTitle){
+  const title = encodedTitle.replace(/&#39;/g,"'");
+  const date = document.getElementById('schedule-date')?.value;
+  const time = document.getElementById('schedule-time')?.value;
+  const platBtn = document.querySelector('#schedule-plat-row .schedule-plat-btn.active');
+  const plat = platBtn?.dataset.plat || 'Instagram';
+  if(!date || !time){ showError('Pick a date and time first'); return; }
+  state.saved[title] = { date, time, plat };
+  try {
+    const stored = JSON.parse(localStorage.getItem('cc_schedule') || '{}');
+    stored[title] = { date, time, plat, savedAt: new Date().toISOString() };
+    localStorage.setItem('cc_schedule', JSON.stringify(stored));
+  } catch(e){ console.warn('Schedule save to localStorage failed', e); }
+  // Update any matching Schedule buttons currently in the DOM
+  document.querySelectorAll('.pulse-card').forEach(card => {
+    const cardTitle = card.querySelector('.pulse-idea-title')?.textContent;
+    if(cardTitle && cardTitle.trim() === title){
+      const btn = card.querySelector('.pulse-save-btn');
+      if(btn){
+        const pretty = new Date(date + 'T' + time).toLocaleString(undefined,{ month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+        btn.innerHTML = '✓ ' + pretty + ' · ' + plat;
+        btn.style.color = 'var(--green)';
+      }
+    }
+  });
+  closeModal();
+}
+
 async function draftScript(encodedTitle){
   const title=encodedTitle.replace(/&#39;/g,"'");
   const idea=(state.pulseIdeas||[]).find(i=>i.title===title);
