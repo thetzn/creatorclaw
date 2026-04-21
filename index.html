@@ -1692,14 +1692,52 @@ async function analyzeIGProfile(){
 function connectPlatform(p){
   const btn=document.getElementById(p+'-btn');
   btn.disabled=true;btn.textContent='Connecting...';
-  setTimeout(()=>{
-    state[p+'Connected']=true;
-    document.getElementById(p+'-connect').classList.add('hidden');
-    document.getElementById(p+'-stats').classList.remove('hidden');
-    document.getElementById(p+'-badge').classList.remove('hidden');
-    const count=[state.igConnected,state.ttConnected,state.ytConnected].filter(Boolean).length;
-    if(count>=2) document.getElementById('both-banner').classList.remove('hidden');
-  },1500);
+  if(p==='ig'){
+    // Real Instagram OAuth via Cloudflare Worker
+    const authUrl='https://creatorclaw-proxy.creatorclaw.workers.dev/auth';
+    const popup=window.open(authUrl,'ig_auth','width=600,height=700,left=200,top=100');
+    const handler=function(e){
+      if(e.origin!=='https://creatorclaw-proxy.creatorclaw.workers.dev') return;
+      if(e.data&&e.data.type==='cc_ig_auth'){
+        window.removeEventListener('message',handler);
+        state.igToken=e.data.token;
+        state.igUserId=e.data.igUserId;
+        state.igUsername=e.data.igUsername;
+        state.igConnected=true;
+        document.getElementById('ig-connect').classList.add('hidden');
+        document.getElementById('ig-stats').classList.remove('hidden');
+        document.getElementById('ig-badge').classList.remove('hidden');
+        const count=[state.igConnected,state.ttConnected,state.ytConnected].filter(Boolean).length;
+        if(count>=2) document.getElementById('both-banner').classList.remove('hidden');
+        btn.disabled=false;btn.textContent='Connect Instagram';
+      } else if(e.data&&e.data.type==='cc_ig_auth_error'){
+        window.removeEventListener('message',handler);
+        btn.disabled=false;btn.textContent='Connect Instagram';
+        alert('Instagram connection failed: '+e.data.error);
+      }
+    };
+    window.addEventListener('message',handler);
+    // Fallback: if popup closed without postMessage
+    const pollClosed=setInterval(()=>{
+      if(popup&&popup.closed){
+        clearInterval(pollClosed);
+        if(!state.igConnected){
+          btn.disabled=false;btn.textContent='Connect Instagram';
+          window.removeEventListener('message',handler);
+        }
+      }
+    },500);
+  } else {
+    // Placeholder for other platforms
+    setTimeout(()=>{
+      state[p+'Connected']=true;
+      document.getElementById(p+'-connect').classList.add('hidden');
+      document.getElementById(p+'-stats').classList.remove('hidden');
+      document.getElementById(p+'-badge').classList.remove('hidden');
+      const count=[state.igConnected,state.ttConnected,state.ytConnected].filter(Boolean).length;
+      if(count>=2) document.getElementById('both-banner').classList.remove('hidden');
+    },1500);
+  }
 }
 
 // ── Flow CTAs ─────────────────────────────────────────────────────────────────
