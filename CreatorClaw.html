@@ -1603,14 +1603,30 @@ function appendMessage(role, content, scroll=true){
   return body;
 }
 
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function revealBubble(bodyEl, offsetFromTop=20){
+  const container = document.getElementById('chat-messages');
+  if(!container || !bodyEl) return;
+  // Find the bubble wrapper (.chat-msg) — scroll so its top sits near the top of the scroller.
+  const wrap = bodyEl.closest('.chat-msg') || bodyEl;
+  const containerRect = container.getBoundingClientRect();
+  const elRect = wrap.getBoundingClientRect();
+  const delta = elRect.top - containerRect.top - offsetFromTop;
+  if(Math.abs(delta) < 2) return;
+  container.scrollBy({ top: delta, behavior: 'smooth' });
+}
+
 function appendInlineCard(role, html){
-  const body = appendMessage(role, '');
+  const body = appendMessage(role, '', false);
   body.textContent = '';
   body.innerHTML = html;
   // Hydrate any crab placeholders
   body.querySelectorAll('[data-crab]').forEach(el=>{ el.innerHTML = crabSVG(); });
   body.querySelectorAll('[data-crab-img]').forEach(el=>{ if(typeof LOGO_DATA_URI!=='undefined') el.src = LOGO_DATA_URI; });
-  document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+  // Smooth-scroll the new bubble's top into view so the user can read it
+  // from the beginning rather than being dumped at its bottom.
+  requestAnimationFrame(()=>revealBubble(body));
   return body;
 }
 
@@ -1687,9 +1703,11 @@ async function startOnboardingChat(handle){
       <div style="margin-bottom:8px">Here's what I found:</div>
       ${renderInlinePersonaCard(state.persona, state.igData)}
     `);
+    await sleep(1100);
 
     // 4. Stream in-character welcome
     await streamOnboardingWelcome();
+    await sleep(800);
 
     // 5. Push picker (Create / Pitch)
     pushOnboardingPicker();
@@ -1819,15 +1837,18 @@ function pushOnboardingPicker(){
 async function onboardingPickCreate(btn){
   const container = btn.closest('.inline-picker');
   if(container) container.querySelectorAll('button').forEach(b=>b.disabled=true);
+  await sleep(350);
   await runInlinePulsePreview();
-  // After Create, offer Pitch
+  await sleep(1400);
   pushOfferPitch();
 }
 
 async function onboardingPickPitch(btn){
   const container = btn.closest('.inline-picker');
   if(container) container.querySelectorAll('button').forEach(b=>b.disabled=true);
+  await sleep(350);
   await runInlineBrandsPreview();
+  await sleep(1400);
   pushInlineSignin();
 }
 
@@ -1853,12 +1874,15 @@ function pushOfferPitch(){
 
 async function onboardingContinuePitch(btn){
   btn.closest('.inline-picker')?.querySelectorAll('button').forEach(b=>b.disabled=true);
+  await sleep(350);
   await runInlineBrandsPreview();
+  await sleep(1400);
   pushInlineSignin();
 }
 
-function skipToSignin(btn){
+async function skipToSignin(btn){
   btn.closest('.inline-picker')?.querySelectorAll('button').forEach(b=>b.disabled=true);
+  await sleep(350);
   pushInlineSignin();
 }
 
@@ -1879,16 +1903,26 @@ async function runInlinePulsePreview(){
       const card = document.createElement('div');
       card.className = 'pulse-card' + (i>=2?' is-locked':'');
       const trendLabel = {hot:'Hot',rising:'Rising',steady:'Steady',new:'New'}[idea.trend]||idea.trend||'';
+      const safeTitle = (idea.title||'').replace(/'/g,"&#39;");
       card.innerHTML = `
         <div class="pulse-trend-badge ${idea.trend||'new'}">${escapeHtml(trendLabel)}</div>
         <div class="pulse-idea-title">${escapeHtml(idea.title||'')}</div>
         <div class="pulse-idea-hook">${escapeHtml(idea.hook||'')}</div>
+        <div class="pulse-persona-match">
+          <div class="match-score">${escapeHtml(String(idea.match||''))}%</div>
+          <div class="match-text">persona match${(idea.persona||[]).length?` — aligns with <strong style="color:var(--text)">${escapeHtml((idea.persona||[]).join(' + '))}</strong>`:''}</div>
+        </div>
         <div class="pulse-meta">
           <div class="pulse-meta-item">Format: <span class="val">${escapeHtml(idea.format||'')}</span></div>
-          <div class="pulse-meta-item">Match: <span class="val">${escapeHtml(String(idea.match||''))}%</span></div>
+          <div class="pulse-meta-item">Est. reach: <span class="val">${escapeHtml(idea.estReach||'')}</span></div>
+        </div>
+        <div class="pulse-actions">
+          <button class="pulse-save-btn" onclick="openSchedule('${safeTitle}')">📅 Schedule</button>
+          <button class="pulse-draft-btn" onclick="draftScript('${safeTitle}')">Draft Script</button>
         </div>`;
       grid.appendChild(card);
     });
+    requestAnimationFrame(()=>revealBubble(body));
   } catch(e){
     body.textContent = 'Couldn\'t generate ideas right now — let\'s come back to that.';
     console.error('Pulse preview error:', e);
@@ -1914,6 +1948,7 @@ async function runInlineBrandsPreview(){
       const logo = b.domain
         ? `<img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(b.domain)}&sz=128" alt="${escapeHtml(b.name||'')}">`
         : (b.name||'?')[0].toUpperCase();
+      const safeName = (b.name||'').replace(/'/g,"&#39;");
       card.innerHTML = `
         <div class="brand-head">
           <div class="brand-info">
@@ -1922,9 +1957,17 @@ async function runInlineBrandsPreview(){
           </div>
           <div class="match-meter"><div class="match-meter-ring" style="--deg:${(b.match||0)*3.6}deg"></div><div class="match-meter-inner"><span class="match-meter-val">${escapeHtml(String(b.match||''))}</span><span class="match-meter-lbl">Match</span></div></div>
         </div>
-        <div class="brand-footer"><div class="brand-deal">${escapeHtml(b.deal||'')}</div></div>`;
+        <div class="brand-reasons">${(b.reasons||[]).slice(0,3).map(r=>`<div class="brand-reason"><span class="chk">✓</span>${escapeHtml(r)}</div>`).join('')}</div>
+        <div class="brand-footer">
+          <div class="brand-deal">${escapeHtml(b.deal||'')}</div>
+          <div style="display:flex;gap:6px">
+            <button class="outreach-btn" onclick="draftPitch(${i})">Draft Pitch</button>
+            <button class="outreach-btn" onclick="toggleSent(this,'${safeName}')">Outreach</button>
+          </div>
+        </div>`;
       grid.appendChild(card);
     });
+    requestAnimationFrame(()=>revealBubble(body));
   } catch(e){
     body.textContent = 'Couldn\'t pull brand matches right now — we can revisit.';
     console.error('Brands preview error:', e);
