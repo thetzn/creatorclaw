@@ -118,6 +118,7 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 .chat-msg.assistant .chat-msg-avatar{background:transparent;border:none;border-radius:0;padding:0}
 .chat-msg.assistant .chat-msg-avatar img{width:100%;height:100%;object-fit:contain;display:block}
 .chat-msg-body{flex:1;font-size:14px;line-height:1.7;color:var(--text);min-width:0;padding-top:4px;word-wrap:break-word;white-space:pre-wrap}
+.chat-msg-body.has-card{white-space:normal}
 .chat-msg.assistant .chat-msg-body .typing-cursor{display:inline-block;width:6px;height:14px;background:var(--gold);animation:blink 0.9s infinite;vertical-align:text-bottom;margin-left:2px}
 .chat-composer{border-top:1px solid var(--border);padding:16px 20px 20px;background:var(--bg);flex-shrink:0}
 .chat-composer-inner{max-width:720px;margin:0 auto;position:relative}
@@ -1627,6 +1628,7 @@ function revealBubble(bodyEl, offsetFromTop=20){
 function appendInlineCard(role, html){
   const body = appendMessage(role, '', false);
   body.textContent = '';
+  body.classList.add('has-card');
   body.innerHTML = html;
   // Hydrate any crab placeholders
   body.querySelectorAll('[data-crab]').forEach(el=>{ el.innerHTML = crabSVG(); });
