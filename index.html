@@ -1631,31 +1631,16 @@ function setComposerLock(locked){
 // ── Chat-first onboarding ─────────────────────────────────────────────────────
 async function startOnboardingChat(handle){
   document.getElementById('intro-screen')?.remove();
-  document.querySelector('.header')?.classList.add('hidden');
-  document.querySelector('.main')?.classList.add('hidden');
-  document.getElementById('chat-view').classList.remove('hidden');
-  // Fresh ephemeral thread (no Supabase row until signin)
-  chatState.messages = [];
-  chatState.conversationId = null;
-  document.getElementById('chat-messages').innerHTML = '';
-  setComposerLock(true);
+
+  // Phase 1: show the original full-screen persona loading (crab spinner + progress bar)
+  // while we scrape + generate the persona. Chat view doesn't open until the persona is ready.
+  switchTab('persona');
+  document.getElementById('persona-cta')?.classList.add('hidden');
+  document.getElementById('persona-result')?.classList.add('hidden');
+  document.getElementById('persona-loading')?.classList.remove('hidden');
+  startLoading('persona', 25);
 
   const cleanHandle = String(handle||'').trim().replace(/^@/,'').replace(/^(https?:\/\/)?(www\.)?instagram\.com\//,'');
-
-  const analyzingBody = appendInlineCard('assistant', `
-    <div class="inline-analyzing">
-      <div class="spinner-mini" data-crab></div>
-      <div><div>Analyzing <strong>@${escapeHtml(cleanHandle)}</strong>…</div>
-      <div class="inline-analyzing-sub" id="onb-analyzing-sub">Scanning recent posts</div></div>
-    </div>`);
-
-  const steps = ['Scanning recent posts','Reading captions and themes','Measuring engagement','Profiling your voice','Building your persona'];
-  let stepIdx = 0;
-  const subEl = () => document.getElementById('onb-analyzing-sub');
-  const stepTimer = setInterval(()=>{
-    stepIdx = Math.min(stepIdx+1, steps.length-1);
-    const s = subEl(); if(s) s.textContent = steps[stepIdx] + '…';
-  }, 2200);
 
   try {
     // 1. Scrape IG profile
@@ -1680,28 +1665,40 @@ async function startOnboardingChat(handle){
     setText('ig-val-posts', profile.totalPosts);
     setText('ig-val-category', profile.topCategory || profile.categories?.[0]?.name);
 
-    // 2. Generate persona (LLM)
-    const sub = subEl(); if(sub) sub.textContent = 'Building your persona…';
+    // 2. Generate persona — keeps the progress bar animating until done, then stops + renders.
     await generatePersona();
 
-    clearInterval(stepTimer);
+    // Phase 2: persona is ready — hide the loading screen and the persona tab output,
+    // then open the chat view with the persona card and welcome stream.
+    document.getElementById('persona-loading')?.classList.add('hidden');
+    document.getElementById('persona-result')?.classList.add('hidden');
+    document.getElementById('persona-cta')?.classList.add('hidden');
 
-    // 3. Replace analyzing bubble with persona summary card
-    analyzingBody.innerHTML = `
+    document.querySelector('.header')?.classList.add('hidden');
+    document.querySelector('.main')?.classList.add('hidden');
+    document.getElementById('chat-view').classList.remove('hidden');
+    chatState.messages = [];
+    chatState.conversationId = null;
+    document.getElementById('chat-messages').innerHTML = '';
+    setComposerLock(true);
+
+    // 3. Push persona summary card as the first chat bubble (no separate "analyzing" step).
+    appendInlineCard('assistant', `
       <div style="margin-bottom:8px">Here's what I found:</div>
       ${renderInlinePersonaCard(state.persona, state.igData)}
-    `;
+    `);
 
-    // 4. Stream in-character welcome + suggestion to try tools
+    // 4. Stream in-character welcome
     await streamOnboardingWelcome();
 
     // 5. Push picker (Create / Pitch)
     pushOnboardingPicker();
   } catch(e){
-    clearInterval(stepTimer);
-    analyzingBody.textContent = 'Hmm — couldn\'t analyze @' + cleanHandle + '. Try another handle?';
+    stopLoading('persona');
+    document.getElementById('persona-loading')?.classList.add('hidden');
+    document.getElementById('persona-cta')?.classList.remove('hidden');
     console.error('Onboarding error:', e);
-    showError(e.message || 'Analyze failed');
+    showError('Could not analyze @' + cleanHandle + ': ' + (e.message || 'unknown error'));
   }
 }
 
