@@ -129,6 +129,46 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 .chat-send-btn svg{width:16px;height:16px}
 .chat-hint{text-align:center;font-size:10px;color:var(--muted2);margin-top:8px;letter-spacing:0.05em}
 
+/* Onboarding (signed-out chat-view) */
+body.logged-out #chat-view .chat-sidebar,
+body.logged-out #chat-view .chat-hamburger{display:none}
+body.logged-out #chat-view .chat-main{border-left:0}
+body.logged-out #chat-view .chat-composer-inner{opacity:0.5;pointer-events:none;filter:grayscale(0.2)}
+body.logged-out #chat-view #chat-input{cursor:not-allowed}
+
+/* Inline chat-bubble cards */
+.chat-msg-body .inline-analyzing{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--text)}
+.chat-msg-body .inline-analyzing .spinner-mini{width:22px;height:22px;flex-shrink:0;color:var(--gold)}
+.chat-msg-body .inline-analyzing-sub{font-size:11px;margin-top:2px;color:var(--muted);letter-spacing:0.05em}
+.chat-msg-body .inline-persona{display:flex;flex-direction:column;gap:12px;background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:16px 18px;margin-top:6px}
+.chat-msg-body .inline-persona-head{display:flex;gap:14px;align-items:center}
+.chat-msg-body .inline-persona-avatar{width:48px;height:48px;border-radius:50%;background-size:cover;background-position:center;flex-shrink:0;border:1px solid var(--border2);background-color:var(--card)}
+.chat-msg-body .inline-persona-info{flex:1;min-width:0}
+.chat-msg-body .inline-persona-name{font-weight:600;font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-msg-body .inline-persona-handle{font-size:11px;color:var(--muted);letter-spacing:0.05em}
+.chat-msg-body .inline-persona-stats{display:flex;gap:22px;padding-top:6px;border-top:1px solid var(--border)}
+.chat-msg-body .inline-persona-stat{font-size:10px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase}
+.chat-msg-body .inline-persona-stat strong{color:var(--text);font-weight:600;font-size:14px;display:block;letter-spacing:0;text-transform:none;margin-bottom:2px}
+.chat-msg-body .inline-persona-vibes{display:flex;gap:6px;flex-wrap:wrap}
+.chat-msg-body .inline-persona-vibe{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:4px 9px;border-radius:999px;background:var(--card);border:1px solid var(--border2);color:var(--muted)}
+.chat-msg-body .inline-picker{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.chat-msg-body .inline-pick-tile{background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:16px;cursor:pointer;text-align:left;transition:all 0.2s;font-family:inherit;color:var(--text);display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.chat-msg-body .inline-pick-tile:hover{border-color:var(--gold);transform:translateY(-1px)}
+.chat-msg-body .inline-pick-tile:disabled{opacity:0.5;cursor:wait;transform:none}
+.chat-msg-body .inline-pick-icon{font-size:18px}
+.chat-msg-body .inline-pick-label{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted)}
+.chat-msg-body .inline-pick-title{font-size:14px;font-weight:600;color:var(--text)}
+.chat-msg-body .inline-pick-desc{font-size:12px;color:var(--muted);line-height:1.5}
+.chat-msg-body .inline-preview{position:relative;margin-top:6px}
+.chat-msg-body .inline-preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chat-msg-body .inline-preview .brand-card,
+.chat-msg-body .inline-preview .pulse-card{padding:14px}
+.chat-msg-body .inline-preview .is-locked{filter:blur(6px);pointer-events:none;user-select:none}
+.chat-msg-body .inline-signin{background:var(--card2);border:1px solid var(--gold-border);border-radius:12px;padding:22px 20px;text-align:center;margin-top:6px}
+.chat-msg-body .inline-signin h4{font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text);letter-spacing:0.01em}
+.chat-msg-body .inline-signin p{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5}
+@media(max-width:560px){.chat-msg-body .inline-picker,.chat-msg-body .inline-preview-grid{grid-template-columns:1fr}}
+
 /* Mobile: sidebar becomes overlay */
 @media(max-width:768px){
   .chat-sidebar{position:fixed;left:0;top:0;bottom:0;z-index:60;transform:translateX(-100%);box-shadow:4px 0 24px rgba(0,0,0,0.3)}
@@ -776,11 +816,12 @@ function introAnalyze(){
   const inp=document.getElementById('intro-ig-input');
   const v=inp.value.trim();
   if(!v){ inp.style.borderColor='var(--red)'; return; }
-  // Pipe value into the existing Connect-tab input + reuse analyzeIGProfile
+  // Pipe value into the existing Connect-tab input (for post-signin fallback UI)
   const target=document.getElementById('ig-url-input');
   if(target) target.value=v;
   dismissIntro();
-  analyzeIGProfile();
+  // Chat-first onboarding: open chat thread and narrate analysis inline
+  startOnboardingChat(v);
 }
 
 function dismissIntro(){
@@ -1197,6 +1238,8 @@ function updateAuthUI(user){
   if(backToChat) backToChat.style.display = user ? '' : 'none';
   if(igBtn) igBtn.style.display = user ? '' : 'none';
   if(navAccounts) navAccounts.classList.toggle('hidden', !user);
+  // Composer: lock for signed-out users (onboarding), unlock on signin
+  setComposerLock(!user);
   if(user){
     const name = user.user_metadata?.full_name || user.email || '';
     const initials = name.trim().split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase() || 'U';
@@ -1558,6 +1601,359 @@ function appendMessage(role, content, scroll=true){
   container.appendChild(wrap);
   if(scroll) container.scrollTop = container.scrollHeight;
   return body;
+}
+
+function appendInlineCard(role, html){
+  const body = appendMessage(role, '');
+  body.textContent = '';
+  body.innerHTML = html;
+  // Hydrate any crab placeholders
+  body.querySelectorAll('[data-crab]').forEach(el=>{ el.innerHTML = crabSVG(); });
+  body.querySelectorAll('[data-crab-img]').forEach(el=>{ if(typeof LOGO_DATA_URI!=='undefined') el.src = LOGO_DATA_URI; });
+  document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+  return body;
+}
+
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function setComposerLock(locked){
+  const input = document.getElementById('chat-input');
+  const btn = document.getElementById('chat-send-btn');
+  if(input){
+    input.disabled = !!locked;
+    input.placeholder = locked ? 'Sign in to continue the conversation…' : 'Ask anything…';
+  }
+  if(btn) btn.disabled = !!locked;
+}
+
+// ── Chat-first onboarding ─────────────────────────────────────────────────────
+async function startOnboardingChat(handle){
+  document.getElementById('intro-screen')?.remove();
+  document.querySelector('.header')?.classList.add('hidden');
+  document.querySelector('.main')?.classList.add('hidden');
+  document.getElementById('chat-view').classList.remove('hidden');
+  // Fresh ephemeral thread (no Supabase row until signin)
+  chatState.messages = [];
+  chatState.conversationId = null;
+  document.getElementById('chat-messages').innerHTML = '';
+  setComposerLock(true);
+
+  const cleanHandle = String(handle||'').trim().replace(/^@/,'').replace(/^(https?:\/\/)?(www\.)?instagram\.com\//,'');
+
+  const analyzingBody = appendInlineCard('assistant', `
+    <div class="inline-analyzing">
+      <div class="spinner-mini" data-crab></div>
+      <div><div>Analyzing <strong>@${escapeHtml(cleanHandle)}</strong>…</div>
+      <div class="inline-analyzing-sub" id="onb-analyzing-sub">Scanning recent posts</div></div>
+    </div>`);
+
+  const steps = ['Scanning recent posts','Reading captions and themes','Measuring engagement','Profiling your voice','Building your persona'];
+  let stepIdx = 0;
+  const subEl = () => document.getElementById('onb-analyzing-sub');
+  const stepTimer = setInterval(()=>{
+    stepIdx = Math.min(stepIdx+1, steps.length-1);
+    const s = subEl(); if(s) s.textContent = steps[stepIdx] + '…';
+  }, 2200);
+
+  try {
+    // 1. Scrape IG profile
+    const res = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ igScrape: true, handle: cleanHandle })
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.error?.message || ('Analyze failed ('+res.status+')'));
+    }
+    const scrapeData = await res.json();
+    const profile = parseJSON(scrapeData.choices[0].message.content);
+    state.igData = profile;
+    state.igConnected = true;
+    refreshUserAvatars();
+    // Quietly populate Connect tab so it reflects reality if user navigates back post-signin
+    const setText = (id,v)=>{ const e=document.getElementById(id); if(e) e.textContent = v||'—'; };
+    setText('ig-val-followers', profile.followers);
+    setText('ig-val-engagement', profile.engagementRate);
+    setText('ig-val-posts', profile.totalPosts);
+    setText('ig-val-category', profile.topCategory || profile.categories?.[0]?.name);
+
+    // 2. Generate persona (LLM)
+    const sub = subEl(); if(sub) sub.textContent = 'Building your persona…';
+    await generatePersona();
+
+    clearInterval(stepTimer);
+
+    // 3. Replace analyzing bubble with persona summary card
+    analyzingBody.innerHTML = `
+      <div style="margin-bottom:8px">Here's what I found:</div>
+      ${renderInlinePersonaCard(state.persona, state.igData)}
+    `;
+
+    // 4. Stream in-character welcome + suggestion to try tools
+    await streamOnboardingWelcome();
+
+    // 5. Push picker (Create / Pitch)
+    pushOnboardingPicker();
+  } catch(e){
+    clearInterval(stepTimer);
+    analyzingBody.textContent = 'Hmm — couldn\'t analyze @' + cleanHandle + '. Try another handle?';
+    console.error('Onboarding error:', e);
+    showError(e.message || 'Analyze failed');
+  }
+}
+
+function renderInlinePersonaCard(persona, igData){
+  const p = persona || {};
+  const d = igData || {};
+  const avatarSrc = d.profilePicData || d.profilePicUrl || '';
+  const name = p.name || d.displayName || d.username || 'the creator';
+  const handle = d.username ? '@' + String(d.username).replace(/^@/,'') : '';
+  const vibes = (p.vibes||[]).slice(0,5);
+  const followers = p.totalReach || d.followers || '—';
+  const engagement = p.avgEngagement || d.engagementRate || '—';
+  const tier = p.tier || '';
+  return `
+    <div class="inline-persona">
+      <div class="inline-persona-head">
+        <div class="inline-persona-avatar"${avatarSrc?` style="background-image:url('${escapeHtml(avatarSrc)}')"`:''}></div>
+        <div class="inline-persona-info">
+          <div class="inline-persona-name">${escapeHtml(name)}</div>
+          <div class="inline-persona-handle">${escapeHtml(handle)}${tier?' · '+escapeHtml(tier):''}</div>
+        </div>
+      </div>
+      ${vibes.length?`<div class="inline-persona-vibes">${vibes.map(v=>`<span class="inline-persona-vibe">${escapeHtml(v)}</span>`).join('')}</div>`:''}
+      <div class="inline-persona-stats">
+        <div class="inline-persona-stat"><strong>${escapeHtml(followers)}</strong>Reach</div>
+        <div class="inline-persona-stat"><strong>${escapeHtml(engagement)}</strong>Engagement</div>
+      </div>
+    </div>`;
+}
+
+async function streamOnboardingWelcome(){
+  const bodyEl = appendMessage('assistant', '');
+  const cursor = document.createElement('span');
+  cursor.className = 'typing-cursor';
+  bodyEl.appendChild(cursor);
+
+  const p = state.persona || {};
+  const d = state.igData || {};
+  const personaSummary = [
+    p.name && `Name: ${p.name}`,
+    d.username && `Handle: @${String(d.username).replace(/^@/,'')}`,
+    (p.totalReach || d.followers) && `Reach: ${p.totalReach || d.followers}`,
+    (p.avgEngagement || d.engagementRate) && `Engagement: ${p.avgEngagement || d.engagementRate}`,
+    (p.vibes||[]).length && `Vibes: ${p.vibes.join(', ')}`,
+    (p.pillars||[]).length && `Pillars: ${p.pillars.map(x=>x.l||x).join(', ')}`,
+    p.bio && `Bio: ${p.bio}`
+  ].filter(Boolean).join('\n');
+
+  const messages = [
+    { role: 'system', content: `You are ${state.agent.name || DEFAULT_AGENT_NAME}, a personal AI agent for Instagram creators. You have just analyzed a new creator. Greet them warmly and in character. Mention one or two specific details from their persona so they know the analysis is real. Offer a one-line tease of what you can help with next (content ideas, brand pitches, drafting). 3 sentences max. No generic greetings ("Hello!" etc) — dive in with a hook.` },
+    { role: 'user', content: `Creator profile:\n${personaSummary}\n\nIntroduce yourself and welcome them.` }
+  ];
+
+  try {
+    const res = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ stream: true, messages, temperature: 0.8 })
+    });
+    if(!res.ok) throw new Error('welcome '+res.status);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let full = '';
+    while(true){
+      const { done, value } = await reader.read();
+      if(done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for(const line of lines){
+        const t = line.trim();
+        if(!t || !t.startsWith('data:')) continue;
+        const data = t.slice(5).trim();
+        if(data === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(data);
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if(delta){
+            full += delta;
+            cursor.remove();
+            bodyEl.textContent = full;
+            bodyEl.appendChild(cursor);
+            document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+          }
+        } catch {}
+      }
+    }
+    cursor.remove();
+    if(full) chatState.messages.push({ role: 'assistant', content: full });
+  } catch(e){
+    cursor.remove();
+    bodyEl.textContent = `Welcome — I've got your persona. Want to see what you should create next, or which brands to pitch?`;
+    chatState.messages.push({ role: 'assistant', content: bodyEl.textContent });
+  }
+}
+
+function pushOnboardingPicker(){
+  appendInlineCard('assistant', `
+    <div>Want a taste of what I can do? Pick one:</div>
+    <div class="inline-picker">
+      <button class="inline-pick-tile" id="onb-pick-create" onclick="onboardingPickCreate(this)">
+        <div class="inline-pick-icon">◎</div>
+        <div class="inline-pick-label">Create</div>
+        <div class="inline-pick-title">See content ideas for you</div>
+        <div class="inline-pick-desc">Trending formats matched to your pillars.</div>
+      </button>
+      <button class="inline-pick-tile" id="onb-pick-pitch" onclick="onboardingPickPitch(this)">
+        <div class="inline-pick-icon">♢</div>
+        <div class="inline-pick-label">Pitch</div>
+        <div class="inline-pick-title">Find brands worth pitching</div>
+        <div class="inline-pick-desc">Brand matches ranked by audience fit.</div>
+      </button>
+    </div>
+  `);
+}
+
+async function onboardingPickCreate(btn){
+  const container = btn.closest('.inline-picker');
+  if(container) container.querySelectorAll('button').forEach(b=>b.disabled=true);
+  await runInlinePulsePreview();
+  // After Create, offer Pitch
+  pushOfferPitch();
+}
+
+async function onboardingPickPitch(btn){
+  const container = btn.closest('.inline-picker');
+  if(container) container.querySelectorAll('button').forEach(b=>b.disabled=true);
+  await runInlineBrandsPreview();
+  pushInlineSignin();
+}
+
+function pushOfferPitch(){
+  appendInlineCard('assistant', `
+    <div>Want to see which brands would pay for your audience too?</div>
+    <div class="inline-picker">
+      <button class="inline-pick-tile" onclick="onboardingContinuePitch(this)">
+        <div class="inline-pick-icon">♢</div>
+        <div class="inline-pick-label">Pitch</div>
+        <div class="inline-pick-title">Show me brand matches</div>
+        <div class="inline-pick-desc">Ranked by audience fit + deal range.</div>
+      </button>
+      <button class="inline-pick-tile" onclick="skipToSignin(this)">
+        <div class="inline-pick-icon">→</div>
+        <div class="inline-pick-label">Skip</div>
+        <div class="inline-pick-title">Just let me chat</div>
+        <div class="inline-pick-desc">Sign in and start a conversation.</div>
+      </button>
+    </div>
+  `);
+}
+
+async function onboardingContinuePitch(btn){
+  btn.closest('.inline-picker')?.querySelectorAll('button').forEach(b=>b.disabled=true);
+  await runInlineBrandsPreview();
+  pushInlineSignin();
+}
+
+function skipToSignin(btn){
+  btn.closest('.inline-picker')?.querySelectorAll('button').forEach(b=>b.disabled=true);
+  pushInlineSignin();
+}
+
+async function runInlinePulsePreview(){
+  const body = appendInlineCard('assistant', `
+    <div class="inline-analyzing"><div class="spinner-mini" data-crab></div><div>Scanning trends for you…</div></div>
+  `);
+  try {
+    await generatePulse();
+    const ideas = (state.pulseIdeas||[]).slice(0,4);
+    body.innerHTML = `
+      <div style="margin-bottom:8px">Here are a few ideas matched to your pillars:</div>
+      <div class="inline-preview">
+        <div class="inline-preview-grid" id="onb-pulse-grid"></div>
+      </div>`;
+    const grid = body.querySelector('#onb-pulse-grid');
+    ideas.forEach((idea, i)=>{
+      const card = document.createElement('div');
+      card.className = 'pulse-card' + (i>=2?' is-locked':'');
+      const trendLabel = {hot:'Hot',rising:'Rising',steady:'Steady',new:'New'}[idea.trend]||idea.trend||'';
+      card.innerHTML = `
+        <div class="pulse-trend-badge ${idea.trend||'new'}">${escapeHtml(trendLabel)}</div>
+        <div class="pulse-idea-title">${escapeHtml(idea.title||'')}</div>
+        <div class="pulse-idea-hook">${escapeHtml(idea.hook||'')}</div>
+        <div class="pulse-meta">
+          <div class="pulse-meta-item">Format: <span class="val">${escapeHtml(idea.format||'')}</span></div>
+          <div class="pulse-meta-item">Match: <span class="val">${escapeHtml(String(idea.match||''))}%</span></div>
+        </div>`;
+      grid.appendChild(card);
+    });
+  } catch(e){
+    body.textContent = 'Couldn\'t generate ideas right now — let\'s come back to that.';
+    console.error('Pulse preview error:', e);
+  }
+}
+
+async function runInlineBrandsPreview(){
+  const body = appendInlineCard('assistant', `
+    <div class="inline-analyzing"><div class="spinner-mini" data-crab></div><div>Matching brands to your persona…</div></div>
+  `);
+  try {
+    await generateBrands();
+    const brands = (state.brands||[]).slice(0,4);
+    body.innerHTML = `
+      <div style="margin-bottom:8px">A sample of brands that fit:</div>
+      <div class="inline-preview">
+        <div class="inline-preview-grid" id="onb-brands-grid"></div>
+      </div>`;
+    const grid = body.querySelector('#onb-brands-grid');
+    brands.forEach((b, i)=>{
+      const card = document.createElement('div');
+      card.className = 'brand-card' + (i>=2?' is-locked':'');
+      const logo = b.domain
+        ? `<img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(b.domain)}&sz=128" alt="${escapeHtml(b.name||'')}">`
+        : (b.name||'?')[0].toUpperCase();
+      card.innerHTML = `
+        <div class="brand-head">
+          <div class="brand-info">
+            <div class="brand-logo" style="background:#fff;border:1px solid var(--border2);color:var(--gold)">${logo}</div>
+            <div><div class="brand-name">${escapeHtml(b.name||'')}</div><div class="brand-cat">${escapeHtml(b.cat||'')}</div></div>
+          </div>
+          <div class="match-meter"><div class="match-meter-ring" style="--deg:${(b.match||0)*3.6}deg"></div><div class="match-meter-inner"><span class="match-meter-val">${escapeHtml(String(b.match||''))}</span><span class="match-meter-lbl">Match</span></div></div>
+        </div>
+        <div class="brand-footer"><div class="brand-deal">${escapeHtml(b.deal||'')}</div></div>`;
+      grid.appendChild(card);
+    });
+  } catch(e){
+    body.textContent = 'Couldn\'t pull brand matches right now — we can revisit.';
+    console.error('Brands preview error:', e);
+  }
+}
+
+function pushInlineSignin(){
+  const handle = (state.igData?.username || '').replace(/^@/,'');
+  if(handle && state.persona && state.igData){
+    // Stash for post-OAuth persistence
+    try {
+      sessionStorage.setItem('pendingPersona', JSON.stringify({
+        handle, scraped: state.igData, analysis: state.persona
+      }));
+    } catch {}
+  }
+  appendInlineCard('assistant', `
+    <div class="inline-signin">
+      <h4>Sign in to keep the thread</h4>
+      <p>Save your persona, unlock the full list of ideas and brand matches, and keep chatting with me.</p>
+      <button class="google-btn" onclick="signInWithGoogle()">
+        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>
+        Sign in with Google
+      </button>
+    </div>
+  `);
 }
 
 function buildSystemPrompt(){
