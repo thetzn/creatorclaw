@@ -155,12 +155,9 @@ body.logged-out #chat-view #chat-input{cursor:not-allowed}
 .chat-msg-body .inline-persona-info{flex:1;min-width:0}
 .chat-msg-body .inline-persona-name{font-weight:600;font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-msg-body .inline-persona-handle{font-size:11px;color:var(--muted);letter-spacing:0.05em}
-.chat-msg-body .inline-persona-stats{display:flex;gap:22px;padding-top:6px;border-top:1px solid var(--border);flex-wrap:wrap;row-gap:10px}
-.chat-msg-body .inline-persona-stat{font-size:10px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;position:relative}
-.chat-msg-body .inline-persona-stat strong{color:var(--text);font-weight:600;font-size:14px;display:block;letter-spacing:0;text-transform:none;margin-bottom:2px}
-.chat-msg-body .inline-persona-stat.is-locked{min-width:60px}
-.chat-msg-body .inline-persona-stat .stat-spark{display:block;width:60px;height:18px;color:var(--gold);margin-bottom:4px}
-.chat-msg-body .inline-persona-stat .stat-lock{margin-left:4px;opacity:0.6;font-size:9px;filter:grayscale(0.4)}
+.chat-msg-body .inline-persona-stats{display:flex;gap:16px;padding-top:6px;border-top:1px solid var(--border);flex-wrap:wrap;row-gap:10px}
+.chat-msg-body .inline-persona-stat{font-size:9px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase}
+.chat-msg-body .inline-persona-stat strong{color:var(--text);font-weight:600;font-size:13px;display:block;letter-spacing:0;text-transform:none;margin-bottom:2px;white-space:nowrap}
 .chat-msg-body .inline-persona-vibes{display:flex;gap:6px;flex-wrap:wrap}
 .chat-msg-body .inline-persona-vibe{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:4px 9px;border-radius:999px;background:var(--card);border:1px solid var(--border2);color:var(--muted)}
 .chat-msg-body .inline-picker{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
@@ -1780,6 +1777,10 @@ function renderInlinePersonaCard(persona, igData){
   const followers = p.totalReach || d.followers || '—';
   const engagement = p.avgEngagement || d.engagementRate || '—';
   const tier = p.tier || '';
+  const growth = p.growthRate || '—';
+  const score = p.score ? String(p.score) : '—';
+  const topAge = (p.age||[]).slice().sort((a,b)=>(b.pct||0)-(a.pct||0))[0]?.age || '—';
+  const topCity = (p.locations||[])[0]?.city || '—';
   return `
     <div class="inline-persona">
       <div class="inline-persona-head">
@@ -1793,18 +1794,10 @@ function renderInlinePersonaCard(persona, igData){
       <div class="inline-persona-stats">
         <div class="inline-persona-stat"><strong>${escapeHtml(followers)}</strong>Reach</div>
         <div class="inline-persona-stat"><strong>${escapeHtml(engagement)}</strong>Engagement</div>
-        <div class="inline-persona-stat is-locked" title="Sign in to unlock">
-          <svg class="stat-spark" viewBox="0 0 56 18" preserveAspectRatio="none" aria-hidden="true"><polyline points="0,15 8,12 16,13 24,9 32,7 40,4 48,3 56,1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg>
-          Growth<span class="stat-lock">🔒</span>
-        </div>
-        <div class="inline-persona-stat is-locked" title="Sign in to unlock">
-          <svg class="stat-spark" viewBox="0 0 56 18" preserveAspectRatio="none" aria-hidden="true"><rect x="1" y="11" width="8" height="7" fill="currentColor"/><rect x="12" y="6" width="8" height="12" fill="currentColor"/><rect x="23" y="2" width="8" height="16" fill="currentColor"/><rect x="34" y="7" width="8" height="11" fill="currentColor"/><rect x="45" y="12" width="8" height="6" fill="currentColor"/></svg>
-          Audience<span class="stat-lock">🔒</span>
-        </div>
-        <div class="inline-persona-stat is-locked" title="Sign in to unlock">
-          <svg class="stat-spark" viewBox="0 0 56 18" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="7" width="22" height="4" fill="currentColor"/><rect x="24" y="7" width="14" height="4" fill="currentColor" opacity="0.7"/><rect x="40" y="7" width="10" height="4" fill="currentColor" opacity="0.45"/><rect x="52" y="7" width="4" height="4" fill="currentColor" opacity="0.25"/></svg>
-          Top City<span class="stat-lock">🔒</span>
-        </div>
+        <div class="inline-persona-stat"><strong>${escapeHtml(growth)}</strong>Growth</div>
+        <div class="inline-persona-stat"><strong>${escapeHtml(topAge)}</strong>Top Age</div>
+        <div class="inline-persona-stat"><strong>${escapeHtml(topCity)}</strong>Top City</div>
+        <div class="inline-persona-stat"><strong>${escapeHtml(score)}</strong>Score</div>
       </div>
     </div>`;
 }
