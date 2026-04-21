@@ -620,13 +620,6 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 
 <!-- PERSONA TAB -->
 <div id="tab-persona" class="hidden">
-  <div class="page-head">
-    <div>
-      <h1 class="page-title">Your <span class="gold-text">Persona</span></h1>
-      <p class="page-sub" style="margin-bottom:0">An AI-generated media kit built from your content, audience, and engagement patterns.</p>
-    </div>
-    <button class="cta-btn hidden" id="persona-download-btn" onclick="downloadMediaKit()">↓ Download Media Kit</button>
-  </div>
   <div id="persona-cta" class="center-cta"><div class="center-icon">✦</div><h2>Ready to build your persona</h2><p>We'll analyze your content across platforms to create a comprehensive media kit.</p><button class="gen-btn" onclick="generatePersona()">Generate Persona</button></div>
   <div id="persona-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Analyzing your content…</div><div class="loading-sub" id="persona-loading-sub">Scanning your recent posts…</div><div class="loading-progress"><div class="loading-progress-fill" id="persona-loading-bar"></div></div></div>
   <div id="persona-result" class="hidden">
@@ -2571,7 +2564,7 @@ function renderPersona(d){
   buildCharts(d);
   document.getElementById('persona-result').classList.remove('hidden');
   document.getElementById('persona-result').classList.add('fade-up');
-  document.getElementById('persona-download-btn').classList.remove('hidden');
+  document.getElementById('persona-download-btn')?.classList.remove('hidden');
   state.personaGen=true;
 }
 
