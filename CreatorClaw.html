@@ -1684,7 +1684,9 @@ async function startOnboardingChat(handle){
   document.getElementById('intro-screen')?.remove();
 
   // Phase 1: show the original full-screen persona loading (crab spinner + progress bar)
-  // while we scrape + generate the persona. Chat view doesn't open until the persona is ready.
+  // while we scrape + generate the persona. Hide the top nav during this phase so the
+  // crab spinner is the sole focal point. Chat view doesn't open until the persona is ready.
+  document.querySelector('.header')?.classList.add('hidden');
   switchTab('persona');
   document.getElementById('persona-cta')?.classList.add('hidden');
   document.getElementById('persona-result')?.classList.add('hidden');
