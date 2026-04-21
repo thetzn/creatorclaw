@@ -175,6 +175,10 @@ body.logged-out #chat-view #chat-input{cursor:not-allowed}
 .chat-msg-body .inline-signin{background:var(--card2);border:1px solid var(--gold-border);border-radius:12px;padding:22px 20px;text-align:center;margin-top:6px}
 .chat-msg-body .inline-signin h4{font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text);letter-spacing:0.01em}
 .chat-msg-body .inline-signin p{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5}
+.chat-msg-body .inline-signin .gate-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center}
+.chat-msg-body .inline-signin .ig-btn{display:inline-flex;align-items:center;gap:10px;padding:14px 24px;border-radius:8px;background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);border:none;font-size:13px;font-weight:500;color:#fff;cursor:pointer;transition:all 0.3s;font-family:inherit}
+.chat-msg-body .inline-signin .ig-btn:hover{transform:translateY(-1px);filter:brightness(1.08)}
+.chat-msg-body .inline-signin .ig-btn svg{width:18px;height:18px}
 @media(max-width:560px){.chat-msg-body .inline-picker,.chat-msg-body .inline-preview-grid{grid-template-columns:1fr}}
 
 /* Mobile: sidebar becomes overlay */
@@ -2047,10 +2051,16 @@ function pushInlineSignin(){
     <div class="inline-signin">
       <h4>Sign in to keep the thread</h4>
       <p>Save your persona, unlock the full list of ideas and brand matches, and keep chatting with me.</p>
-      <button class="google-btn" onclick="signInWithGoogle()">
-        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>
-        Sign in with Google
-      </button>
+      <div class="gate-actions">
+        <button class="google-btn" onclick="signInWithGoogle()">
+          <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>
+          Sign in with Google
+        </button>
+        <button class="ig-btn" onclick="connectInstagram()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></svg>
+          Sign in with Instagram
+        </button>
+      </div>
     </div>
   `);
 }
