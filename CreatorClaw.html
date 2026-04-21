@@ -953,7 +953,7 @@ async function submitAgentSettings(){
     return;
   }
   btn.textContent = 'Saved ✓';
-  setTimeout(closeModal, 600);
+  setTimeout(()=>{ closeModal(); streamAgentAcknowledgement(); }, 400);
 }
 
 async function resetAgentSettings(){
@@ -961,6 +961,90 @@ async function resetAgentSettings(){
   if(btn){ btn.disabled = true; btn.textContent = 'Resetting…'; }
   await saveAgentIdentity('', '');
   closeModal();
+  streamAgentAcknowledgement();
+}
+
+async function streamAgentAcknowledgement(){
+  // Only run if the chat view is active
+  const chatView = document.getElementById('chat-view');
+  if(!chatView || chatView.classList.contains('hidden')) return;
+  if(chatState.streaming) return;
+
+  chatState.streaming = true;
+  chatState.abortController = new AbortController();
+  const sendBtn = document.getElementById('chat-send-btn');
+  if(sendBtn) sendBtn.disabled = true;
+
+  const bodyEl = appendMessage('assistant', '');
+  const cursor = document.createElement('span');
+  cursor.className = 'typing-cursor';
+  bodyEl.appendChild(cursor);
+
+  const isMidConversation = chatState.messages.length > 0;
+  const metaPrompt = isMidConversation
+    ? 'The creator just updated your name and/or persona. In one short sentence, acknowledge the change in your new voice. Do not greet as if this is the first meeting — we are already chatting.'
+    : 'The creator just named you and defined your persona. Introduce yourself in one or two short sentences, fully in character. Skip generic greeting clichés.';
+
+  const apiMessages = [
+    { role: 'system', content: buildSystemPrompt() },
+    ...chatState.messages.map(m => ({ role: m.role, content: m.content })),
+    { role: 'user', content: metaPrompt }
+  ];
+
+  let fullText = '';
+  try {
+    const res = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stream: true, messages: apiMessages, temperature: 0.7 }),
+      signal: chatState.abortController.signal
+    });
+    if(!res.ok) throw new Error('API '+res.status);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while(true){
+      const { done, value } = await reader.read();
+      if(done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for(const line of lines){
+        const trimmed = line.trim();
+        if(!trimmed || !trimmed.startsWith('data:')) continue;
+        const data = trimmed.slice(5).trim();
+        if(data === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(data);
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if(delta){
+            fullText += delta;
+            cursor.remove();
+            bodyEl.textContent = fullText;
+            bodyEl.appendChild(cursor);
+            document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+          }
+        } catch {}
+      }
+    }
+    cursor.remove();
+    if(fullText){
+      chatState.messages.push({ role: 'assistant', content: fullText });
+      if(chatState.conversationId) await saveMessage('assistant', fullText);
+    } else {
+      bodyEl.textContent = '(agent is ready)';
+      bodyEl.style.color = 'var(--muted)';
+    }
+  } catch(e){
+    cursor.remove();
+    bodyEl.textContent = '(agent updated — couldn\'t fetch intro)';
+    bodyEl.style.color = 'var(--muted)';
+    console.error('Agent ack error:', e);
+  } finally {
+    chatState.streaming = false;
+    chatState.abortController = null;
+    if(sendBtn) sendBtn.disabled = false;
+  }
 }
 
 
