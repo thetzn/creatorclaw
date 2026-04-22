@@ -2019,6 +2019,7 @@ async function runInlineBrandsPreview(){
     brands.forEach((b, i)=>{
       const card = document.createElement('div');
       card.className = 'brand-card' + (i>=2?' is-locked':'');
+      card.setAttribute('data-brand-index', String(i));
       const logo = b.domain
         ? `<img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(b.domain)}&sz=128" alt="${escapeHtml(b.name||'')}">`
         : (b.name||'?')[0].toUpperCase();
@@ -2040,6 +2041,7 @@ async function runInlineBrandsPreview(){
           </div>
         </div>`;
       grid.appendChild(card);
+      if(b.verified_active || b.program_url || b.ig_signal) decorateBrandCard(i, b);
     });
     requestAnimationFrame(()=>revealBubble(body));
   } catch(e){
@@ -2657,6 +2659,7 @@ Real brands. domain is the primary website (no https:// or trailing slash). matc
 }
 
 async function enrichBrandsWithAgent(brands, creatorSummary){
+  console.info('[agent] enriching', brands.length, 'brands');
   await Promise.all(brands.map(async (b, i) => {
     try {
       const res = await fetch(PROXY_URL, {
@@ -2670,9 +2673,13 @@ async function enrichBrandsWithAgent(brands, creatorSummary){
           creatorSummary
         })
       });
-      if(!res.ok) return;
+      if(!res.ok){
+        console.warn('[agent]', b.name, 'HTTP', res.status, await res.text().catch(()=>'')); return;
+      }
       const data = await res.json();
-      if(!data || !data.result) return;
+      if(!data || !data.result){
+        console.warn('[agent]', b.name, 'no result; raw:', data && data.raw); return;
+      }
       Object.assign(b, {
         program_url: data.result.program_url || '',
         verified_active: !!data.result.active,
@@ -2680,15 +2687,15 @@ async function enrichBrandsWithAgent(brands, creatorSummary){
         ig_signal: data.result.ig_signal || null,
         pitch_angle: data.result.pitch_angle || ''
       });
+      console.info('[agent]', b.name, '✓', { active: b.verified_active, program: b.program_url, campaigns: b.recent_campaigns.length });
       decorateBrandCard(i, b);
-    } catch {}
+    } catch(e){ console.warn('[agent]', b.name, 'threw', e); }
   }));
 }
 
 function decorateBrandCard(index, brand){
-  const cards = document.querySelectorAll('#brands-result .brand-card');
-  const card = cards[index];
-  if(!card || card.querySelector('.brand-enriched')) return;
+  const cards = document.querySelectorAll(`.brand-card[data-brand-index="${index}"]`);
+  if(!cards.length) return;
   const verified = brand.verified_active;
   const programUrl = brand.program_url;
   const igSignal = brand.ig_signal;
@@ -2699,11 +2706,14 @@ function decorateBrandCard(index, brand){
   if(campaignCount) parts.push(`<span class="brand-enriched-pill">${campaignCount} recent campaign${campaignCount>1?'s':''}</span>`);
   if(igSignal && igSignal.followers) parts.push(`<span class="brand-enriched-pill">${formatCount(igSignal.followers)} IG · ${igSignal.engagement_rate_pct||0}% eng</span>`);
   if(!parts.length) return;
-  const el = document.createElement('div');
-  el.className = 'brand-enriched fade-up';
-  el.innerHTML = parts.join('');
-  const reasons = card.querySelector('.brand-reasons');
-  (reasons || card).insertAdjacentElement('afterend', el);
+  cards.forEach(card => {
+    if(card.querySelector('.brand-enriched')) return;
+    const el = document.createElement('div');
+    el.className = 'brand-enriched fade-up';
+    el.innerHTML = parts.join('');
+    const reasons = card.querySelector('.brand-reasons');
+    (reasons || card).insertAdjacentElement('afterend', el);
+  });
 }
 
 function formatCount(n){
@@ -2723,6 +2733,7 @@ function renderBrands(brands){
   brands.forEach((b,i)=>{
     const card=document.createElement('div');
     card.className='brand-card fade-up'+(i>=3?' is-locked':'');
+    card.setAttribute('data-brand-index', String(i));
     card.style.animationDelay=(i*80)+'ms';
     card.innerHTML=`
       <div class="brand-head">
