@@ -2883,7 +2883,7 @@ function openSchedule(encodedTitle){
       platforms.map(p =>
         '<button type="button" class="modal-cancel-btn schedule-plat-btn'+(p===defaultPlat?' active':'')+'" '+
         'data-plat="'+esc(p)+'" onclick="pickSchedulePlat(this)" '+
-        'style="padding:12px 6px;min-width:0;white-space:nowrap;'+(p===defaultPlat?'border-color:var(--gold);color:var(--gold)':'')+'">'+esc(p)+'</button>'
+        'style="padding:11px 4px;min-width:0;font-size:11px;letter-spacing:0.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'+(p===defaultPlat?'border-color:var(--gold);color:var(--gold)':'')+'">'+esc(p)+'</button>'
       ).join('')+
     '</div>'+
     '<div class="modal-row">'+
