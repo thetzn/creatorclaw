@@ -1084,120 +1084,161 @@ function postsCadence(posts) {
   return 'Occasionally';
 }
 
-// ── Agent: brand research ────────────────────────────────────────────────────
-// Takes { brand, creatorSummary } and returns a grounded brand-fit brief
-// using web_search constrained to industry press + the brand's own domain.
-const BRAND_RESEARCH_DOMAINS = [
-  'tubefilter.com', 'passionfruit.com', 'adweek.com', 'adage.com',
-  'marketingbrew.com', 'modernretail.co', 'glossy.co',
-  'businessoffashion.com', 'digiday.com', 'thedrum.com',
-  'prnewswire.com', 'businesswire.com',
-  'creatoreconomy.so', 'influencermarketinghub.com', 'later.com'
+// ── Brand program discovery (deterministic, no LLM) ─────────────────────────
+// Given { brand, brandDomain, brandHandle }, returns the same shape the
+// frontend already expects from the old AI agent route:
+//   { result: { active, program_url, recent_campaigns, ig_signal, ... } }
+// Strategy is a 3-tier cascade:
+//   1. Parallel GETs on common creator-program paths on the brand's domain.
+//   2. If nothing hits: scrape homepage anchors, look for program-ish links.
+//   3. If still nothing: scan sitemap.xml for URL slugs with program keywords.
+// IG signal runs in parallel with program discovery.
+
+const PROGRAM_PATHS = [
+  '/pages/athletes', '/pages/creators', '/pages/ambassadors', '/pages/squad',
+  '/pages/partners', '/pages/community', '/pages/collective',
+  '/creator-program', '/creators', '/ambassadors', '/athletes',
+  '/partnerships', '/partners', '/partner-with-us',
+  '/affiliate', '/affiliates', '/influencer', '/influencers',
+  '/community', '/collective', '/squad', '/join-us',
+  '/brand-ambassadors', '/about/partnerships',
 ];
+const PROGRAM_KEYWORDS = /(ambassador|creator|partner|affiliate|collective|squad|athlete|collab|community|influencer)/i;
+const TIMEOUT_PATH = 4500;
+const TIMEOUT_HOME = 6000;
 
 async function runAgentBrandResearch(body, env, origin, allowed) {
   const brand = String(body.brand || '').trim();
-  const creatorSummary = String(body.creatorSummary || '').trim();
   if (!brand) return json({ error: { message: 'brand required' } }, 400, origin, allowed);
-  console.log('[agent]', brand, 'start');
+  const brandDomain = String(body.brandDomain || '').trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const brandHandle = String(body.brandHandle || '').trim().replace(/^@/, '');
+  console.log('[brand]', brand, 'start domain=', brandDomain, 'handle=', brandHandle);
 
-  const brandDomain = String(body.brandDomain || '').trim();
-  const brandHandleHint = String(body.brandHandle || '').trim().replace(/^@/, '');
-  const preferredDomains = [...BRAND_RESEARCH_DOMAINS, ...(brandDomain ? [brandDomain] : [])];
+  const [program, igSignal] = await Promise.all([
+    brandDomain ? discoverBrandProgram(brandDomain).catch(e => { console.log('[brand]', brand, 'discover err', e && e.message); return null; }) : null,
+    brandHandle ? fetchBrandIgSignal(brandHandle, env).catch(e => { console.log('[brand]', brand, 'ig err', e && e.message); return null; }) : null,
+  ]);
 
-  // web_search_preview doesn't accept filters; we steer source preference via the
-  // developer prompt instead.
-  const tools = [
-    { type: 'web_search_preview' },
-    {
-      type: 'function',
-      name: 'get_brand_ig_signal',
-      description: "Fetch the brand's Instagram profile signal — followers, engagement rate, posting cadence, recent post stats. Use this to verify the brand's scale and current activity before recommending them as a fit.",
-      parameters: {
-        type: 'object',
-        properties: {
-          brand_handle: { type: 'string', description: 'Instagram handle of the brand without the @ (e.g. "gymshark")' },
-        },
-        required: ['brand_handle'],
-      },
+  const igOk = igSignal && !igSignal.error ? igSignal : null;
+  console.log('[brand]', brand, 'done program=', program?.tier, 'url=', program?.url, 'ig=', igOk?.followers);
+
+  return json({
+    result: {
+      active: !!program?.url,
+      program_url: program?.url || '',
+      program_title: program?.title || '',
+      recent_partners: [],
+      recent_campaigns: [],
+      ig_signal: igOk ? {
+        followers: igOk.followers,
+        engagement_rate_pct: igOk.engagement_rate_pct,
+        recent_post_count: igOk.recent_post_count,
+      } : null,
+      pitch_angle: '',
+      confidence: program?.tier === 1 ? 'high' : program?.tier ? 'medium' : 'low',
     },
-  ];
+  }, 200, origin, allowed);
+}
 
-  let input = [
-    {
-      role: 'developer',
-      content: `You are a creator-marketing analyst. For the given brand, use web_search to find: (1) whether they run an active creator/ambassador program, (2) recent creator partnerships or campaigns in the last 12 months, (3) the partnerships contact or program URL if public. Prefer these sources when relevant: ${preferredDomains.join(', ')}. Also call get_brand_ig_signal once to verify the brand's IG scale and recency. Return strict JSON matching this shape and nothing else:
-{"active":true|false,"program_url":"","recent_partners":[{"name":"","context":""}],"recent_campaigns":[{"title":"","date":"","source":""}],"ig_signal":{"followers":0,"engagement_rate_pct":0,"recent_post_count":0},"pitch_angle":"","confidence":"high|medium|low"}`,
-    },
-    {
-      role: 'user',
-      content: `Brand: ${brand}${brandDomain ? ` (${brandDomain})` : ''}${brandHandleHint ? ` IG: @${brandHandleHint}` : ''}\n\nCreator we're pitching on behalf of:\n${creatorSummary || '(not provided)'}`,
-    },
-  ];
+async function discoverBrandProgram(domain) {
+  const base = `https://${domain}`;
 
-  const MAX_ITER = 4;
-  let previousResponseId = null;
+  // Tier 1: parallel GETs on known paths. We only accept a hit if the final
+  // URL (after redirects) still contains a non-root path — catches Shopify
+  // soft-404s that 200 but redirect to root.
+  const tier1 = await Promise.all(
+    PROGRAM_PATHS.map(path =>
+      fetchWithTimeout(base + path, { redirect: 'follow' }, TIMEOUT_PATH)
+        .then(r => {
+          if (!r || !r.ok) return null;
+          let finalPath = '';
+          try { finalPath = new URL(r.url).pathname; } catch { return null; }
+          if (finalPath === '/' || finalPath === '') return null;
+          return r.text().then(html => ({
+            url: r.url,
+            title: extractTitle(html),
+            tier: 1,
+          }));
+        })
+        .catch(() => null)
+    )
+  );
+  const t1Hit = tier1.find(Boolean);
+  if (t1Hit) return t1Hit;
 
-  for (let iter = 0; iter < MAX_ITER; iter++) {
-    const requestBody = {
-      model: MODEL_SEARCH,
-      tools,
-      input,
-    };
-    if (previousResponseId) requestBody.previous_response_id = previousResponseId;
-
-    const res = await fetch(RESPONSES_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + env.API_KEY,
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      console.log('[agent]', brand, 'OpenAI error', res.status, JSON.stringify(data).slice(0, 500));
-      return json(data, res.status, origin, allowed);
-    }
-
-    previousResponseId = data.id;
-    const output = data.output || [];
-    const functionCalls = output.filter(o => o.type === 'function_call');
-    console.log('[agent]', brand, 'iter', iter, 'output types:', output.map(o => o.type).join(','), 'function_calls:', functionCalls.length);
-
-    if (functionCalls.length === 0) {
-      const textOutput = output.find(o => o.type === 'message');
-      const text = textOutput?.content?.find(c => c.type === 'output_text')?.text || '';
-      let parsed = null;
-      try { parsed = JSON.parse(text); } catch (e) { console.log('[agent]', brand, 'JSON parse failed; text:', text.slice(0, 300)); }
-      console.log('[agent]', brand, 'done iters=', iter + 1, 'parsed=', !!parsed);
-      return json({ raw: text, result: parsed, iterations: iter + 1, usage: data.usage || null }, 200, origin, allowed);
-    }
-
-    // Execute the function calls; only the outputs go in the next input.
-    input = [];
-    for (const call of functionCalls) {
-      let result;
-      try {
-        const args = call.arguments ? JSON.parse(call.arguments) : {};
-        if (call.name === 'get_brand_ig_signal') {
-          result = await fetchBrandIgSignal(args.brand_handle, env);
-        } else {
-          result = { error: 'unknown tool: ' + call.name };
-        }
-      } catch (e) {
-        result = { error: String(e && e.message || e) };
+  // Tier 2: homepage link-grep.
+  const home = await fetchWithTimeout(base + '/', { redirect: 'follow' }, TIMEOUT_HOME);
+  if (home && home.ok) {
+    const html = await home.text().catch(() => '');
+    const candidates = extractProgramLinks(html, base);
+    for (const c of candidates.slice(0, 4)) {
+      const r = await fetchWithTimeout(c.url, { redirect: 'follow' }, TIMEOUT_PATH).catch(() => null);
+      if (r && r.ok) {
+        let finalPath = '';
+        try { finalPath = new URL(r.url).pathname; } catch { continue; }
+        if (finalPath === '/' || finalPath === '') continue;
+        const subHtml = await r.text().catch(() => '');
+        return { url: r.url, title: extractTitle(subHtml) || c.text, tier: 2 };
       }
-      input.push({
-        type: 'function_call_output',
-        call_id: call.call_id,
-        output: JSON.stringify(result),
-      });
     }
   }
 
-  return json({ error: { message: 'agent loop hit max iterations' } }, 500, origin, allowed);
+  // Tier 3: sitemap.xml scan.
+  const sm = await fetchWithTimeout(base + '/sitemap.xml', {}, TIMEOUT_PATH).catch(() => null);
+  if (sm && sm.ok) {
+    const xml = await sm.text().catch(() => '');
+    const urls = Array.from(xml.matchAll(/<loc>([^<]+)<\/loc>/gi)).map(m => m[1]);
+    const hit = urls.find(u => PROGRAM_KEYWORDS.test(u));
+    if (hit) return { url: hit, title: '', tier: 3 };
+  }
+
+  return null;
+}
+
+async function fetchWithTimeout(url, opts, ms) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, {
+      ...opts,
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; CreatorClaw-BrandProbe/1.0; +https://creatorclaw.co)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        ...(opts.headers || {}),
+      },
+    });
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function extractTitle(html) {
+  const m = /<title[^>]*>([^<]+)<\/title>/i.exec(html || '');
+  return m ? m[1].trim().slice(0, 120) : '';
+}
+
+function extractProgramLinks(html, base) {
+  const re = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]{1,140}?)<\/a>/gi;
+  const seen = new Set();
+  const hits = [];
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const href = m[1];
+    const text = m[2].replace(/<[^>]+>/g, '').trim().slice(0, 80);
+    if (!PROGRAM_KEYWORDS.test(href) && !PROGRAM_KEYWORDS.test(text)) continue;
+    if (href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) continue;
+    let url;
+    try { url = new URL(href, base).href.split('#')[0]; } catch { continue; }
+    if (!url.startsWith(base)) continue;
+    if (seen.has(url)) continue;
+    seen.add(url);
+    hits.push({ url, text });
+    if (hits.length >= 6) break;
+  }
+  return hits;
 }
 
 async function fetchBrandIgSignal(rawHandle, env) {
