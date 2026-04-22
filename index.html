@@ -2269,13 +2269,12 @@ async function sendChatMessage(){
 }
 
 
-// ── Kimi API call (via Worker proxy) ─────────────────────────────────────────
-async function kimiChat(systemPrompt, userPrompt){
+// ── LLM call via Worker proxy (model selected server-side: gpt-4o-mini) ─────
+async function chatLLM(systemPrompt, userPrompt){
   const res=await fetch(PROXY_URL,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
-      model:'moonshot-v1-8k',
       temperature:0.7,
       messages:[
         {role:'system',content:systemPrompt},
@@ -2491,7 +2490,7 @@ pillars p must sum to 100. Keep 4-5 pillars.`;
   const user=`${stats}\n\nPersona JSON:`;
 
   try {
-    const raw=await kimiChat(system,user);
+    const raw=await chatLLM(system,user);
     const core=parseJSON(raw);
     const data=expandPersona(core);
     // Hard override AI-generated values with real scraped data so nothing hallucinates
@@ -2642,7 +2641,7 @@ Real brands. domain is the primary website (no https:// or trailing slash). matc
   const user=`${personaSummary}\n\n8 brand matches:`;
 
   try {
-    const raw=await kimiChat(system,user);
+    const raw=await chatLLM(system,user);
     const brands=parseJSON(raw);
     stopLoading('brands');
     document.getElementById('brands-loading').classList.add('hidden');
@@ -2770,7 +2769,7 @@ trend: hot/rising/steady/new. platform: Both/Instagram/TikTok/YouTube. cat: fitn
   const user=`${personaSummary}\n\n10 content ideas:`;
 
   try {
-    const raw=await kimiChat(system,user);
+    const raw=await chatLLM(system,user);
     const ideas=parseJSON(raw);
     stopLoading('pulse');
     document.getElementById('pulse-loading').classList.add('hidden');
@@ -2930,7 +2929,7 @@ async function draftScript(encodedTitle){
   const personaLine=`Creator voice: ${p.name||''} — ${p.bio||''}. Vibes: ${(p.vibes||[]).join(', ')}. Content pillars: ${(p.pillars||[]).map(x=>x.l).join(', ')}.`;
   const user=`${personaLine}\nContent idea: "${idea.title}". Format: ${idea.format||''}. Platform: ${idea.platform||''}. Hook context: ${idea.hook||''}. Tags: ${(idea.tags||[]).join(' ')}${idea.sound?`. Suggested audio: ${idea.sound}`:''}.\n\nScript JSON:`;
   try {
-    const raw=await kimiChat(sys,user);
+    const raw=await chatLLM(sys,user);
     const script=parseJSON(raw);
     const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const fullText=`HOOK (0-3s):\n${script.hook}\n\nBODY:\n${script.body}\n\nCTA:\n${script.cta}\n\nEstimated length: ${script.length}`;

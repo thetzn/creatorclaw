@@ -166,7 +166,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
 
   <div class="doc-section">
     <h2>3. AI Processing &amp; Third-Party APIs</h2>
-    <p>CreatorClaw uses artificial intelligence models, including services provided by third-party API providers (such as Moonshot AI / Kimi), to analyze your social media data and generate persona reports, brand matches, and content ideas. By using the Service, you acknowledge that your data (including social profile information you provide) may be transmitted to these third-party AI services for processing.</p>
+    <p>CreatorClaw uses artificial intelligence models, including services provided by third-party API providers (such as OpenAI), to analyze your social media data and generate persona reports, brand matches, and content ideas. By using the Service, you acknowledge that your data (including social profile information you provide) may be transmitted to these third-party AI services for processing.</p>
     <p>These third-party providers have their own privacy policies, and we encourage you to review them. We take reasonable steps to minimize what data is shared and to use providers that maintain appropriate security standards.</p>
   </div>
 
@@ -1065,7 +1065,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     _raw: { followers, following, posts: totalPosts, avgLikes, avgComments, private: !!p.private, actorFields: Object.keys(p).slice(0, 30) },
   };
 
-  // Return in the same shape the frontend expects from kimiChat
+  // Return in the same shape the frontend expects from chatLLM
   return json({
     choices: [{ message: { role: 'assistant', content: JSON.stringify(profile) } }],
   }, 200, origin, allowed);
@@ -1102,11 +1102,12 @@ async function runAgentBrandResearch(body, env, origin, allowed) {
 
   const brandDomain = String(body.brandDomain || '').trim();
   const brandHandleHint = String(body.brandHandle || '').trim().replace(/^@/, '');
-  const domains = [...BRAND_RESEARCH_DOMAINS];
-  if (brandDomain) domains.push(brandDomain);
+  const preferredDomains = [...BRAND_RESEARCH_DOMAINS, ...(brandDomain ? [brandDomain] : [])];
 
+  // web_search_preview doesn't accept filters; we steer source preference via the
+  // developer prompt instead.
   const tools = [
-    { type: 'web_search_preview', filters: { allowed_domains: domains } },
+    { type: 'web_search_preview' },
     {
       type: 'function',
       name: 'get_brand_ig_signal',
@@ -1124,7 +1125,7 @@ async function runAgentBrandResearch(body, env, origin, allowed) {
   let input = [
     {
       role: 'developer',
-      content: `You are a creator-marketing analyst. For the given brand, use web_search to find: (1) whether they run an active creator/ambassador program, (2) recent creator partnerships or campaigns in the last 12 months, (3) the partnerships contact or program URL if public. Also call get_brand_ig_signal once to verify the brand's IG scale and recency. Return strict JSON matching this shape and nothing else:
+      content: `You are a creator-marketing analyst. For the given brand, use web_search to find: (1) whether they run an active creator/ambassador program, (2) recent creator partnerships or campaigns in the last 12 months, (3) the partnerships contact or program URL if public. Prefer these sources when relevant: ${preferredDomains.join(', ')}. Also call get_brand_ig_signal once to verify the brand's IG scale and recency. Return strict JSON matching this shape and nothing else:
 {"active":true|false,"program_url":"","recent_partners":[{"name":"","context":""}],"recent_campaigns":[{"title":"","date":"","source":""}],"ig_signal":{"followers":0,"engagement_rate_pct":0,"recent_post_count":0},"pitch_angle":"","confidence":"high|medium|low"}`,
     },
     {
