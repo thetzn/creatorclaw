@@ -1099,6 +1099,7 @@ async function runAgentBrandResearch(body, env, origin, allowed) {
   const brand = String(body.brand || '').trim();
   const creatorSummary = String(body.creatorSummary || '').trim();
   if (!brand) return json({ error: { message: 'brand required' } }, 400, origin, allowed);
+  console.log('[agent]', brand, 'start');
 
   const brandDomain = String(body.brandDomain || '').trim();
   const brandHandleHint = String(body.brandHandle || '').trim().replace(/^@/, '');
@@ -1155,17 +1156,22 @@ async function runAgentBrandResearch(body, env, origin, allowed) {
     });
 
     const data = await res.json();
-    if (!res.ok) return json(data, res.status, origin, allowed);
+    if (!res.ok) {
+      console.log('[agent]', brand, 'OpenAI error', res.status, JSON.stringify(data).slice(0, 500));
+      return json(data, res.status, origin, allowed);
+    }
 
     previousResponseId = data.id;
     const output = data.output || [];
     const functionCalls = output.filter(o => o.type === 'function_call');
+    console.log('[agent]', brand, 'iter', iter, 'output types:', output.map(o => o.type).join(','), 'function_calls:', functionCalls.length);
 
     if (functionCalls.length === 0) {
       const textOutput = output.find(o => o.type === 'message');
       const text = textOutput?.content?.find(c => c.type === 'output_text')?.text || '';
       let parsed = null;
-      try { parsed = JSON.parse(text); } catch {}
+      try { parsed = JSON.parse(text); } catch (e) { console.log('[agent]', brand, 'JSON parse failed; text:', text.slice(0, 300)); }
+      console.log('[agent]', brand, 'done iters=', iter + 1, 'parsed=', !!parsed);
       return json({ raw: text, result: parsed, iterations: iter + 1, usage: data.usage || null }, 200, origin, allowed);
     }
 
