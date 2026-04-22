@@ -2535,15 +2535,21 @@ function expandPersona(c, igData){
     :isBeauty
     ?[{age:'13-17',pct:10},{age:'18-24',pct:38},{age:'25-34',pct:34},{age:'35-44',pct:13},{age:'45+',pct:5}]
     :[{age:'13-17',pct:8},{age:'18-24',pct:30},{age:'25-34',pct:36},{age:'35-44',pct:18},{age:'45+',pct:8}];
-  // Locations come from real tagged-location data on the creator's posts when
-  // available. Falls back to a generic distribution if no posts tagged locations.
+  // Locations: prefer tagged-location data (need at least 2 distinct tags to
+  // trust it as a distribution). Otherwise fall back to LLM-inferred base city
+  // (from bio / hashtags / captions). If neither, return empty — the card
+  // will show "—" instead of faking Los Angeles for everyone.
   const scrapedLocs = igData && Array.isArray(igData.topLocations) ? igData.topLocations : [];
-  let locations;
-  if(scrapedLocs.length){
+  const base = igData && igData.baseLocation && (igData.baseLocation.city || igData.baseLocation.region) ? igData.baseLocation : null;
+  let locations = [];
+  if(scrapedLocs.length >= 2){
     const total = scrapedLocs.reduce((s,l)=>s+(l.count||0),0) || 1;
     locations = scrapedLocs.slice(0,5).map(l=>({city:l.city, pct:Math.round((l.count/total)*100)}));
-  } else {
-    locations = [{city:'Los Angeles',pct:17},{city:'New York',pct:13},{city:'London',pct:9},{city:'Miami',pct:7},{city:'Chicago',pct:6}];
+  } else if(base){
+    const label = [base.city, base.region].filter(Boolean).join(', ') || base.country || '';
+    if(label) locations = [{city: label, pct: 0, inferred: true}];
+  } else if(scrapedLocs.length === 1){
+    locations = [{city: scrapedLocs[0].city, pct: 0}];
   }
   // Derive radar from score
   const s=c.score||80;
@@ -2597,7 +2603,7 @@ function buildCharts(d){
   const validPillars=(d.pillars||[]).filter(p=>p&&p.l&&Number(p.p)>0);
   const pillarsData=validPillars.length ? validPillars : [{l:'Lifestyle',p:40,e:'◆'},{l:'Fashion',p:25,e:'◇'},{l:'Beauty',p:20,e:'✦'},{l:'Wellness',p:15,e:'○'}];
   const ageData=(d.age||[]).filter(a=>Number(a.pct)>0).length ? d.age : [{age:'18-24',pct:32},{age:'25-34',pct:38},{age:'35-44',pct:18},{age:'45+',pct:12}];
-  const locData=(d.locations||[]).length ? d.locations : [{city:'Los Angeles',pct:17},{city:'New York',pct:13},{city:'London',pct:9}];
+  const locData=d.locations||[];
   const radarData=d.radar||[];
 
   const pc=document.getElementById('pillars-container');

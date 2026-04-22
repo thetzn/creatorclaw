@@ -1085,7 +1085,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   ].filter(Boolean).join('\n\n');
 
   // 5. Ask OpenAI to interpret categories / vibes / themes
-  let interpretation = { categories: [], vibes: [], topCategory: null, recentThemes: [], audienceHints: null, brandAffinities: [] };
+  let interpretation = { categories: [], vibes: [], topCategory: null, recentThemes: [], audienceHints: null, brandAffinities: [], baseLocation: null };
   if (captionsBlock || topHashtags.length) {
     const interpRes = await fetch(CHAT_URL, {
       method: 'POST',
@@ -1096,7 +1096,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: 'You analyze Instagram creators from structured data + captions + visual alt-text. Ground every answer in the supplied data — do NOT invent details. Return ONLY valid JSON.' },
-          { role: 'user', content: `Creator profile data:\n\n${analysisContext}\n\nReturn this JSON object (and nothing else):\n{\n  "topCategory": "primary category label, 1-3 words",\n  "categories": [{"name":"","pct":0}],\n  "vibes": ["",""],\n  "recentThemes": ["",""],\n  "audienceHints": "one-sentence read of who their audience likely is, inferred strictly from content clues (language, hashtags, locations)",\n  "brandAffinities": ["","",""]\n}\n\nRules:\n- 4-5 categories with pct values summing to 100.\n- Exactly 5 vibes (adjectives or short phrases, Title Case).\n- 4-6 recentThemes (what they post about in plain language).\n- brandAffinities: up to 5 brands they mention or are clearly adjacent to (from mentions, hashtags, or captions). Exclude the creator's own brand.\n- audienceHints: 1 sentence, <180 chars, no generic fluff.` }
+          { role: 'user', content: `Creator profile data:\n\n${analysisContext}\n\nReturn this JSON object (and nothing else):\n{\n  "topCategory": "primary category label, 1-3 words",\n  "categories": [{"name":"","pct":0}],\n  "vibes": ["",""],\n  "recentThemes": ["",""],\n  "audienceHints": "one-sentence read of who their audience likely is, inferred strictly from content clues (language, hashtags, locations)",\n  "brandAffinities": ["","",""],\n  "baseLocation": {"city":"","region":"","country":"","confidence":"high|medium|low"}\n}\n\nRules:\n- 4-5 categories with pct values summing to 100.\n- Exactly 5 vibes (adjectives or short phrases, Title Case).\n- 4-6 recentThemes (what they post about in plain language).\n- brandAffinities: up to 5 brands they mention or are clearly adjacent to (from mentions, hashtags, or captions). Exclude the creator's own brand.\n- audienceHints: 1 sentence, <180 chars, no generic fluff.\n- baseLocation: the creator's likely home base — infer from bio text first ("// Texas", "Austin TX", "🇬🇧"), then tagged locations, then location hashtags (#austintx, #nyc), then caption cues. If you genuinely cannot tell, set all fields to empty strings and confidence to "low". DO NOT guess a city just because it is common (no default to Los Angeles / New York / London).` }
         ],
       }),
     });
@@ -1152,6 +1152,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     verified: !!p.verified,
     audienceHints: interpretation.audienceHints || null,
     brandAffinities: interpretation.brandAffinities || [],
+    baseLocation: interpretation.baseLocation || null,
     // Deterministic signals pulled straight from Apify — the frontend now
     // uses these instead of the hardcoded fake arrays in expandPersona.
     topHashtags: topHashtags.map(([name, count]) => ({ name, count })),
