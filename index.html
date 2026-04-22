@@ -76,7 +76,10 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 /* ── Chat view ──────────────────────────────────────────────────────────── */
 #chat-view{position:fixed;inset:0;display:flex;background:var(--bg);z-index:40}
 #chat-view.hidden{display:none}
-.chat-sidebar{width:260px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:transform 0.3s ease}
+.chat-sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;z-index:60;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;transform:translateX(-100%);box-shadow:4px 0 24px rgba(0,0,0,0.3);transition:transform 0.3s ease}
+.chat-sidebar.open{transform:translateX(0)}
+.chat-sidebar-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:55;display:none}
+.chat-sidebar-backdrop.open{display:block}
 .chat-sidebar-head{padding:16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
 .chat-sidebar-head .logo-mark{width:22px;height:14px}
 .chat-sidebar-head .logo-text{font-size:14px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase}
@@ -98,8 +101,12 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 .chat-signout-btn:hover{color:var(--gold)}
 .chat-main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
 .chat-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
-.chat-hamburger{display:none;background:transparent;border:none;color:var(--text);cursor:pointer;padding:4px}
+.chat-hamburger{display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:var(--text);cursor:pointer;padding:4px}
 .chat-hamburger svg{width:22px;height:22px}
+.header-hamburger{display:none;align-items:center;justify-content:center;background:transparent;border:none;color:var(--text);cursor:pointer;padding:4px}
+.header-hamburger svg{width:22px;height:22px}
+body.in-tool .header-hamburger{display:flex}
+body.in-tool .nav{display:none}
 .chat-title{font-size:14px;font-weight:500;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chat-theme-toggle{background:transparent;border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--muted);cursor:pointer;display:flex}
 .chat-theme-toggle svg{width:14px;height:14px}
@@ -132,8 +139,10 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 .chat-hint{text-align:center;font-size:10px;color:var(--muted2);margin-top:8px;letter-spacing:0.05em}
 
 /* Onboarding (signed-out chat-view) */
-body.logged-out #chat-view .chat-sidebar,
-body.logged-out #chat-view .chat-hamburger{display:none}
+body.logged-out .chat-sidebar,
+body.logged-out .chat-sidebar-backdrop,
+body.logged-out .chat-hamburger,
+body.logged-out .header-hamburger{display:none !important}
 body.logged-out #chat-view .chat-main{border-left:0}
 body.logged-out #chat-view .chat-composer-inner{opacity:0.5;pointer-events:none;filter:grayscale(0.2)}
 body.logged-out #chat-view #chat-input{cursor:not-allowed}
@@ -182,13 +191,7 @@ body.logged-out #chat-view #chat-input{cursor:not-allowed}
 .chat-msg-body .inline-signin .ig-btn svg{width:18px;height:18px}
 @media(max-width:560px){.chat-msg-body .inline-picker,.chat-msg-body .inline-preview-grid{grid-template-columns:1fr}}
 
-/* Mobile: sidebar becomes overlay */
 @media(max-width:768px){
-  .chat-sidebar{position:fixed;left:0;top:0;bottom:0;z-index:60;transform:translateX(-100%);box-shadow:4px 0 24px rgba(0,0,0,0.3)}
-  .chat-sidebar.open{transform:translateX(0)}
-  .chat-sidebar-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:55;display:none}
-  .chat-sidebar-backdrop.open{display:block}
-  .chat-hamburger{display:block}
   .chat-suggestions{grid-template-columns:1fr}
   .chat-messages{padding:16px 14px}
   .chat-composer{padding:12px 14px}
@@ -548,6 +551,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 
 <div class="header">
   <div class="header-inner">
+    <button class="header-hamburger" onclick="openChatSidebar()" aria-label="Open menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
     <div class="logo" onclick="if(!document.body.classList.contains('logged-out')) showChatView()" style="cursor:pointer">
       <img class="logo-mark" data-crab-img alt="CreatorClaw">
       <span class="logo-text gold-text">CreatorClaw</span>
@@ -555,7 +559,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
     <div class="nav" id="nav">
       <button class="nav-btn" id="nav-back-to-chat" onclick="showChatView()" style="display:none;color:var(--gold)">← Chat</button>
       <button class="nav-btn active" data-tab="connect" onclick="switchTab('connect')">Connect</button>
-      <button class="nav-btn" data-tab="persona" onclick="switchTab('persona')">Persona</button>
+      <button class="nav-btn" data-tab="persona" onclick="switchTab('persona')">Analytics</button>
       <button class="nav-btn" data-tab="pulse" onclick="switchTab('pulse')">Create</button>
       <button class="nav-btn" data-tab="brands" onclick="switchTab('brands')">Pitch</button>
       <button class="nav-btn hidden" id="nav-accounts" data-tab="accounts" onclick="switchTab('accounts')">Connect</button>
@@ -601,8 +605,8 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
   </div>
 
   <div class="cta-banner hidden" id="both-banner">
-    <span>Platforms connected — head to <span class="hl">Persona</span> to build your media kit.</span>
-    <button class="cta-btn" onclick="switchTab('persona')">Build Persona</button>
+    <span>Platforms connected — head to <span class="hl">Analytics</span> to see your media kit.</span>
+    <button class="cta-btn" onclick="switchTab('persona')">Open Analytics</button>
   </div>
 </div>
 
@@ -715,10 +719,9 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 
 </div>
 
-<!-- CHAT VIEW (signed-in primary screen) -->
-<div id="chat-view" class="hidden">
-  <div class="chat-sidebar-backdrop" id="chat-sidebar-backdrop" onclick="closeChatSidebar()"></div>
-  <aside class="chat-sidebar" id="chat-sidebar">
+<!-- Shared side menu (used by chat view AND tool views) -->
+<div class="chat-sidebar-backdrop" id="chat-sidebar-backdrop" onclick="closeChatSidebar()"></div>
+<aside class="chat-sidebar" id="chat-sidebar">
     <div class="chat-sidebar-head">
       <img class="logo-mark" data-crab-img alt="">
       <span class="logo-text gold-text">CreatorClaw</span>
@@ -731,8 +734,8 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
     <div class="chat-tools">
       <div class="chat-section-label" style="padding:0 8px 6px">Tools</div>
       <button class="chat-tool-btn" id="ig-connect-btn" onclick="connectInstagram()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></svg><span id="ig-connect-label">Connect Instagram</span></button>
-      <button class="chat-tool-btn" onclick="openTool('persona')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg>Persona</button>
-      <button class="chat-tool-btn" onclick="openTool('pulse')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>Create ideas</button>
+      <button class="chat-tool-btn" onclick="openTool('persona')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg>Analytics</button>
+      <button class="chat-tool-btn" onclick="openTool('pulse')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>Create</button>
       <button class="chat-tool-btn" onclick="openTool('brands')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6"/><path d="M15 15l3 3-3 3"/><path d="M18 18h-4"/></svg>Pitch brands</button>
       <button class="chat-tool-btn" onclick="openAgentSettings()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Edit agent</button>
     </div>
@@ -741,7 +744,10 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <div class="chat-user-name" id="chat-user-name">—</div>
       <button class="chat-signout-btn" onclick="signOut()" title="Sign out">↩</button>
     </div>
-  </aside>
+</aside>
+
+<!-- CHAT VIEW (signed-in primary screen) -->
+<div id="chat-view" class="hidden">
   <main class="chat-main">
     <div class="chat-header">
       <button class="chat-hamburger" onclick="openChatSidebar()" aria-label="Open menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
@@ -1454,6 +1460,7 @@ function showChatView(){
   document.querySelector('.header')?.classList.add('hidden');
   document.querySelector('.main')?.classList.add('hidden');
   document.getElementById('chat-view').classList.remove('hidden');
+  document.body.classList.remove('in-tool');
   // Sync theme icon in chat header
   const chatIcon = document.getElementById('chat-theme-icon');
   const mainIcon = document.getElementById('theme-icon');
@@ -1467,6 +1474,7 @@ function hideChatView(){
   document.getElementById('chat-view').classList.add('hidden');
   document.querySelector('.header')?.classList.remove('hidden');
   document.querySelector('.main')?.classList.remove('hidden');
+  document.body.classList.add('in-tool');
 }
 
 function openTool(tab){
@@ -2911,6 +2919,8 @@ function confirmSchedule(encodedTitle){
     stored[title] = { date, time, plat, savedAt: new Date().toISOString() };
     localStorage.setItem('cc_schedule', JSON.stringify(stored));
   } catch(e){ console.warn('Schedule save to localStorage failed', e); }
+  // Trigger .ics download so it lands in the user's real calendar app.
+  downloadICSEvent(title, date, time, plat);
   // Update any matching Schedule buttons currently in the DOM
   document.querySelectorAll('.pulse-card').forEach(card => {
     const cardTitle = card.querySelector('.pulse-idea-title')?.textContent;
@@ -2924,6 +2934,48 @@ function confirmSchedule(encodedTitle){
     }
   });
   closeModal();
+}
+
+function icsEscape(s){
+  return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
+}
+
+function downloadICSEvent(title, date, time, plat){
+  try {
+    const start = new Date(date + 'T' + time);
+    if(isNaN(start.getTime())) return;
+    const end = new Date(start.getTime() + 30 * 60 * 1000);
+    const pad = n => String(n).padStart(2,'0');
+    const fmt = d => d.getUTCFullYear() + pad(d.getUTCMonth()+1) + pad(d.getUTCDate()) + 'T' + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + '00Z';
+    const uid = 'cc-' + Date.now() + '-' + Math.random().toString(36).slice(2,10) + '@creatorclaw.co';
+    const summary = icsEscape(title + ' — ' + plat);
+    const desc = icsEscape('Post on ' + plat + ': ' + title + '\nScheduled via CreatorClaw.');
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//CreatorClaw//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      'UID:' + uid,
+      'DTSTAMP:' + fmt(new Date()),
+      'DTSTART:' + fmt(start),
+      'DTEND:' + fmt(end),
+      'SUMMARY:' + summary,
+      'DESCRIPTION:' + desc,
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n');
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (title.replace(/[^a-z0-9]+/gi,'-').slice(0,40) || 'creatorclaw-event') + '.ics';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  } catch(e){ console.warn('ICS generation failed', e); }
 }
 
 async function draftScript(encodedTitle){
