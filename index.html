@@ -376,6 +376,11 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 .brand-reasons{margin:16px 0}
 .brand-reason{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin-bottom:6px}
 .brand-reason .chk{color:var(--gold);font-weight:400}
+.brand-enriched{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+.brand-enriched-pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;letter-spacing:0.04em;padding:4px 9px;border-radius:999px;background:var(--card2);border:1px solid var(--border2);color:var(--muted);text-decoration:none;line-height:1}
+.brand-enriched-pill.verified{color:var(--green);border-color:rgba(107,158,107,0.4)}
+.brand-enriched-pill.link{color:var(--gold);border-color:var(--gold-border);cursor:pointer}
+.brand-enriched-pill.link:hover{background:var(--card)}
 .brand-footer{display:flex;align-items:center;justify-content:space-between;padding-top:16px;border-top:1px solid var(--border)}
 .brand-deal{font-size:13px;font-weight:600;color:var(--green)}
 .outreach-btn{background:transparent;border:1px solid var(--gold-border);border-radius:6px;padding:9px 18px;color:var(--gold);font-weight:600;font-size:10px;display:flex;align-items:center;gap:5px;letter-spacing:0.1em;text-transform:uppercase;transition:all 0.3s}
@@ -2642,12 +2647,71 @@ Real brands. domain is the primary website (no https:// or trailing slash). matc
     stopLoading('brands');
     document.getElementById('brands-loading').classList.add('hidden');
     renderBrands(brands);
+    // Background: enrich top brands with grounded research via the agent route.
+    enrichBrandsWithAgent(brands.slice(0,4), personaSummary).catch(e=>console.warn('enrich failed', e));
   } catch(e){
     stopLoading('brands');
     document.getElementById('brands-loading').classList.add('hidden');
     document.getElementById('brands-cta').classList.remove('hidden');
     showError(e.message);
   } finally { state._brandsLoading=false; }
+}
+
+async function enrichBrandsWithAgent(brands, creatorSummary){
+  await Promise.all(brands.map(async (b, i) => {
+    try {
+      const res = await fetch(PROXY_URL, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          agentBrandResearch: true,
+          brand: b.name,
+          brandDomain: b.domain || '',
+          brandHandle: b.igHandle || (b.domain ? b.domain.split('.')[0] : ''),
+          creatorSummary
+        })
+      });
+      if(!res.ok) return;
+      const data = await res.json();
+      if(!data || !data.result) return;
+      Object.assign(b, {
+        program_url: data.result.program_url || '',
+        verified_active: !!data.result.active,
+        recent_campaigns: data.result.recent_campaigns || [],
+        ig_signal: data.result.ig_signal || null,
+        pitch_angle: data.result.pitch_angle || ''
+      });
+      decorateBrandCard(i, b);
+    } catch {}
+  }));
+}
+
+function decorateBrandCard(index, brand){
+  const cards = document.querySelectorAll('#brands-result .brand-card');
+  const card = cards[index];
+  if(!card || card.querySelector('.brand-enriched')) return;
+  const verified = brand.verified_active;
+  const programUrl = brand.program_url;
+  const igSignal = brand.ig_signal;
+  const campaignCount = (brand.recent_campaigns||[]).length;
+  const parts = [];
+  if(verified) parts.push(`<span class="brand-enriched-pill verified">✓ Active program</span>`);
+  if(programUrl) parts.push(`<a class="brand-enriched-pill link" href="${programUrl}" target="_blank" rel="noopener">Program ↗</a>`);
+  if(campaignCount) parts.push(`<span class="brand-enriched-pill">${campaignCount} recent campaign${campaignCount>1?'s':''}</span>`);
+  if(igSignal && igSignal.followers) parts.push(`<span class="brand-enriched-pill">${formatCount(igSignal.followers)} IG · ${igSignal.engagement_rate_pct||0}% eng</span>`);
+  if(!parts.length) return;
+  const el = document.createElement('div');
+  el.className = 'brand-enriched fade-up';
+  el.innerHTML = parts.join('');
+  const reasons = card.querySelector('.brand-reasons');
+  (reasons || card).insertAdjacentElement('afterend', el);
+}
+
+function formatCount(n){
+  n = Number(n) || 0;
+  if(n >= 1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'') + 'M';
+  if(n >= 1e3) return (n/1e3).toFixed(1).replace(/\.0$/,'') + 'K';
+  return String(n);
 }
 
 function renderBrands(brands){

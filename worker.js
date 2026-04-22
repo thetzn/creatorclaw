@@ -1101,42 +1101,134 @@ async function runAgentBrandResearch(body, env, origin, allowed) {
   if (!brand) return json({ error: { message: 'brand required' } }, 400, origin, allowed);
 
   const brandDomain = String(body.brandDomain || '').trim();
+  const brandHandleHint = String(body.brandHandle || '').trim().replace(/^@/, '');
   const domains = [...BRAND_RESEARCH_DOMAINS];
   if (brandDomain) domains.push(brandDomain);
 
-  const input = [
+  const tools = [
+    { type: 'web_search_preview', filters: { allowed_domains: domains } },
     {
-      role: 'developer',
-      content: `You are a creator-marketing analyst. For the given brand, use web_search to find: (1) whether they run an active creator/ambassador program, (2) recent creator partnerships or campaigns in the last 12 months, (3) the partnerships contact or program URL if public. Return strict JSON matching this shape and nothing else:
-{"active":true|false,"program_url":"","recent_partners":[{"name":"","context":""}],"recent_campaigns":[{"title":"","date":"","source":""}],"pitch_angle":"","confidence":"high|medium|low"}`,
-    },
-    {
-      role: 'user',
-      content: `Brand: ${brand}${brandDomain ? ` (${brandDomain})` : ''}\n\nCreator we're pitching on behalf of:\n${creatorSummary || '(not provided)'}`,
+      type: 'function',
+      name: 'get_brand_ig_signal',
+      description: "Fetch the brand's Instagram profile signal — followers, engagement rate, posting cadence, recent post stats. Use this to verify the brand's scale and current activity before recommending them as a fit.",
+      parameters: {
+        type: 'object',
+        properties: {
+          brand_handle: { type: 'string', description: 'Instagram handle of the brand without the @ (e.g. "gymshark")' },
+        },
+        required: ['brand_handle'],
+      },
     },
   ];
 
-  const res = await fetch(RESPONSES_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + env.API_KEY,
+  let input = [
+    {
+      role: 'developer',
+      content: `You are a creator-marketing analyst. For the given brand, use web_search to find: (1) whether they run an active creator/ambassador program, (2) recent creator partnerships or campaigns in the last 12 months, (3) the partnerships contact or program URL if public. Also call get_brand_ig_signal once to verify the brand's IG scale and recency. Return strict JSON matching this shape and nothing else:
+{"active":true|false,"program_url":"","recent_partners":[{"name":"","context":""}],"recent_campaigns":[{"title":"","date":"","source":""}],"ig_signal":{"followers":0,"engagement_rate_pct":0,"recent_post_count":0},"pitch_angle":"","confidence":"high|medium|low"}`,
     },
-    body: JSON.stringify({
+    {
+      role: 'user',
+      content: `Brand: ${brand}${brandDomain ? ` (${brandDomain})` : ''}${brandHandleHint ? ` IG: @${brandHandleHint}` : ''}\n\nCreator we're pitching on behalf of:\n${creatorSummary || '(not provided)'}`,
+    },
+  ];
+
+  const MAX_ITER = 4;
+  let previousResponseId = null;
+
+  for (let iter = 0; iter < MAX_ITER; iter++) {
+    const requestBody = {
       model: MODEL_SEARCH,
-      tools: [{ type: 'web_search_preview', filters: { allowed_domains: domains } }],
+      tools,
       input,
-    }),
+    };
+    if (previousResponseId) requestBody.previous_response_id = previousResponseId;
+
+    const res = await fetch(RESPONSES_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + env.API_KEY,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const data = await res.json();
+    if (!res.ok) return json(data, res.status, origin, allowed);
+
+    previousResponseId = data.id;
+    const output = data.output || [];
+    const functionCalls = output.filter(o => o.type === 'function_call');
+
+    if (functionCalls.length === 0) {
+      const textOutput = output.find(o => o.type === 'message');
+      const text = textOutput?.content?.find(c => c.type === 'output_text')?.text || '';
+      let parsed = null;
+      try { parsed = JSON.parse(text); } catch {}
+      return json({ raw: text, result: parsed, iterations: iter + 1, usage: data.usage || null }, 200, origin, allowed);
+    }
+
+    // Execute the function calls; only the outputs go in the next input.
+    input = [];
+    for (const call of functionCalls) {
+      let result;
+      try {
+        const args = call.arguments ? JSON.parse(call.arguments) : {};
+        if (call.name === 'get_brand_ig_signal') {
+          result = await fetchBrandIgSignal(args.brand_handle, env);
+        } else {
+          result = { error: 'unknown tool: ' + call.name };
+        }
+      } catch (e) {
+        result = { error: String(e && e.message || e) };
+      }
+      input.push({
+        type: 'function_call_output',
+        call_id: call.call_id,
+        output: JSON.stringify(result),
+      });
+    }
+  }
+
+  return json({ error: { message: 'agent loop hit max iterations' } }, 500, origin, allowed);
+}
+
+async function fetchBrandIgSignal(rawHandle, env) {
+  const handle = String(rawHandle || '').replace(/^@/, '').trim();
+  if (!handle) return { error: 'no handle provided' };
+
+  const apifyRes = await fetch(`${APIFY_IG_URL}?token=${env.APIFY_TOKEN}&timeout=60`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usernames: [handle], resultsLimit: 12 }),
   });
+  if (!apifyRes.ok) return { error: 'apify_failed', status: apifyRes.status };
 
-  const data = await res.json();
-  if (!res.ok) return json(data, res.status, origin, allowed);
+  const items = await apifyRes.json();
+  const p = Array.isArray(items) ? items[0] : null;
+  if (!p) return { error: 'profile_not_found_or_private' };
 
-  const textOutput = (data.output || []).find(o => o.type === 'message');
-  const text = textOutput?.content?.find(c => c.type === 'output_text')?.text || '';
-  let parsed = null;
-  try { parsed = JSON.parse(text); } catch {}
-  return json({ raw: text, result: parsed, usage: data.usage || null }, 200, origin, allowed);
+  const posts = (p.latestPosts || p.posts || []).filter(x => typeof x.likesCount === 'number' || typeof x.likes === 'number');
+  const likeOf = x => (typeof x.likesCount === 'number' ? x.likesCount : (x.likes || 0));
+  const commentOf = x => (typeof x.commentsCount === 'number' ? x.commentsCount : (x.comments || 0));
+  const avgLikes = posts.length ? posts.reduce((s, x) => s + likeOf(x), 0) / posts.length : 0;
+  const avgComments = posts.length ? posts.reduce((s, x) => s + commentOf(x), 0) / posts.length : 0;
+  const followers = p.followersCount || p.followers || 0;
+  const totalPosts = p.postsCount || 0;
+  const engagementPct = followers > 0 ? ((avgLikes + avgComments) / followers) * 100 : 0;
+  const lastPostTs = posts[0]?.timestamp || posts[0]?.takenAt || null;
+
+  return {
+    handle,
+    followers,
+    total_posts: totalPosts,
+    avg_likes: Math.round(avgLikes),
+    avg_comments: Math.round(avgComments),
+    engagement_rate_pct: Number(engagementPct.toFixed(2)),
+    recent_post_count: posts.length,
+    last_post_ts: lastPostTs,
+    bio: (p.biography || '').slice(0, 280),
+  };
 }
 
 function json(obj, status, origin, allowed) {
