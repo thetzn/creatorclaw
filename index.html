@@ -2879,11 +2879,11 @@ function openSchedule(encodedTitle){
       '<input id="schedule-time" type="time" value="'+esc(defaultTime)+'">'+
     '</div>'+
     '<div class="modal-label" style="margin-top:14px">Platform</div>'+
-    '<div id="schedule-plat-row" style="display:flex;gap:6px;margin-bottom:18px">'+
+    '<div id="schedule-plat-row" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:18px">'+
       platforms.map(p =>
         '<button type="button" class="modal-cancel-btn schedule-plat-btn'+(p===defaultPlat?' active':'')+'" '+
         'data-plat="'+esc(p)+'" onclick="pickSchedulePlat(this)" '+
-        'style="flex:1;'+(p===defaultPlat?'border-color:var(--gold);color:var(--gold)':'')+'">'+esc(p)+'</button>'
+        'style="padding:12px 6px;min-width:0;white-space:nowrap;'+(p===defaultPlat?'border-color:var(--gold);color:var(--gold)':'')+'">'+esc(p)+'</button>'
       ).join('')+
     '</div>'+
     '<div class="modal-row">'+
