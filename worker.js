@@ -977,6 +977,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   const posts = (p.latestPosts || p.posts || []).filter(x => typeof x.likesCount === 'number' || typeof x.likes === 'number');
   const likeOf = x => (typeof x.likesCount === 'number' ? x.likesCount : (x.likes || 0));
   const commentOf = x => (typeof x.commentsCount === 'number' ? x.commentsCount : (x.comments || 0));
+  const viewsOf = x => (x.videoViewCount || x.videoPlayCount || x.playsCount || 0);
   const avgLikes = posts.length ? posts.reduce((s, x) => s + likeOf(x), 0) / posts.length : 0;
   const avgComments = posts.length ? posts.reduce((s, x) => s + commentOf(x), 0) / posts.length : 0;
   // Apify may return the count under several names depending on actor version
@@ -985,29 +986,117 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   const totalPosts = p.postsCount || p.posts_count || p.edge_owner_to_timeline_media?.count || 0;
   const engagementPct = followers > 0 ? ((avgLikes + avgComments) / followers) * 100 : 0;
 
-  // 3. Format follower count nicely
-  const formatCount = n => {
-    if (!n || n <= 0) return null;
-    if (n >= 1_000_000) return (n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, '') + 'M';
-    if (n >= 1_000) return (n / 1_000).toFixed(n >= 10_000 ? 0 : 1).replace(/\.0$/, '') + 'K';
-    return String(n);
+  // 3. Extract deterministic signals from the scraped posts
+  const tally = (arr) => {
+    const m = new Map();
+    for (const v of arr) {
+      if (!v) continue;
+      const k = String(v).trim().toLowerCase();
+      if (!k) continue;
+      m.set(k, (m.get(k) || 0) + 1);
+    }
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
   };
 
-  // 4. Pull caption text from recent posts for interpretation
-  const captions = posts.slice(0, 25).map(x => x.caption || '').filter(Boolean).join('\n---\n').slice(0, 4000);
+  const hashtagPile = [];
+  const mentionPile = [];
+  const locationPile = [];
+  const altCaptions = [];
+  const typeCounts = { reel: 0, carousel: 0, image: 0, video: 0, other: 0 };
+  let totalVideoViews = 0;
+  let videoPostCount = 0;
 
-  // 5. Ask OpenAI to interpret categories / vibes / themes from real captions
-  let interpretation = { categories: [], vibes: [], topCategory: null, recentThemes: [] };
-  if (captions) {
+  for (const post of posts) {
+    const cap = String(post.caption || '');
+    // Hashtags from both the array field (preferred) and fallback regex on caption.
+    if (Array.isArray(post.hashtags) && post.hashtags.length) {
+      for (const h of post.hashtags) hashtagPile.push(String(h).replace(/^#/, ''));
+    } else {
+      const m = cap.match(/#[\p{L}\p{N}_]+/gu) || [];
+      for (const h of m) hashtagPile.push(h.slice(1));
+    }
+    if (Array.isArray(post.mentions) && post.mentions.length) {
+      for (const mn of post.mentions) mentionPile.push(String(mn).replace(/^@/, ''));
+    } else {
+      const m = cap.match(/@[\w.]+/g) || [];
+      for (const mn of m) mentionPile.push(mn.slice(1));
+    }
+    const loc = post.locationName || post.location?.name || null;
+    if (loc) locationPile.push(loc);
+    const alt = post.accessibilityCaption || post.alt || post.altText || null;
+    if (alt) altCaptions.push(String(alt));
+    const pt = String(post.productType || post.type || '').toLowerCase();
+    if (pt === 'clips' || pt === 'reel' || pt === 'igtv') typeCounts.reel++;
+    else if (pt === 'sidecar' || pt === 'carousel_album' || pt === 'carousel') typeCounts.carousel++;
+    else if (pt === 'video') typeCounts.video++;
+    else if (pt === 'image' || pt === 'feed' || pt === 'photo') typeCounts.image++;
+    else typeCounts.other++;
+    const v = viewsOf(post);
+    if (v > 0) { totalVideoViews += v; videoPostCount++; }
+  }
+
+  const topHashtags = tally(hashtagPile).slice(0, 20);
+  const topMentions = tally(mentionPile).slice(0, 15);
+  const topLocations = tally(locationPile).slice(0, 8);
+  const avgVideoViews = videoPostCount ? Math.round(totalVideoViews / videoPostCount) : 0;
+
+  // Top 3 most engaged posts (by likes + comments). Reveals what actually lands.
+  const topPosts = [...posts]
+    .sort((a, b) => (likeOf(b) + commentOf(b) * 3) - (likeOf(a) + commentOf(a) * 3))
+    .slice(0, 3)
+    .map(x => ({
+      caption: String(x.caption || '').slice(0, 500),
+      likes: likeOf(x),
+      comments: commentOf(x),
+      views: viewsOf(x),
+      type: String(x.productType || x.type || ''),
+      alt: String(x.accessibilityCaption || x.alt || '').slice(0, 240),
+      url: x.url || (x.shortCode ? 'https://instagram.com/p/' + x.shortCode : null),
+    }));
+
+  // 4. Build a rich, structured prompt for interpretation
+  const fmt = n => n == null ? '' : String(n);
+  const bio = p.biography || p.bio || '';
+  const externalUrl = p.externalUrl || p.external_url || p.website || '';
+  const totalPostsFmt = totalPosts;
+  const captionsBlock = posts
+    .slice(0, 25)
+    .map(x => String(x.caption || '').trim())
+    .filter(Boolean)
+    .map(c => c.length > 600 ? c.slice(0, 600) + '…' : c)
+    .join('\n---\n')
+    .slice(0, 12000);
+
+  const analysisContext = [
+    `@${handle}${p.verified ? ' (verified)' : ''}`,
+    bio ? `Bio: ${bio.slice(0, 300)}` : null,
+    externalUrl ? `Link in bio: ${externalUrl}` : null,
+    p.businessCategoryName ? `IG business category: ${p.businessCategoryName}` : null,
+    `Followers: ${fmt(followers)} · Following: ${fmt(following)} · Total posts: ${fmt(totalPostsFmt)}`,
+    posts.length ? `Recent-post mix (of ${posts.length} scraped): ${typeCounts.reel} reels, ${typeCounts.carousel} carousels, ${typeCounts.image} feed/photos${typeCounts.video ? `, ${typeCounts.video} videos` : ''}${typeCounts.other ? `, ${typeCounts.other} other` : ''}` : null,
+    avgVideoViews ? `Avg reel/video views: ${fmt(avgVideoViews)}` : null,
+    `Avg likes: ${fmt(Math.round(avgLikes))} · Avg comments: ${fmt(Math.round(avgComments))}`,
+    topHashtags.length ? `Top hashtags: ${topHashtags.map(([k, c]) => `#${k}(${c})`).join(', ')}` : null,
+    topMentions.length ? `Top @-mentions (brand/creator affinities): ${topMentions.map(([k, c]) => `@${k}(${c})`).join(', ')}` : null,
+    topLocations.length ? `Locations tagged: ${topLocations.map(([k, c]) => `${k}(${c})`).join(', ')}` : null,
+    altCaptions.length ? `Image alt-text samples (IG auto-generated, describes visuals): ${altCaptions.slice(0, 6).map(a => `"${a.slice(0, 140)}"`).join(' | ')}` : null,
+    topPosts.length ? `Top 3 engagement posts:\n${topPosts.map((t, i) => `${i + 1}. [${t.type || 'post'}] ${t.likes.toLocaleString()} likes, ${t.comments.toLocaleString()} comments${t.views ? ', ' + t.views.toLocaleString() + ' views' : ''}\n   Caption: ${t.caption.slice(0, 240)}${t.alt ? `\n   Visual: ${t.alt}` : ''}`).join('\n')}` : null,
+    captionsBlock ? `All recent captions (up to 25):\n${captionsBlock}` : null,
+  ].filter(Boolean).join('\n\n');
+
+  // 5. Ask OpenAI to interpret categories / vibes / themes
+  let interpretation = { categories: [], vibes: [], topCategory: null, recentThemes: [], audienceHints: null, brandAffinities: [] };
+  if (captionsBlock || topHashtags.length) {
     const interpRes = await fetch(CHAT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.API_KEY },
       body: JSON.stringify({
         model: MODEL,
         temperature: 0.4,
+        response_format: { type: 'json_object' },
         messages: [
-          { role: 'system', content: 'You analyze Instagram post captions to identify content categories, vibes, and recurring themes. Return ONLY valid JSON, no markdown.' },
-          { role: 'user', content: `Here are ${posts.length} recent captions from @${handle}:\n\n${captions}\n\nReturn this JSON:\n{\n  "topCategory": "primary category e.g. Fitness",\n  "categories": [{"name":"Fitness","pct":40},{"name":"Lifestyle","pct":30},{"name":"Beauty","pct":20},{"name":"Wellness","pct":10}],\n  "vibes": ["Aspirational","Warm Tones","Relatable","High Energy","Polished"],\n  "recentThemes": ["morning routines","gym workouts","product reviews","GRWM","day in my life"]\n}\n\nPct values must sum to 100. Give 4-5 categories, 5 vibes, 4-6 recent themes.` }
+          { role: 'system', content: 'You analyze Instagram creators from structured data + captions + visual alt-text. Ground every answer in the supplied data — do NOT invent details. Return ONLY valid JSON.' },
+          { role: 'user', content: `Creator profile data:\n\n${analysisContext}\n\nReturn this JSON object (and nothing else):\n{\n  "topCategory": "primary category label, 1-3 words",\n  "categories": [{"name":"","pct":0}],\n  "vibes": ["",""],\n  "recentThemes": ["",""],\n  "audienceHints": "one-sentence read of who their audience likely is, inferred strictly from content clues (language, hashtags, locations)",\n  "brandAffinities": ["","",""]\n}\n\nRules:\n- 4-5 categories with pct values summing to 100.\n- Exactly 5 vibes (adjectives or short phrases, Title Case).\n- 4-6 recentThemes (what they post about in plain language).\n- brandAffinities: up to 5 brands they mention or are clearly adjacent to (from mentions, hashtags, or captions). Exclude the creator's own brand.\n- audienceHints: 1 sentence, <180 chars, no generic fluff.` }
         ],
       }),
     });
@@ -1016,8 +1105,8 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
       try {
         let txt = interpData.choices[0].message.content;
         txt = txt.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
-        const m = txt.match(/\{[\s\S]*\}/);
-        if (m) interpretation = { ...interpretation, ...JSON.parse(m[0]) };
+        const parsed = JSON.parse(txt);
+        interpretation = { ...interpretation, ...parsed };
       } catch (e) { /* keep empty interpretation */ }
     }
   }
@@ -1044,7 +1133,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     } catch (_) { /* fall through to URL */ }
   }
 
-  // 6. Assemble the profile payload matching the frontend schema
+  // 7. Assemble the profile payload matching the frontend schema
   const profile = {
     username: '@' + (p.username || handle),
     displayName: p.fullName || p.full_name || p.username || handle,
@@ -1061,7 +1150,18 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     postingFrequency: postsCadence(posts),
     recentThemes: interpretation.recentThemes,
     verified: !!p.verified,
-    // raw counts for any downstream math / debugging
+    audienceHints: interpretation.audienceHints || null,
+    brandAffinities: interpretation.brandAffinities || [],
+    // Deterministic signals pulled straight from Apify — the frontend now
+    // uses these instead of the hardcoded fake arrays in expandPersona.
+    topHashtags: topHashtags.map(([name, count]) => ({ name, count })),
+    topMentions: topMentions.map(([name, count]) => ({ name, count })),
+    topLocations: topLocations.map(([city, count]) => ({ city, count })),
+    postMix: typeCounts,
+    avgVideoViews,
+    topPosts,
+    externalUrl: p.externalUrl || p.external_url || null,
+    businessCategoryName: p.businessCategoryName || null,
     _raw: { followers, following, posts: totalPosts, avgLikes, avgComments, private: !!p.private, actorFields: Object.keys(p).slice(0, 30) },
   };
 
