@@ -866,6 +866,11 @@ export default {
       return runIGScrape(body.handle, env, origin, allowed);
     }
 
+    // ── Agent: brand research (Responses API + web_search allowlist) ────
+    if (body.agentBrandResearch) {
+      return runAgentBrandResearch(body, env, origin, allowed);
+    }
+
     const isWebSearch = body.webSearch;
     delete body.webSearch;
 
@@ -1077,6 +1082,61 @@ function postsCadence(posts) {
   if (perDay >= 0.4) return 'Several times per week';
   if (perDay >= 0.2) return 'Weekly';
   return 'Occasionally';
+}
+
+// ── Agent: brand research ────────────────────────────────────────────────────
+// Takes { brand, creatorSummary } and returns a grounded brand-fit brief
+// using web_search constrained to industry press + the brand's own domain.
+const BRAND_RESEARCH_DOMAINS = [
+  'tubefilter.com', 'passionfruit.com', 'adweek.com', 'adage.com',
+  'marketingbrew.com', 'modernretail.co', 'glossy.co',
+  'businessoffashion.com', 'digiday.com', 'thedrum.com',
+  'prnewswire.com', 'businesswire.com',
+  'creatoreconomy.so', 'influencermarketinghub.com', 'later.com'
+];
+
+async function runAgentBrandResearch(body, env, origin, allowed) {
+  const brand = String(body.brand || '').trim();
+  const creatorSummary = String(body.creatorSummary || '').trim();
+  if (!brand) return json({ error: { message: 'brand required' } }, 400, origin, allowed);
+
+  const brandDomain = String(body.brandDomain || '').trim();
+  const domains = [...BRAND_RESEARCH_DOMAINS];
+  if (brandDomain) domains.push(brandDomain);
+
+  const input = [
+    {
+      role: 'developer',
+      content: `You are a creator-marketing analyst. For the given brand, use web_search to find: (1) whether they run an active creator/ambassador program, (2) recent creator partnerships or campaigns in the last 12 months, (3) the partnerships contact or program URL if public. Return strict JSON matching this shape and nothing else:
+{"active":true|false,"program_url":"","recent_partners":[{"name":"","context":""}],"recent_campaigns":[{"title":"","date":"","source":""}],"pitch_angle":"","confidence":"high|medium|low"}`,
+    },
+    {
+      role: 'user',
+      content: `Brand: ${brand}${brandDomain ? ` (${brandDomain})` : ''}\n\nCreator we're pitching on behalf of:\n${creatorSummary || '(not provided)'}`,
+    },
+  ];
+
+  const res = await fetch(RESPONSES_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + env.API_KEY,
+    },
+    body: JSON.stringify({
+      model: MODEL_SEARCH,
+      tools: [{ type: 'web_search_preview', filters: { allowed_domains: domains } }],
+      input,
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) return json(data, res.status, origin, allowed);
+
+  const textOutput = (data.output || []).find(o => o.type === 'message');
+  const text = textOutput?.content?.find(c => c.type === 'output_text')?.text || '';
+  let parsed = null;
+  try { parsed = JSON.parse(text); } catch {}
+  return json({ raw: text, result: parsed, usage: data.usage || null }, 200, origin, allowed);
 }
 
 function json(obj, status, origin, allowed) {
