@@ -1071,7 +1071,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     avgVideoViews = videoPostCount ? Math.round(totalVideoViews / videoPostCount) : 0;
     topPosts = [...posts]
       .sort((a, b) => (likeOf(b) + commentOf(b) * 3) - (likeOf(a) + commentOf(a) * 3))
-      .slice(0, 3)
+      .slice(0, 5)
       .map(x => {
         try {
           return {
@@ -1082,6 +1082,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
             type: String(x.productType || x.type || ''),
             alt: String(x.accessibilityCaption || x.alt || '').slice(0, 240),
             url: x.url || (x.shortCode ? 'https://instagram.com/p/' + x.shortCode : null),
+            imageUrl: x.displayUrl || x.imageUrl || (Array.isArray(x.images) && x.images[0]) || x.thumbnailSrc || x.thumbnailUrl || null,
           };
         } catch (_) { return null; }
       })
@@ -1134,11 +1135,15 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     analysisContext = captions || '';
   }
 
-  // 5. Ask OpenAI to interpret categories / vibes / themes / base location.
-  // If anything fails (network, parse, malformed JSON), interpretation stays
-  // at the default and all deterministic fields still ship.
+  // 5. Two LLM calls in parallel: (a) text interpretation from structured
+  // signals + captions, (b) vision analysis of top-5 post images for the
+  // aesthetic fingerprint. Either can fail independently without breaking
+  // the other — deterministic fields always ship.
   let interpretation = { categories: [], vibes: [], topCategory: null, recentThemes: [], audienceHints: null, brandAffinities: [], baseLocation: null };
-  if (analysisContext) {
+  let aestheticProfile = null;
+
+  const runTextInterp = async () => {
+    if (!analysisContext) return;
     try {
       const interpRes = await fetch(CHAT_URL, {
         method: 'POST',
@@ -1167,7 +1172,47 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     } catch (e) {
       console.log('[scrape] interpretation failed:', e && e.message);
     }
-  }
+  };
+
+  // Vision: send top-5 post thumbnails to gpt-4o-mini for aesthetic read.
+  // Runs in parallel with the text interpretation. Non-fatal on any error.
+  const runVisionInterp = async () => {
+    const imageUrls = topPosts.map(t => t.imageUrl).filter(Boolean).slice(0, 5);
+    if (!imageUrls.length) return;
+    try {
+      const content = [
+        { type: 'text', text: `These are the top ${imageUrls.length} engagement posts from Instagram creator @${handle}. Analyze the aesthetic fingerprint across them — the consistent visual identity a brand manager would see at a glance. Return ONLY valid JSON in this exact shape, no markdown:\n\n{\n  "aesthetic": "2-4 word aesthetic descriptor",\n  "palette": "dominant color palette in plain English",\n  "lighting": "natural|studio|mixed|low-light|golden-hour",\n  "setting": "outdoor|indoor|studio|mixed|on-location",\n  "style": "polished|documentary|raw|curated|candid",\n  "visible_brands": ["",""],\n  "notes": "one sentence summarizing the visual identity"\n}` },
+        ...imageUrls.map(url => ({ type: 'image_url', image_url: { url, detail: 'low' } }))
+      ];
+      const visRes = await fetch(CHAT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.API_KEY },
+        body: JSON.stringify({
+          model: MODEL,
+          temperature: 0.3,
+          messages: [
+            { role: 'system', content: 'You are a visual/creative director reading creator Instagrams. Ground your answer strictly in the images shown. Return ONLY valid JSON.' },
+            { role: 'user', content }
+          ],
+        }),
+      });
+      if (!visRes.ok) {
+        console.log('[scrape] vision HTTP', visRes.status);
+        return;
+      }
+      const visData = await visRes.json();
+      let txt = visData?.choices?.[0]?.message?.content || '';
+      txt = txt.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
+      const m = txt.match(/\{[\s\S]*\}/);
+      if (m) {
+        aestheticProfile = JSON.parse(m[0]);
+      }
+    } catch (e) {
+      console.log('[scrape] vision failed:', e && e.message);
+    }
+  };
+
+  await Promise.all([runTextInterp(), runVisionInterp()]);
 
   // Fetch the profile pic server-side and embed as base64 data URL,
   // since Instagram's CDN blocks direct browser loads from non-Instagram referrers.
@@ -1222,6 +1267,8 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     audienceHints: interpretation.audienceHints || null,
     brandAffinities: interpretation.brandAffinities || [],
     baseLocation: interpretation.baseLocation || null,
+    // Vision analysis of top-5 post thumbnails.
+    aestheticProfile,
     _raw: { followers, following, posts: totalPosts, avgLikes, avgComments, private: !!p.private, actorFields: Object.keys(p).slice(0, 30) },
   };
 
