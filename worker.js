@@ -985,13 +985,22 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   const totalPosts = p.postsCount || p.posts_count || p.edge_owner_to_timeline_media?.count || 0;
   const engagementPct = followers > 0 ? ((avgLikes + avgComments) / followers) * 100 : 0;
 
-  // 2b. Extract deterministic signals (hashtags + mentions). Wrapped in try
+  // 2b. Extract deterministic signals from posts. Wrapped in try
   // so a single malformed post can never break the whole scrape.
   let topHashtags = [];
   let topMentions = [];
+  let topLocations = [];
+  let altCaptions = [];
+  let typeCounts = { reel: 0, carousel: 0, image: 0, video: 0, other: 0 };
+  let avgVideoViews = 0;
+  let topPosts = [];
   try {
+    const viewsOf = x => (x.videoViewCount || x.videoPlayCount || x.playsCount || 0);
     const hashtagPile = [];
     const mentionPile = [];
+    const locationPile = [];
+    let totalVideoViews = 0;
+    let videoPostCount = 0;
     for (const post of posts) {
       try {
         const cap = String(post.caption || '');
@@ -1007,6 +1016,18 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
           const m = cap.match(/@[A-Za-z0-9_.]+/g) || [];
           for (const mn of m) mentionPile.push(mn.slice(1));
         }
+        const loc = post.locationName || (post.location && post.location.name) || null;
+        if (loc) locationPile.push(String(loc));
+        const alt = post.accessibilityCaption || post.alt || post.altText || null;
+        if (alt) altCaptions.push(String(alt));
+        const pt = String(post.productType || post.type || '').toLowerCase();
+        if (pt === 'clips' || pt === 'reel' || pt === 'igtv') typeCounts.reel++;
+        else if (pt === 'sidecar' || pt === 'carousel_album' || pt === 'carousel') typeCounts.carousel++;
+        else if (pt === 'video') typeCounts.video++;
+        else if (pt === 'image' || pt === 'feed' || pt === 'photo') typeCounts.image++;
+        else typeCounts.other++;
+        const v = viewsOf(post);
+        if (v > 0) { totalVideoViews += v; videoPostCount++; }
       } catch (_) { /* skip this post, keep going */ }
     }
     const tally = (arr) => {
@@ -1021,8 +1042,36 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     };
     topHashtags = tally(hashtagPile).slice(0, 20).map(([name, count]) => ({ name, count }));
     topMentions = tally(mentionPile).slice(0, 15).map(([name, count]) => ({ name, count }));
+    // Locations are case-sensitive labels like "Austin, TX" — preserve original
+    // casing instead of using the lowercased tally key.
+    const locSeen = new Map();
+    for (const l of locationPile) {
+      const k = String(l).trim();
+      if (!k) continue;
+      locSeen.set(k, (locSeen.get(k) || 0) + 1);
+    }
+    topLocations = Array.from(locSeen.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([city, count]) => ({ city, count }));
+    altCaptions = altCaptions.slice(0, 8);
+    avgVideoViews = videoPostCount ? Math.round(totalVideoViews / videoPostCount) : 0;
+    topPosts = [...posts]
+      .sort((a, b) => (likeOf(b) + commentOf(b) * 3) - (likeOf(a) + commentOf(a) * 3))
+      .slice(0, 3)
+      .map(x => {
+        try {
+          return {
+            caption: String(x.caption || '').slice(0, 500),
+            likes: likeOf(x),
+            comments: commentOf(x),
+            views: viewsOf(x),
+            type: String(x.productType || x.type || ''),
+            alt: String(x.accessibilityCaption || x.alt || '').slice(0, 240),
+            url: x.url || (x.shortCode ? 'https://instagram.com/p/' + x.shortCode : null),
+          };
+        } catch (_) { return null; }
+      })
+      .filter(Boolean);
   } catch (e) {
-    console.log('[scrape] hashtag/mention extraction failed:', e && e.message);
+    console.log('[scrape] signal extraction failed:', e && e.message);
   }
 
   // 3. Format follower count nicely
@@ -1105,6 +1154,13 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     // after the previous all-at-once enrichment regression).
     topHashtags,
     topMentions,
+    topLocations,
+    altCaptions,
+    postMix: typeCounts,
+    avgVideoViews,
+    topPosts,
+    externalUrl: p.externalUrl || p.external_url || null,
+    businessCategoryName: p.businessCategoryName || null,
     _raw: { followers, following, posts: totalPosts, avgLikes, avgComments, private: !!p.private, actorFields: Object.keys(p).slice(0, 30) },
   };
 
