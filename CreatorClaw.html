@@ -1902,7 +1902,7 @@ async function onboardingPickCreate(btn){
   if(container) container.querySelectorAll('button').forEach(b=>b.disabled=true);
   await sleep(350);
   await runInlinePulsePreview();
-  await sleep(1400);
+  await sleep(5000);
   pushOfferPitch();
 }
 
@@ -1911,7 +1911,7 @@ async function onboardingPickPitch(btn){
   if(container) container.querySelectorAll('button').forEach(b=>b.disabled=true);
   await sleep(350);
   await runInlineBrandsPreview();
-  await sleep(1400);
+  await sleep(5000);
   pushInlineSignin();
 }
 
@@ -1939,7 +1939,7 @@ async function onboardingContinuePitch(btn){
   btn.closest('.inline-picker')?.querySelectorAll('button').forEach(b=>b.disabled=true);
   await sleep(350);
   await runInlineBrandsPreview();
-  await sleep(1400);
+  await sleep(5000);
   pushInlineSignin();
 }
 
