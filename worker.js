@@ -1175,14 +1175,36 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   };
 
   // Vision: send top-5 post thumbnails to gpt-4o-mini for aesthetic read.
-  // Runs in parallel with the text interpretation. Non-fatal on any error.
+  // IG's CDN blocks OpenAI from fetching directly, so we proxy the images
+  // server-side and pass them as base64 data URLs.
+  const fetchAsDataUrl = async (url) => {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) return null;
+      const buf = await r.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = '';
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.byteLength; i += chunk) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+      }
+      const ct = r.headers.get('content-type') || 'image/jpeg';
+      return `data:${ct};base64,${btoa(binary)}`;
+    } catch (_) { return null; }
+  };
+
   const runVisionInterp = async () => {
     const imageUrls = topPosts.map(t => t.imageUrl).filter(Boolean).slice(0, 5);
     if (!imageUrls.length) return;
     try {
+      const dataUrls = (await Promise.all(imageUrls.map(fetchAsDataUrl))).filter(Boolean);
+      if (!dataUrls.length) {
+        console.log('[scrape] vision: no images successfully fetched');
+        return;
+      }
       const content = [
-        { type: 'text', text: `These are the top ${imageUrls.length} engagement posts from Instagram creator @${handle}. Analyze the aesthetic fingerprint across them — the consistent visual identity a brand manager would see at a glance. Return ONLY valid JSON in this exact shape, no markdown:\n\n{\n  "aesthetic": "2-4 word aesthetic descriptor",\n  "palette": "dominant color palette in plain English",\n  "lighting": "natural|studio|mixed|low-light|golden-hour",\n  "setting": "outdoor|indoor|studio|mixed|on-location",\n  "style": "polished|documentary|raw|curated|candid",\n  "visible_brands": ["",""],\n  "notes": "one sentence summarizing the visual identity"\n}` },
-        ...imageUrls.map(url => ({ type: 'image_url', image_url: { url, detail: 'low' } }))
+        { type: 'text', text: `These are the top ${dataUrls.length} engagement posts from Instagram creator @${handle}. Analyze the aesthetic fingerprint across them — the consistent visual identity a brand manager would see at a glance. Return ONLY valid JSON in this exact shape, no markdown:\n\n{\n  "aesthetic": "2-4 word aesthetic descriptor",\n  "palette": "dominant color palette in plain English",\n  "lighting": "natural|studio|mixed|low-light|golden-hour",\n  "setting": "outdoor|indoor|studio|mixed|on-location",\n  "style": "polished|documentary|raw|curated|candid",\n  "visible_brands": ["",""],\n  "notes": "one sentence summarizing the visual identity"\n}` },
+        ...dataUrls.map(url => ({ type: 'image_url', image_url: { url, detail: 'low' } }))
       ];
       const visRes = await fetch(CHAT_URL, {
         method: 'POST',
