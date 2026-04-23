@@ -1784,7 +1784,6 @@ function renderInlinePersonaCard(persona, igData){
   const engagement = p.avgEngagement || d.engagementRate || '—';
   const tier = p.tier || '';
   const growth = p.growthRate || '—';
-  const score = p.score ? String(p.score) : '—';
   const topAge = (p.age||[]).slice().sort((a,b)=>(b.pct||0)-(a.pct||0))[0]?.age || '—';
   const topCity = (p.locations||[])[0]?.city || '—';
   return `
@@ -1803,7 +1802,6 @@ function renderInlinePersonaCard(persona, igData){
         <div class="inline-persona-stat"><strong>${escapeHtml(growth)}</strong>Growth</div>
         <div class="inline-persona-stat"><strong>${escapeHtml(topAge)}</strong>Top Age</div>
         <div class="inline-persona-stat"><strong>${escapeHtml(topCity)}</strong>Top City</div>
-        <div class="inline-persona-stat"><strong>${escapeHtml(score)}</strong>Score</div>
       </div>
     </div>`;
 }
