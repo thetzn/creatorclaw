@@ -985,6 +985,46 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   const totalPosts = p.postsCount || p.posts_count || p.edge_owner_to_timeline_media?.count || 0;
   const engagementPct = followers > 0 ? ((avgLikes + avgComments) / followers) * 100 : 0;
 
+  // 2b. Extract deterministic signals (hashtags + mentions). Wrapped in try
+  // so a single malformed post can never break the whole scrape.
+  let topHashtags = [];
+  let topMentions = [];
+  try {
+    const hashtagPile = [];
+    const mentionPile = [];
+    for (const post of posts) {
+      try {
+        const cap = String(post.caption || '');
+        if (Array.isArray(post.hashtags) && post.hashtags.length) {
+          for (const h of post.hashtags) hashtagPile.push(String(h).replace(/^#/, ''));
+        } else {
+          const m = cap.match(/#[A-Za-z0-9_]+/g) || [];
+          for (const h of m) hashtagPile.push(h.slice(1));
+        }
+        if (Array.isArray(post.mentions) && post.mentions.length) {
+          for (const mn of post.mentions) mentionPile.push(String(mn).replace(/^@/, ''));
+        } else {
+          const m = cap.match(/@[A-Za-z0-9_.]+/g) || [];
+          for (const mn of m) mentionPile.push(mn.slice(1));
+        }
+      } catch (_) { /* skip this post, keep going */ }
+    }
+    const tally = (arr) => {
+      const m = new Map();
+      for (const v of arr) {
+        if (!v) continue;
+        const k = String(v).trim().toLowerCase();
+        if (!k) continue;
+        m.set(k, (m.get(k) || 0) + 1);
+      }
+      return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+    };
+    topHashtags = tally(hashtagPile).slice(0, 20).map(([name, count]) => ({ name, count }));
+    topMentions = tally(mentionPile).slice(0, 15).map(([name, count]) => ({ name, count }));
+  } catch (e) {
+    console.log('[scrape] hashtag/mention extraction failed:', e && e.message);
+  }
+
   // 3. Format follower count nicely
   const formatCount = n => {
     if (!n || n <= 0) return null;
@@ -1061,7 +1101,10 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     postingFrequency: postsCadence(posts),
     recentThemes: interpretation.recentThemes,
     verified: !!p.verified,
-    // raw counts for any downstream math / debugging
+    // Deterministic signals from scraped posts (added back incrementally
+    // after the previous all-at-once enrichment regression).
+    topHashtags,
+    topMentions,
     _raw: { followers, following, posts: totalPosts, avgLikes, avgComments, private: !!p.private, actorFields: Object.keys(p).slice(0, 30) },
   };
 
