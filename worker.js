@@ -1050,7 +1050,23 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
       if (!k) continue;
       locSeen.set(k, (locSeen.get(k) || 0) + 1);
     }
-    topLocations = Array.from(locSeen.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([city, count]) => ({ city, count }));
+    // Normalize "Austin, Texas" and "Austin, TX" into a single bucket.
+    const STATE_MAP = { 'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA', 'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE', 'florida': 'FL', 'georgia': 'GA', 'hawaii': 'HI', 'idaho': 'ID', 'illinois': 'IL', 'indiana': 'IN', 'iowa': 'IA', 'kansas': 'KS', 'kentucky': 'KY', 'louisiana': 'LA', 'maine': 'ME', 'maryland': 'MD', 'massachusetts': 'MA', 'michigan': 'MI', 'minnesota': 'MN', 'mississippi': 'MS', 'missouri': 'MO', 'montana': 'MT', 'nebraska': 'NE', 'nevada': 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', 'ohio': 'OH', 'oklahoma': 'OK', 'oregon': 'OR', 'pennsylvania': 'PA', 'rhode island': 'RI', 'south carolina': 'SC', 'south dakota': 'SD', 'tennessee': 'TN', 'texas': 'TX', 'utah': 'UT', 'vermont': 'VT', 'virginia': 'VA', 'washington': 'WA', 'west virginia': 'WV', 'wisconsin': 'WI', 'wyoming': 'WY' };
+    const normLoc = (raw) => {
+      const parts = String(raw).split(',').map(s => s.trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        const region = parts[parts.length - 1];
+        const abbr = STATE_MAP[region.toLowerCase()] || region;
+        return parts.slice(0, -1).join(', ') + ', ' + abbr;
+      }
+      return String(raw).trim();
+    };
+    const locMerged = new Map();
+    for (const [k, v] of locSeen) {
+      const n = normLoc(k);
+      locMerged.set(n, (locMerged.get(n) || 0) + v);
+    }
+    topLocations = Array.from(locMerged.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([city, count]) => ({ city, count }));
     altCaptions = altCaptions.slice(0, 8);
     avgVideoViews = videoPostCount ? Math.round(totalVideoViews / videoPostCount) : 0;
     topPosts = [...posts]
@@ -1082,32 +1098,74 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     return String(n);
   };
 
-  // 4. Pull caption text from recent posts for interpretation
-  const captions = posts.slice(0, 25).map(x => x.caption || '').filter(Boolean).join('\n---\n').slice(0, 4000);
+  // 4. Build the LLM context. Captions are trimmed per-post so one giant
+  // caption can't eat the whole budget. Total budget bumped from 4K -> 10K.
+  const captions = posts
+    .slice(0, 25)
+    .map(x => String(x.caption || '').trim())
+    .filter(Boolean)
+    .map(c => c.length > 600 ? c.slice(0, 600) + '…' : c)
+    .join('\n---\n')
+    .slice(0, 10000);
 
-  // 5. Ask OpenAI to interpret categories / vibes / themes from real captions
-  let interpretation = { categories: [], vibes: [], topCategory: null, recentThemes: [] };
-  if (captions) {
-    const interpRes = await fetch(CHAT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.API_KEY },
-      body: JSON.stringify({
-        model: MODEL,
-        temperature: 0.4,
-        messages: [
-          { role: 'system', content: 'You analyze Instagram post captions to identify content categories, vibes, and recurring themes. Return ONLY valid JSON, no markdown.' },
-          { role: 'user', content: `Here are ${posts.length} recent captions from @${handle}:\n\n${captions}\n\nReturn this JSON:\n{\n  "topCategory": "primary category e.g. Fitness",\n  "categories": [{"name":"Fitness","pct":40},{"name":"Lifestyle","pct":30},{"name":"Beauty","pct":20},{"name":"Wellness","pct":10}],\n  "vibes": ["Aspirational","Warm Tones","Relatable","High Energy","Polished"],\n  "recentThemes": ["morning routines","gym workouts","product reviews","GRWM","day in my life"]\n}\n\nPct values must sum to 100. Give 4-5 categories, 5 vibes, 4-6 recent themes.` }
-        ],
-      }),
-    });
-    if (interpRes.ok) {
-      const interpData = await interpRes.json();
-      try {
-        let txt = interpData.choices[0].message.content;
+  // Structured context built from chunk-2 deterministic signals. Wrapped in
+  // try so any unexpected shape can't break the prompt assembly.
+  let analysisContext = '';
+  try {
+    const lines = [
+      `@${handle}${p.verified ? ' (verified)' : ''}`,
+      (p.biography || p.bio) ? `Bio: ${String(p.biography || p.bio).slice(0, 300)}` : null,
+      (p.externalUrl || p.external_url) ? `Link in bio: ${p.externalUrl || p.external_url}` : null,
+      p.businessCategoryName ? `IG business category: ${p.businessCategoryName}` : null,
+      `Followers: ${followers} · Following: ${following} · Total posts: ${totalPosts}`,
+      posts.length ? `Recent-post mix (of ${posts.length} scraped): ${typeCounts.reel} reels, ${typeCounts.carousel} carousels, ${typeCounts.image} feed/photos${typeCounts.video ? ', ' + typeCounts.video + ' videos' : ''}${typeCounts.other ? ', ' + typeCounts.other + ' other' : ''}` : null,
+      avgVideoViews ? `Avg reel/video views: ${avgVideoViews}` : null,
+      `Avg likes: ${Math.round(avgLikes)} · Avg comments: ${Math.round(avgComments)}`,
+      topHashtags.length ? `Top hashtags: ${topHashtags.map(h => `#${h.name}(${h.count})`).join(', ')}` : null,
+      topMentions.length ? `Top @-mentions (brand/creator affinities): ${topMentions.map(m => `@${m.name}(${m.count})`).join(', ')}` : null,
+      topLocations.length ? `Locations tagged: ${topLocations.map(l => `${l.city}(${l.count})`).join(', ')}` : null,
+      altCaptions.length ? `Image alt-text samples (IG auto-generated, describes visuals): ${altCaptions.slice(0, 6).map(a => `"${String(a).slice(0, 140)}"`).join(' | ')}` : null,
+      topPosts.length ? `Top ${topPosts.length} engagement posts:\n${topPosts.map((t, i) => `${i + 1}. [${t.type || 'post'}] ${t.likes} likes, ${t.comments} comments${t.views ? ', ' + t.views + ' views' : ''}\n   Caption: ${String(t.caption).slice(0, 240)}${t.alt ? '\n   Visual: ' + t.alt : ''}`).join('\n')}` : null,
+      captions ? `All recent captions (up to 25):\n${captions}` : null,
+    ].filter(Boolean);
+    analysisContext = lines.join('\n\n');
+  } catch (e) {
+    console.log('[scrape] context build failed, falling back to captions only:', e && e.message);
+    analysisContext = captions || '';
+  }
+
+  // 5. Ask OpenAI to interpret categories / vibes / themes / base location.
+  // If anything fails (network, parse, malformed JSON), interpretation stays
+  // at the default and all deterministic fields still ship.
+  let interpretation = { categories: [], vibes: [], topCategory: null, recentThemes: [], audienceHints: null, brandAffinities: [], baseLocation: null };
+  if (analysisContext) {
+    try {
+      const interpRes = await fetch(CHAT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.API_KEY },
+        body: JSON.stringify({
+          model: MODEL,
+          temperature: 0.4,
+          messages: [
+            { role: 'system', content: 'You analyze Instagram creators from structured profile data + captions + visual alt-text. Ground every answer in the supplied data — do NOT invent details. Return ONLY valid JSON, no markdown.' },
+            { role: 'user', content: `Creator profile data:\n\n${analysisContext}\n\nReturn this JSON object (and nothing else):\n{\n  "topCategory": "primary category label, 1-3 words",\n  "categories": [{"name":"","pct":0}],\n  "vibes": ["",""],\n  "recentThemes": ["",""],\n  "audienceHints": "one-sentence read of who their audience likely is",\n  "brandAffinities": ["",""],\n  "baseLocation": {"city":"","region":"","country":"","confidence":"high|medium|low"}\n}\n\nRules:\n- 4-5 categories with pct values summing to 100.\n- Exactly 5 vibes (Title Case adjectives or short phrases).\n- 4-6 recentThemes in plain language.\n- brandAffinities: up to 5 brands the creator mentions or is clearly adjacent to (from mentions/hashtags/captions). Exclude the creator's own brand.\n- audienceHints: 1 sentence, <180 chars.\n- baseLocation: infer creator's home base from bio text first ("// Texas", "Austin TX"), then tagged locations, then location hashtags (#austintx, #nyc), then caption cues. Set fields to "" and confidence "low" if you genuinely can't tell. Do NOT default to LA/NYC/London just because they are common.` }
+          ],
+        }),
+      });
+      if (interpRes.ok) {
+        const interpData = await interpRes.json();
+        let txt = interpData?.choices?.[0]?.message?.content || '';
         txt = txt.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
         const m = txt.match(/\{[\s\S]*\}/);
-        if (m) interpretation = { ...interpretation, ...JSON.parse(m[0]) };
-      } catch (e) { /* keep empty interpretation */ }
+        if (m) {
+          const parsed = JSON.parse(m[0]);
+          interpretation = { ...interpretation, ...parsed };
+        }
+      } else {
+        console.log('[scrape] interpretation HTTP', interpRes.status);
+      }
+    } catch (e) {
+      console.log('[scrape] interpretation failed:', e && e.message);
     }
   }
 
@@ -1150,8 +1208,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     postingFrequency: postsCadence(posts),
     recentThemes: interpretation.recentThemes,
     verified: !!p.verified,
-    // Deterministic signals from scraped posts (added back incrementally
-    // after the previous all-at-once enrichment regression).
+    // Deterministic signals from scraped posts.
     topHashtags,
     topMentions,
     topLocations,
@@ -1161,6 +1218,10 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     topPosts,
     externalUrl: p.externalUrl || p.external_url || null,
     businessCategoryName: p.businessCategoryName || null,
+    // LLM-inferred fields from chunk 3.
+    audienceHints: interpretation.audienceHints || null,
+    brandAffinities: interpretation.brandAffinities || [],
+    baseLocation: interpretation.baseLocation || null,
     _raw: { followers, following, posts: totalPosts, avgLikes, avgComments, private: !!p.private, actorFields: Object.keys(p).slice(0, 30) },
   };
 
