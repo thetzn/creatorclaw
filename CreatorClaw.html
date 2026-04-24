@@ -2134,6 +2134,8 @@ function buildSystemPrompt(){
   parts.push(`Use the data above freely when answering questions about their audience, performance, or strategy. Cite specific numbers and themes rather than speaking generically. When drafting content, match their voice (vibes + content pillars). Keep responses concise unless the user asks for detail. Only say you don't have certain data if the specific metric they asked about isn't listed above.`);
   parts.push(`\n--- Pitch format (important) ---`);
   parts.push(`When drafting ANY pitch, cold email, outreach, brand introduction, or sponsor DM, you MUST format the response exactly as:\n\nSubject: <short specific subject line>\n\n<email body in 3-5 short paragraphs, plaintext, no markdown, signed with creator's first name>\n\nThe UI detects this format to offer a one-click "Open in Gmail" button, so do not wrap it in quotes, code fences, or explanatory prose. If the user asks a question ABOUT a pitch (critique, tweak, compare), answer naturally and don't use the Subject: format.`);
+  parts.push(`\n--- Rate tools (use for any pricing question) ---`);
+  parts.push(`Two functions are available. Call them when relevant — do not try to compute rates yourself, the benchmarks are in a live database.\n- get_rate_estimate(platform, deliverable, rights_months?, exclusivity_days?, whitelisting?, rush?) — returns the industry benchmark range plus peer median when available. Call whenever the user asks what to charge, how much something is worth, or wants a quote range.\n- compare_offer(platform, deliverable, amount_offered, ...) — the user got a specific $ offer; returns whether it is below/within/above benchmark. Call whenever a specific dollar amount is mentioned.\n\nWhen citing results to the user:\n- Give the range in dollars (e.g. "$1,500–$7,000 for a reel at your tier").\n- Mention the peer_data p50 if present ("similar creators report $5,500 median").\n- Always recommend aiming for the upper end of the range when engagement or niche multipliers are strong.\n- Frame it as a benchmark, not "your rate" — their actual number depends on scope and negotiation.\n- Never quote a number you didn't get from the tools. If the tool errored, say the rate data is temporarily unavailable rather than guessing.`);
   return parts.join('\n');
 }
 
@@ -2220,12 +2222,38 @@ async function sendChatMessage(){
     ...chatState.messages.map(m => ({ role: m.role, content: m.content }))
   ];
 
+  // Creator profile for the rate-estimator tools the Worker exposes. Worker
+  // uses this to parameterize rate calculations when the LLM calls
+  // get_rate_estimate / compare_offer mid-conversation.
+  const p = state.persona || {};
+  const d = state.igData || {};
+  const parseFollowers = (raw) => {
+    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'string'){
+      const s = raw.replace(/[, ]/g,'');
+      if(/M$/i.test(s)) return Math.round(parseFloat(s)*1_000_000);
+      if(/K$/i.test(s)) return Math.round(parseFloat(s)*1_000);
+      const n = Number(s); if(!isNaN(n)) return n;
+    }
+    return 0;
+  };
+  const parseEng = (raw) => {
+    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'string'){ const m = raw.match(/([\d.]+)/); if(m) return parseFloat(m[1]); }
+    return null;
+  };
+  const creatorContext = {
+    followers: parseFollowers(d._raw?.followers || d.followers || p.totalReach),
+    engagementPct: parseEng(d.engagementRate || p.avgEngagement),
+    niche: p.topCategory || d.topCategory || (p.pillars||[])[0]?.l || 'lifestyle',
+  };
+
   let fullText = '';
   try {
     const res = await fetch(PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stream: true, messages: apiMessages, temperature: 0.7 }),
+      body: JSON.stringify({ stream: true, messages: apiMessages, temperature: 0.7, creatorContext }),
       signal: chatState.abortController.signal
     });
     if(!res.ok){

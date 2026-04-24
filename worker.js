@@ -11,6 +11,264 @@ const APIFY_IG_URL = 'https://api.apify.com/v2/acts/apify~instagram-profile-scra
 const MODEL = 'gpt-4o-mini';
 const MODEL_SEARCH = 'gpt-4o';
 
+// Supabase — anon key is public, safe to inline.
+const SUPABASE_URL = 'https://ctohycrbzennyzgffodo.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_MsXw1OuEe9ZTBnSU8LSHwA_X19dr90J';
+
+// ── Rate estimator: multipliers (benchmark base rates come from Supabase) ───
+const ENGAGEMENT_BANDS = [
+  { maxPct: 1,   multiplier: 0.5, label: 'Below 1% — red flag' },
+  { maxPct: 2,   multiplier: 0.8, label: '1-2%' },
+  { maxPct: 4,   multiplier: 1.0, label: '2-4% — baseline' },
+  { maxPct: 6,   multiplier: 1.3, label: '4-6%' },
+  { maxPct: 10,  multiplier: 1.6, label: '6-10%' },
+  { maxPct: 999, multiplier: 2.0, label: '10%+ — premium' },
+];
+const NICHE_MULTIPLIERS = { finance: 1.5, b2b: 1.4, tech: 1.2, business: 1.2, wellness: 1.1, beauty: 1.1, fashion: 1.1, fitness: 1.05, parenting: 1.0, travel: 1.0, lifestyle: 1.0, diy: 1.0, home: 1.0, food: 0.9, gaming: 0.9, entertainment: 0.9, default: 1.0 };
+const DELIVERABLE_MULTIPLIERS = { story: 0.4, 'story-series': 0.9, static: 1.0, carousel: 1.1, reel: 1.5, video: 1.0, 'reel-plus-story': 1.8, 'static-plus-stories': 1.4, 'full-bundle': 2.5, ugc: 0.7, 'youtube-short': 0.7, 'youtube-integration': 1.0, 'youtube-dedicated': 2.5, 'crosspost-ig-tt': 2.0 };
+const ADDONS = { usageRightsPerMonth: 0.15, exclusivity30d: 0.5, exclusivity60d: 0.8, exclusivity90d: 1.2, whitelisting: 0.75, rush: 0.25 };
+
+// Benchmark cache across requests in a warm Worker instance.
+let _benchmarkCache = null;
+let _benchmarkCacheTs = 0;
+const BENCHMARK_TTL_MS = 5 * 60 * 1000;
+
+async function fetchRateBenchmarks() {
+  if (_benchmarkCache && Date.now() - _benchmarkCacheTs < BENCHMARK_TTL_MS) {
+    return _benchmarkCache;
+  }
+  const url = `${SUPABASE_URL}/rest/v1/rate_benchmarks?select=platform,tier,base_per_1k_low,base_per_1k_high,tier_label,unit`;
+  const r = await fetch(url, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+  });
+  if (!r.ok) { console.log('[rate] benchmark fetch failed', r.status); return null; }
+  const rows = await r.json();
+  const byKey = {};
+  for (const row of rows) byKey[`${row.platform}:${row.tier}`] = row;
+  _benchmarkCache = byKey;
+  _benchmarkCacheTs = Date.now();
+  return byKey;
+}
+
+async function fetchPeerAggregate({ platform, tier, niche, deliverable }) {
+  const params = new URLSearchParams({
+    select: 'n,p25,p50,p75',
+    platform: `eq.${platform}`,
+    tier: `eq.${tier}`,
+    deliverable: `eq.${deliverable}`,
+  });
+  if (niche) params.set('niche', `eq.${niche}`);
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rate_aggregates?${params}`, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+  });
+  if (!r.ok) return null;
+  const rows = await r.json();
+  return rows[0] || null;
+}
+
+function tierForFollowers(followers) {
+  if (followers < 10_000) return 'nano';
+  if (followers < 100_000) return 'micro';
+  if (followers < 500_000) return 'mid';
+  if (followers < 1_000_000) return 'macro';
+  return 'mega';
+}
+
+function engagementBandFor(pct) {
+  return ENGAGEMENT_BANDS.find(b => pct <= b.maxPct) || ENGAGEMENT_BANDS[ENGAGEMENT_BANDS.length - 1];
+}
+
+function normalizeNiche(freeform) {
+  const s = String(freeform || '').toLowerCase();
+  if (/(finance|invest|money|crypto|stock)/.test(s)) return 'finance';
+  if (/(b2b|saas|enterprise)/.test(s)) return 'b2b';
+  if (/(tech|developer|startup)/.test(s)) return 'tech';
+  if (/(business|entrepreneur)/.test(s)) return 'business';
+  if (/(wellness|mindful|self.?care)/.test(s)) return 'wellness';
+  if (/(beauty|skincare|makeup)/.test(s)) return 'beauty';
+  if (/(fashion|style|outfit)/.test(s)) return 'fashion';
+  if (/(fitness|gym|workout|sport)/.test(s)) return 'fitness';
+  if (/(parent|mom|dad|kids?|family)/.test(s)) return 'parenting';
+  if (/(travel|destination)/.test(s)) return 'travel';
+  if (/(food|recipe|chef|cook)/.test(s)) return 'food';
+  if (/(gaming|gamer|twitch)/.test(s)) return 'gaming';
+  if (/(diy|craft|home.?improvement)/.test(s)) return 'diy';
+  if (/(home|interior|decor)/.test(s)) return 'home';
+  if (/(comedy|meme|entertainment)/.test(s)) return 'entertainment';
+  return 'lifestyle';
+}
+
+async function computeRateEstimate(opts) {
+  const platform = opts.platform || 'instagram';
+  const deliverable = opts.deliverable || 'reel';
+  const followers = Number(opts.followers) || 0;
+  const engagementPct = Number(opts.engagementPct) || 3;
+  const niche = normalizeNiche(opts.niche);
+  const rightsMonths = Number(opts.rightsMonths) || 0;
+  const exclusivityDays = Number(opts.exclusivityDays) || 0;
+  const whitelisting = !!opts.whitelisting;
+  const rush = !!opts.rush;
+
+  const tier = tierForFollowers(followers);
+  const benchmarks = await fetchRateBenchmarks();
+  const bench = benchmarks?.[`${platform}:${tier}`];
+  if (!bench) {
+    return { error: `No benchmark found for ${platform} ${tier}. Rate table may not be seeded.` };
+  }
+  const units = Math.max(followers, 1000) / 1000;
+  const engBand = engagementBandFor(engagementPct);
+  const nicheMult = NICHE_MULTIPLIERS[niche] ?? NICHE_MULTIPLIERS.default;
+  const delivMult = DELIVERABLE_MULTIPLIERS[deliverable] ?? 1;
+  const coreLow = units * Number(bench.base_per_1k_low) * engBand.multiplier * nicheMult * delivMult;
+  const coreHigh = units * Number(bench.base_per_1k_high) * engBand.multiplier * nicheMult * delivMult;
+  let addonMult = 1;
+  if (rightsMonths > 0) addonMult += ADDONS.usageRightsPerMonth * rightsMonths;
+  if (exclusivityDays >= 90) addonMult += ADDONS.exclusivity90d;
+  else if (exclusivityDays >= 60) addonMult += ADDONS.exclusivity60d;
+  else if (exclusivityDays >= 30) addonMult += ADDONS.exclusivity30d;
+  if (whitelisting) addonMult += ADDONS.whitelisting;
+  if (rush) addonMult += ADDONS.rush;
+  const low = Math.round(coreLow * addonMult);
+  const high = Math.round(coreHigh * addonMult);
+
+  const peer = await fetchPeerAggregate({ platform, tier, niche, deliverable });
+
+  return {
+    low_usd: low,
+    high_usd: high,
+    tier,
+    tier_label: bench.tier_label,
+    platform,
+    deliverable,
+    niche,
+    engagement_band: engBand.label,
+    breakdown: {
+      followers,
+      per_1k_low: Number(bench.base_per_1k_low),
+      per_1k_high: Number(bench.base_per_1k_high),
+      engagement_multiplier: engBand.multiplier,
+      niche_multiplier: nicheMult,
+      deliverable_multiplier: delivMult,
+      addon_multiplier: Number(addonMult.toFixed(2)),
+    },
+    peer_data: peer
+      ? { n: peer.n, p25: Number(peer.p25), p50: Number(peer.p50), p75: Number(peer.p75) }
+      : { note: 'No peer data yet for this bucket (need ≥3 real rate cards).' },
+    source: 'Industry benchmark: IMH 2024 + Modash 2024. Peer median: real creator-submitted rates (anonymized).',
+  };
+}
+
+// ── Chat tools for the rate estimator ────────────────────────────────────────
+const RATE_TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'get_rate_estimate',
+      description: "Compute the industry benchmark rate range for a specific deliverable on a platform, adjusted for the creator's followers, engagement, and niche. Call this whenever the user asks about rates, pricing, what to charge, quote ranges, or pitches that involve a specific deliverable.",
+      parameters: {
+        type: 'object',
+        properties: {
+          platform: { type: 'string', enum: ['instagram', 'tiktok', 'youtube'] },
+          deliverable: { type: 'string', description: "e.g. 'reel', 'static', 'carousel', 'story-series', 'video', 'ugc', 'youtube-short', 'youtube-integration', 'full-bundle', 'crosspost-ig-tt'" },
+          rights_months: { type: 'integer', description: 'Months of paid-ad usage rights the brand wants. 0 if none.' },
+          exclusivity_days: { type: 'integer', description: 'Days of category exclusivity. 0 if none.' },
+          whitelisting: { type: 'boolean', description: 'True if brand wants to whitelist (run ads under creator handle).' },
+          rush: { type: 'boolean', description: 'True if <7 day turnaround.' },
+        },
+        required: ['platform', 'deliverable'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'compare_offer',
+      description: "A brand offered a specific dollar amount. Compute the benchmark range and tell whether the offer is below, within, or above benchmark. Call this whenever the user mentions a specific offer amount.",
+      parameters: {
+        type: 'object',
+        properties: {
+          platform: { type: 'string', enum: ['instagram', 'tiktok', 'youtube'] },
+          deliverable: { type: 'string' },
+          amount_offered: { type: 'number', description: 'The $ the brand offered.' },
+          rights_months: { type: 'integer' },
+          exclusivity_days: { type: 'integer' },
+          whitelisting: { type: 'boolean' },
+        },
+        required: ['platform', 'deliverable', 'amount_offered'],
+      },
+    },
+  },
+];
+
+async function executeRateToolCall(toolCall, creatorContext) {
+  try {
+    const args = JSON.parse(toolCall.function.arguments || '{}');
+    const creator = creatorContext || {};
+    const opts = {
+      platform: args.platform,
+      deliverable: args.deliverable,
+      followers: creator.followers,
+      engagementPct: creator.engagementPct,
+      niche: creator.niche,
+      rightsMonths: args.rights_months,
+      exclusivityDays: args.exclusivity_days,
+      whitelisting: args.whitelisting,
+      rush: args.rush,
+    };
+    const est = await computeRateEstimate(opts);
+    if (toolCall.function.name === 'compare_offer') {
+      const offer = Number(args.amount_offered) || 0;
+      let offer_position;
+      if (offer < est.low_usd) {
+        const pct = Math.round(100 * (est.low_usd - offer) / est.low_usd);
+        offer_position = `${pct}% below benchmark low end — likely undervalued`;
+      } else if (offer > est.high_usd) {
+        const pct = Math.round(100 * (offer - est.high_usd) / est.high_usd);
+        offer_position = `${pct}% above benchmark high end — strong offer`;
+      } else {
+        const spread = est.high_usd - est.low_usd || 1;
+        const pctInto = Math.round(100 * (offer - est.low_usd) / spread);
+        offer_position = `within benchmark range (at the ${pctInto}th percentile)`;
+      }
+      return { ...est, offer_amount: offer, offer_position };
+    }
+    return est;
+  } catch (e) {
+    return { error: String((e && e.message) || e) };
+  }
+}
+
+// Wrap non-streaming chat output as a Server-Sent Events stream so the
+// client's existing streaming reader still works. Chunks small enough to
+// feel natural.
+function sseWrapContent(text, origin, allowed) {
+  const encoder = new TextEncoder();
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  (async () => {
+    try {
+      const chunkSize = 18;
+      for (let i = 0; i < text.length; i += chunkSize) {
+        const chunk = text.slice(i, i + chunkSize);
+        const event = `data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\n\n`;
+        await writer.write(encoder.encode(event));
+      }
+      await writer.write(encoder.encode('data: [DONE]\n\n'));
+    } finally {
+      try { await writer.close(); } catch {}
+    }
+  })();
+  return new Response(readable, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      ...cors(origin, allowed),
+    },
+  });
+}
+
 // ── Instagram Graph API OAuth ─────────────────────────────────────────────────
 const IG_APP_ID = '922455490592826';
 // IG_APP_SECRET is read from env.IG_APP_SECRET (set as a Cloudflare Worker secret — never hardcode)
@@ -903,31 +1161,63 @@ export default {
       });
     }
 
-    // Streaming chat (Server-Sent Events pass-through)
+    // Streaming chat with tool-calling. We run the OpenAI call non-streaming
+    // so we can handle rate-estimator tool calls cleanly, then fake an SSE
+    // stream back to the client so its existing streaming reader works.
     if (body.stream) {
-      res = await fetch(CHAT_URL, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          model: MODEL,
-          temperature: body.temperature || 0.7,
-          messages: body.messages || [],
-          stream: true,
-        }),
-      });
-      if (!res.ok) {
-        const errText = await res.text();
-        return new Response(errText, { status: res.status, headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) } });
+      const creatorContext = body.creatorContext || null;
+      let messages = Array.isArray(body.messages) ? [...body.messages] : [];
+      const MAX_ROUNDS = 3;
+      let finalContent = '';
+      let lastError = null;
+      for (let round = 0; round < MAX_ROUNDS; round++) {
+        const r = await fetch(CHAT_URL, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            model: MODEL,
+            temperature: body.temperature || 0.7,
+            messages,
+            tools: RATE_TOOLS,
+            tool_choice: 'auto',
+          }),
+        });
+        if (!r.ok) {
+          const errText = await r.text().catch(() => r.statusText);
+          return new Response(errText, { status: r.status, headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) } });
+        }
+        const data = await r.json();
+        const assistant = data?.choices?.[0]?.message;
+        if (!assistant) { lastError = 'no assistant message'; break; }
+
+        const toolCalls = assistant.tool_calls || [];
+        if (!toolCalls.length) {
+          finalContent = assistant.content || '';
+          break;
+        }
+
+        // Append the assistant's tool-call message + each tool's result,
+        // then loop so the model can synthesize a final reply using the data.
+        messages.push(assistant);
+        for (const tc of toolCalls) {
+          let result;
+          try {
+            result = await executeRateToolCall(tc, creatorContext);
+          } catch (e) {
+            result = { error: String((e && e.message) || e) };
+          }
+          console.log('[rate-tool]', tc.function?.name, 'called');
+          messages.push({
+            role: 'tool',
+            tool_call_id: tc.id,
+            content: JSON.stringify(result),
+          });
+        }
       }
-      return new Response(res.body, {
-        status: 200,
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-          ...cors(origin, allowed),
-        },
-      });
+      if (!finalContent) {
+        finalContent = lastError ? `(${lastError})` : '(tool-call loop exhausted — please retry)';
+      }
+      return sseWrapContent(finalContent, origin, allowed);
     }
 
     // Regular Chat Completions (non-streaming)
