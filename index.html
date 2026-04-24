@@ -1551,6 +1551,9 @@ async function openConversation(id){
   renderMessages();
   renderConversationList();
   closeChatSidebar();
+  // If the user is currently in a tool view, come back to chat so they can
+  // see the conversation they just opened.
+  if(document.body.classList.contains('in-tool')) showChatView();
 }
 
 function newChat(){
@@ -1560,7 +1563,8 @@ function newChat(){
   renderMessages();
   renderConversationList();
   closeChatSidebar();
-  document.getElementById('chat-input').focus();
+  if(document.body.classList.contains('in-tool')) showChatView();
+  document.getElementById('chat-input')?.focus();
 }
 
 function renderMessages(){
@@ -2128,6 +2132,8 @@ function buildSystemPrompt(){
 
   parts.push(`\n--- Style ---`);
   parts.push(`Use the data above freely when answering questions about their audience, performance, or strategy. Cite specific numbers and themes rather than speaking generically. When drafting content, match their voice (vibes + content pillars). Keep responses concise unless the user asks for detail. Only say you don't have certain data if the specific metric they asked about isn't listed above.`);
+  parts.push(`\n--- Pitch format (important) ---`);
+  parts.push(`When drafting ANY pitch, cold email, outreach, brand introduction, or sponsor DM, you MUST format the response exactly as:\n\nSubject: <short specific subject line>\n\n<email body in 3-5 short paragraphs, plaintext, no markdown, signed with creator's first name>\n\nThe UI detects this format to offer a one-click "Open in Gmail" button, so do not wrap it in quotes, code fences, or explanatory prose. If the user asks a question ABOUT a pitch (critique, tweak, compare), answer naturally and don't use the Subject: format.`);
   return parts.join('\n');
 }
 
@@ -2259,6 +2265,9 @@ async function sendChatMessage(){
     if(fullText){
       chatState.messages.push({ role: 'assistant', content: fullText });
       await saveMessage('assistant', fullText);
+      // If the assistant formatted a pitch (Subject: ... \n\n body...), attach
+      // an "Open in Gmail" button so the user can ship it in one tap.
+      try { maybeAttachGmailCta(bodyEl, fullText); } catch(e){ console.warn('gmail cta', e); }
     } else {
       bodyEl.textContent = '(no response — try again)';
       bodyEl.style.color = 'var(--muted)';
@@ -2782,6 +2791,230 @@ function toggleSent(btn,name){
   state.sent[name]=!state.sent[name];
   if(state.sent[name]){btn.className='outreach-btn sent';btn.innerHTML='✓ Sent'}
   else{btn.className='outreach-btn';btn.innerHTML='Start Outreach'}
+}
+
+// ── Pitch drafting + Gmail compose ────────────────────────────────────────────
+// Phase 0 of Gmail integration: no OAuth, no verification. Draft a pitch in
+// the creator's voice, then open Gmail compose in a new tab pre-filled with
+// subject + body. Creator reviews and hits Send themselves. Counts as their
+// own outgoing email — no data passes through us.
+
+// Official Gmail mark — 5-panel multicolor envelope matching Google's brand.
+// Used on "Open in Gmail" buttons across the app.
+const GMAIL_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 36" aria-hidden="true" style="width:18px;height:14px;flex-shrink:0"><path fill="#4285F4" d="M3.6 36C1.61 36 0 34.39 0 32.4V10.8L6.78 16l.02 20z"/><path fill="#34A853" d="M41.18 36 48 30.89V10.8L41.22 16z"/><path fill="#FBBC04" d="M41.22 16 48 10.8V5.4c0-3.34-3.82-5.25-6.48-3.24L41.22 2.4z"/><path fill="#C5221F" d="M6.78 2.4 6.48 2.16C3.82.15 0 2.06 0 5.4v5.4L6.78 16z"/><path fill="#EA4335" d="M6.78 2.4 24 15.6 41.22 2.4l.02 13.6L24 29.2 6.78 16z"/></svg>`;
+
+// Single source of truth for launching Gmail compose. Works across desktop,
+// iOS (Gmail app deep link + mailto fallback), and Android (mailto).
+function openGmailCompose({ to = '', subject = '', body = '' }){
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Mac/i.test(ua) && 'ontouchend' in document);
+  const isAndroid = /Android/i.test(ua);
+  const isMobile = isIOS || isAndroid || /Mobi/i.test(ua);
+
+  const mailtoUrl = 'mailto:' + encodeURIComponent(to)
+    + '?subject=' + encodeURIComponent(subject)
+    + '&body=' + encodeURIComponent(body);
+  const gmailWebUrl = 'https://mail.google.com/mail/?' + new URLSearchParams({
+    view: 'cm', fs: '1', to, su: subject, body,
+  }).toString();
+  const gmailIosAppUrl = 'googlegmail://co?'
+    + 'to=' + encodeURIComponent(to)
+    + '&subject=' + encodeURIComponent(subject)
+    + '&body=' + encodeURIComponent(body);
+
+  if(isIOS){
+    const start = Date.now();
+    window.location.href = gmailIosAppUrl;
+    setTimeout(() => {
+      if(document.visibilityState === 'visible' && Date.now() - start < 2000){
+        window.location.href = mailtoUrl;
+      }
+    }, 1400);
+  } else if(isMobile){
+    window.location.href = mailtoUrl;
+  } else {
+    window.open(gmailWebUrl, '_blank', 'noopener');
+  }
+}
+
+// Detect the `Subject: ...\n\n<body>` pattern produced by the pitch-mode
+// system prompt, so we can offer the Gmail button on chat messages.
+function detectPitchInText(text){
+  if(!text) return null;
+  // Tolerate optional markdown bold wrapping.
+  const m = String(text).match(/^\s*(?:\*\*)?Subject:(?:\*\*)?\s*(.+?)\s*\n\s*\n([\s\S]+?)\s*$/i);
+  if(!m) return null;
+  const subject = m[1].trim().replace(/^["']|["']$/g, '').replace(/\*\*/g, '');
+  const body = m[2].trim();
+  if(!subject || body.length < 40) return null;
+  return { subject, body };
+}
+
+// Attach an "Open in Gmail" button to an assistant chat message if the
+// streamed response looks like a pitch.
+function maybeAttachGmailCta(bodyEl, fullText){
+  if(!bodyEl || bodyEl.querySelector('.chat-gmail-cta')) return;
+  const pitch = detectPitchInText(fullText);
+  if(!pitch) return;
+  const row = document.createElement('div');
+  row.className = 'chat-gmail-cta';
+  row.style.cssText = 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap';
+  const btn = document.createElement('button');
+  btn.className = 'copy-btn';
+  btn.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:10px 16px;flex:0 1 auto;font-size:11px';
+  btn.innerHTML = GMAIL_ICON_SVG + '<span>Open in Gmail</span>';
+  btn.onclick = () => openGmailCompose({ subject: pitch.subject, body: pitch.body, to: '' });
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'modal-cancel-btn';
+  copyBtn.style.cssText = 'padding:10px 14px;font-size:11px';
+  copyBtn.textContent = 'Copy';
+  copyBtn.onclick = () => {
+    const full = `Subject: ${pitch.subject}\n\n${pitch.body}`;
+    try { navigator.clipboard.writeText(full); copyBtn.textContent = 'Copied'; setTimeout(()=>copyBtn.textContent='Copy', 1500); }
+    catch { /* ignore */ }
+  };
+  row.appendChild(btn);
+  row.appendChild(copyBtn);
+  bodyEl.appendChild(row);
+}
+async function draftPitch(i){
+  const brand = (state.brands||[])[i];
+  if(!brand){ showError('Brand not found'); return; }
+  const p = state.persona || {};
+  const d = state.igData || {};
+
+  showModal(
+    '<div class="modal-title">Drafting pitch…</div>'+
+    '<div class="modal-sub">To '+escapeHtml(brand.name||'')+'</div>'+
+    '<div class="pitch-loading"><div class="spinner" data-crab></div><div class="loading-title">Writing in your voice…</div></div>'
+  );
+
+  // Prior partnerships as social proof — pulled from brandAffinities
+  // (creators the persona already @-mentions).
+  const partnerships = Array.isArray(d.brandAffinities)
+    ? d.brandAffinities.slice(0,3).map(b=>String(b).replace(/^@/,'')).filter(Boolean)
+    : [];
+  const creatorName = p.name || d.displayName || (d.username||'').replace(/^@/,'') || 'the creator';
+  const handle = d.username ? String(d.username) : '';
+  const vibes = (p.vibes||[]).slice(0,3).join(', ');
+  const pillars = (p.pillars||[]).map(x=>typeof x==='string'?x:x.l||x.label).filter(Boolean).slice(0,3).join(', ');
+  const location = (p.locations||[])[0]?.city || d.baseLocation?.city || '';
+  const followers = p.totalReach || d.followers || '';
+  const engagement = p.avgEngagement || d.engagementRate || '';
+
+  const sys = `You are writing a cold outreach email from an Instagram creator to a brand's partnerships team. The creator wants to be considered for a paid collab. Write in the creator's authentic voice — match their vibes. Be direct, specific, confident, and short. No sycophancy, no "I love your brand" filler. One concrete idea tied to the brand's known program if possible.
+
+Return ONLY JSON, no markdown:
+{
+  "subject": "short, specific, has creator's handle or name",
+  "body": "3-5 short paragraphs, plaintext (no markdown). First line names the creator + niche + metric. Second paragraph references brand's program/aesthetic/campaign if given. Third is a concrete concept idea. Fourth is the ask (next step/call). Sign off with creator's first name."
+}`;
+
+  const brandCtx = [
+    `Brand: ${brand.name}${brand.domain?` (${brand.domain})`:''}`,
+    brand.cat ? `Category: ${brand.cat}` : null,
+    brand.program_url ? `Creator program: ${brand.program_url}` : null,
+    (brand.recent_campaigns||[]).length ? `Recent campaigns: ${(brand.recent_campaigns||[]).slice(0,2).map(c=>c.title||'').filter(Boolean).join(' | ')}` : null,
+    brand.pitch_angle ? `Suggested angle: ${brand.pitch_angle}` : null,
+    Array.isArray(brand.reasons) && brand.reasons.length ? `Fit reasons: ${brand.reasons.join('; ')}` : null,
+  ].filter(Boolean).join('\n');
+
+  const creatorCtx = [
+    `Name: ${creatorName}`,
+    handle ? `Handle: ${handle}` : null,
+    location ? `Based in: ${location}` : null,
+    followers ? `Followers: ${followers}` : null,
+    engagement ? `Engagement rate: ${engagement}` : null,
+    vibes ? `Voice/vibes: ${vibes}` : null,
+    pillars ? `Content pillars: ${pillars}` : null,
+    partnerships.length ? `Existing partnerships (use 1-2 as social proof if natural): ${partnerships.map(x=>'@'+x).join(', ')}` : null,
+  ].filter(Boolean).join('\n');
+
+  const user = `Brand to pitch:\n${brandCtx}\n\nCreator:\n${creatorCtx}\n\nPitch JSON:`;
+
+  try {
+    const raw = await chatLLM(sys, user);
+    const pitch = parseJSON(raw);
+    if(!pitch || !pitch.subject || !pitch.body){ throw new Error('Could not parse pitch response'); }
+    showPitchModal(brand, pitch);
+  } catch(e){
+    closeModal();
+    showError('Pitch draft failed: '+e.message);
+  }
+}
+
+function showPitchModal(brand, pitch){
+  const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const domain = (brand.domain||'').replace(/^https?:\/\//,'').replace(/\/$/,'');
+  // Best-guess brand email. Creator will see this in Gmail compose and can
+  // overwrite before sending.
+  const toGuess = domain ? `partnerships@${domain}` : '';
+  const subjectEsc = esc(pitch.subject);
+  const bodyEsc = esc(pitch.body);
+  // Stash on window for the buttons below (avoids quoting issues in the
+  // onclick attributes).
+  window._ccPendingPitch = { brand, pitch, to: toGuess };
+  showModal(
+    '<div class="modal-title">Pitch: '+esc(brand.name)+'</div>'+
+    '<div class="modal-sub">Review, tweak, and open in Gmail.</div>'+
+    '<div class="modal-label">To (best guess — overwrite in Gmail if wrong)</div>'+
+    '<input id="pitch-to-input" type="text" value="'+esc(toGuess)+'" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--text);font-family:\'Inter\',sans-serif;font-size:13px;outline:none;margin-bottom:14px">'+
+    '<div class="modal-label">Subject</div>'+
+    '<div class="pitch-subject-val">'+subjectEsc+'</div>'+
+    '<div class="modal-label">Body</div>'+
+    '<div class="pitch-body">'+bodyEsc+'</div>'+
+    '<div class="modal-row">'+
+      '<button class="copy-btn" onclick="sendPitchViaGmail()" title="Opens Gmail compose with your pitch pre-filled" style="display:inline-flex;align-items:center;justify-content:center;gap:8px">'+
+        GMAIL_ICON_SVG + '<span>Open in Gmail</span>'+
+      '</button>'+
+      '<button class="modal-cancel-btn" onclick="copyPitchClipboard()">Copy</button>'+
+      '<button class="modal-cancel-btn" onclick="closeModal()">Close</button>'+
+    '</div>'
+  );
+}
+
+function sendPitchViaGmail(){
+  const pending = window._ccPendingPitch;
+  if(!pending){ closeModal(); return; }
+  const toInput = document.getElementById('pitch-to-input');
+  const to = (toInput?.value || pending.to || '').trim();
+  const subject = pending.pitch.subject || '';
+  const body = pending.pitch.body || '';
+  openGmailCompose({ to, subject, body });
+
+  // Mark the brand as "Sent" on any visible brand cards so the creator
+  // has a visual trail. Does not confirm the email actually sent — just
+  // that they opened Gmail with it.
+  if(pending.brand && pending.brand.name){
+    state.sent[pending.brand.name] = true;
+    document.querySelectorAll('.brand-card').forEach(card=>{
+      const nameEl = card.querySelector('.brand-name');
+      if(nameEl && nameEl.textContent.trim() === pending.brand.name){
+        const btn = card.querySelector('.outreach-btn:last-of-type');
+        if(btn){
+          btn.className = 'outreach-btn sent';
+          btn.innerHTML = '✓ Sent';
+        }
+      }
+    });
+  }
+  window._ccPendingPitch = null;
+  closeModal();
+}
+
+function copyPitchClipboard(){
+  const pending = window._ccPendingPitch;
+  if(!pending) return;
+  const text = `Subject: ${pending.pitch.subject}\n\n${pending.pitch.body}`;
+  try {
+    navigator.clipboard.writeText(text);
+  } catch {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch {}
+    document.body.removeChild(ta);
+  }
 }
 
 // ── Pulse ─────────────────────────────────────────────────────────────────────
