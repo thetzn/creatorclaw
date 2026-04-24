@@ -2890,14 +2890,27 @@ function sendPitchViaGmail(){
   const to = (toInput?.value || pending.to || '').trim();
   const subject = pending.pitch.subject || '';
   const body = pending.pitch.body || '';
-  const url = 'https://mail.google.com/mail/?' + new URLSearchParams({
-    view: 'cm',
-    fs: '1',
-    to,
-    su: subject,
-    body,
-  }).toString();
-  window.open(url, '_blank', 'noopener');
+  // Gmail's web compose URL doesn't reach the draft UI when opened inside the
+  // native Gmail app on mobile — the app ignores the params and just lands on
+  // inbox. On mobile we fall back to mailto:, which the OS routes to the
+  // user's default mail client (usually Gmail or Apple Mail) and correctly
+  // passes subject + body.
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+  if(isMobile){
+    const url = 'mailto:' + encodeURIComponent(to)
+      + '?subject=' + encodeURIComponent(subject)
+      + '&body=' + encodeURIComponent(body);
+    window.location.href = url;
+  } else {
+    const url = 'https://mail.google.com/mail/?' + new URLSearchParams({
+      view: 'cm',
+      fs: '1',
+      to,
+      su: subject,
+      body,
+    }).toString();
+    window.open(url, '_blank', 'noopener');
+  }
   // Mark the brand as "Sent" on any visible brand cards so the creator
   // has a visual trail. Does not confirm the email actually sent — just
   // that they opened Gmail with it.
