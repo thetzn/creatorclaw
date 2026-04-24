@@ -2890,27 +2890,50 @@ function sendPitchViaGmail(){
   const to = (toInput?.value || pending.to || '').trim();
   const subject = pending.pitch.subject || '';
   const body = pending.pitch.body || '';
-  // Gmail's web compose URL doesn't reach the draft UI when opened inside the
-  // native Gmail app on mobile — the app ignores the params and just lands on
-  // inbox. On mobile we fall back to mailto:, which the OS routes to the
-  // user's default mail client (usually Gmail or Apple Mail) and correctly
-  // passes subject + body.
-  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-  if(isMobile){
-    const url = 'mailto:' + encodeURIComponent(to)
-      + '?subject=' + encodeURIComponent(subject)
-      + '&body=' + encodeURIComponent(body);
-    window.location.href = url;
+
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Mac/i.test(ua) && 'ontouchend' in document);
+  const isAndroid = /Android/i.test(ua);
+  const isMobile = isIOS || isAndroid || /Mobi/i.test(ua);
+
+  const mailtoUrl = 'mailto:' + encodeURIComponent(to)
+    + '?subject=' + encodeURIComponent(subject)
+    + '&body=' + encodeURIComponent(body);
+  const gmailWebUrl = 'https://mail.google.com/mail/?' + new URLSearchParams({
+    view: 'cm', fs: '1', to, su: subject, body,
+  }).toString();
+  // Gmail iOS app deep link — opens the Gmail app directly with compose
+  // pre-filled. Only fires if Gmail app is installed on the device.
+  const gmailIosAppUrl = 'googlegmail://co?'
+    + 'to=' + encodeURIComponent(to)
+    + '&subject=' + encodeURIComponent(subject)
+    + '&body=' + encodeURIComponent(body);
+
+  if(isIOS){
+    // iOS strategy: try the Gmail app deep link first. If Gmail isn't
+    // installed, iOS silently fails on the custom scheme, so we fall back
+    // to mailto: after a short delay (which opens Apple Mail or whatever
+    // app is set as the default email handler with the draft intact).
+    const start = Date.now();
+    window.location.href = gmailIosAppUrl;
+    setTimeout(() => {
+      // If we're still on the page ~1.4s later, Gmail app didn't catch it.
+      if(document.visibilityState === 'visible' && Date.now() - start < 2000){
+        window.location.href = mailtoUrl;
+      }
+    }, 1400);
+  } else if(isAndroid){
+    // Android: mailto reliably hands off to the user's default mail app
+    // (usually Gmail).
+    window.location.href = mailtoUrl;
+  } else if(isMobile){
+    // Other mobile: mailto fallback.
+    window.location.href = mailtoUrl;
   } else {
-    const url = 'https://mail.google.com/mail/?' + new URLSearchParams({
-      view: 'cm',
-      fs: '1',
-      to,
-      su: subject,
-      body,
-    }).toString();
-    window.open(url, '_blank', 'noopener');
+    // Desktop: Gmail web compose — opens in new tab.
+    window.open(gmailWebUrl, '_blank', 'noopener');
   }
+
   // Mark the brand as "Sent" on any visible brand cards so the creator
   // has a visual trail. Does not confirm the email actually sent — just
   // that they opened Gmail with it.
