@@ -1157,7 +1157,7 @@ export default {
         niche: rates[0]?.niche || null,
         engagement_band: rates[0]?.engagement_band || null,
         rates,
-        disclaimer: 'Industry benchmarks from IMH 2024 + Modash 2024, adjusted for your tier, engagement, and niche. Peer median shown when ≥3 anonymized creator rates exist for that bucket. Treat as a negotiation floor — aim for the upper end of each range.',
+        disclaimer: 'Industry benchmarks from IMH 2024 + Modash 2024, adjusted for your tier, engagement, and niche. Treat as a negotiation floor — aim for the upper end of each range.',
       }, 200, origin, allowed);
     }
 
