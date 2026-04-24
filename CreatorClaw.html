@@ -2795,9 +2795,9 @@ function toggleSent(btn,name){
 // subject + body. Creator reviews and hits Send themselves. Counts as their
 // own outgoing email — no data passes through us.
 
-// Official-ish Gmail envelope mark (simplified from Google brand icon).
+// Official Gmail mark — 5-panel multicolor envelope matching Google's brand.
 // Used on "Open in Gmail" buttons across the app.
-const GMAIL_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:16px;height:16px;flex-shrink:0"><path d="M2 6.5v11A1.5 1.5 0 0 0 3.5 19H6V10l6 4 6-4v9h2.5A1.5 1.5 0 0 0 22 17.5v-11" stroke="#EA4335" stroke-width="1.5" fill="#fff"/><path d="M2 6.5 12 14l10-7.5" stroke="#4285F4" stroke-width="1.5" fill="none" stroke-linejoin="round"/><path d="M2 6.5A1.5 1.5 0 0 1 3.5 5H6l6 4.5L18 5h2.5A1.5 1.5 0 0 1 22 6.5" stroke="#FBBC04" stroke-width="1.5" fill="#fff"/><path d="M6 19V9l6 4.5L18 9v10" stroke="#34A853" stroke-width="1.5" fill="none"/></svg>`;
+const GMAIL_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 36" aria-hidden="true" style="width:18px;height:14px;flex-shrink:0"><path fill="#4285F4" d="M3.6 36C1.61 36 0 34.39 0 32.4V10.8L6.78 16l.02 20z"/><path fill="#34A853" d="M41.18 36 48 30.89V10.8L41.22 16z"/><path fill="#FBBC04" d="M41.22 16 48 10.8V5.4c0-3.34-3.82-5.25-6.48-3.24L41.22 2.4z"/><path fill="#C5221F" d="M6.78 2.4 6.48 2.16C3.82.15 0 2.06 0 5.4v5.4L6.78 16z"/><path fill="#EA4335" d="M6.78 2.4 24 15.6 41.22 2.4l.02 13.6L24 29.2 6.78 16z"/></svg>`;
 
 // Single source of truth for launching Gmail compose. Works across desktop,
 // iOS (Gmail app deep link + mailto fallback), and Android (mailto).
