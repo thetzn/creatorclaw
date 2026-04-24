@@ -1551,6 +1551,9 @@ async function openConversation(id){
   renderMessages();
   renderConversationList();
   closeChatSidebar();
+  // If the user is currently in a tool view, come back to chat so they can
+  // see the conversation they just opened.
+  if(document.body.classList.contains('in-tool')) showChatView();
 }
 
 function newChat(){
@@ -1560,7 +1563,8 @@ function newChat(){
   renderMessages();
   renderConversationList();
   closeChatSidebar();
-  document.getElementById('chat-input').focus();
+  if(document.body.classList.contains('in-tool')) showChatView();
+  document.getElementById('chat-input')?.focus();
 }
 
 function renderMessages(){
