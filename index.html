@@ -1008,12 +1008,70 @@ function openAgentSettings(){
     </div>
     <textarea id="agent-persona-input" maxlength="${AGENT_PERSONA_MAX}" rows="7" placeholder="Tone, expertise, catchphrases, what it should (and shouldn’t) do. Left blank, your agent uses defaults." style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;line-height:1.55;outline:none;resize:vertical;margin-bottom:6px" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'">${esc(persona)}</textarea>
     <div style="font-size:11px;color:var(--muted);margin-bottom:18px">Up to ${AGENT_PERSONA_MAX} characters.</div>
+    <div class="modal-label" style="margin-top:6px">Integrations</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:13px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:18px">${GMAIL_ICON_SVG}</span>
+        <span>Gmail</span>
+        <span id="gmail-connect-status" style="font-size:11px;color:var(--muted)"></span>
+      </div>
+      <button type="button" id="gmail-connect-btn" onclick="connectGmailViaArcade()" style="background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:7px 14px;color:var(--text);font-size:12px;cursor:pointer;letter-spacing:0.02em">Connect</button>
+    </div>
     <div class="modal-row">
       <button class="modal-cancel-btn" type="button" onclick="resetAgentSettings()">Reset to default</button>
       <button class="modal-save-btn" type="button" id="agent-save-btn" onclick="submitAgentSettings()">Save</button>
     </div>
   `);
   setTimeout(()=>{ document.getElementById('agent-name-input')?.focus(); }, 50);
+}
+
+// Kick off the Arcade OAuth flow for the user's Gmail. The Worker calls
+// Arcade's authorize endpoint; if the account isn't connected yet, Arcade
+// returns a one-time URL we open in a new tab for the user to complete OAuth.
+async function connectGmailViaArcade(){
+  const btn = document.getElementById('gmail-connect-btn');
+  const status = document.getElementById('gmail-connect-status');
+  if(!btn) return;
+  btn.disabled = true; btn.textContent = 'Checking…';
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    if(!user){
+      if(status) status.textContent = '— sign in to CreatorClaw first';
+      btn.disabled = false; btn.textContent = 'Connect';
+      return;
+    }
+    const res = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ arcadeAuthorize: true, toolName: 'Gmail.SendEmail', userId: user.id })
+    });
+    if(!res.ok){
+      if(status) status.textContent = '— error ' + res.status;
+      btn.disabled = false; btn.textContent = 'Retry';
+      return;
+    }
+    const data = await res.json();
+    if(data.status === 'completed'){
+      if(status) status.textContent = '— connected ✓';
+      status.style.color = 'var(--green)';
+      btn.textContent = 'Reconnect';
+      btn.disabled = false;
+      return;
+    }
+    if(data.auth_url){
+      window.open(data.auth_url, '_blank', 'noopener');
+      if(status) status.textContent = '— complete auth in the new tab';
+      btn.textContent = 'Check again';
+      btn.disabled = false;
+      return;
+    }
+    if(status) status.textContent = '— unexpected response';
+    btn.disabled = false; btn.textContent = 'Retry';
+  } catch(e) {
+    console.warn('connectGmailViaArcade', e);
+    if(status) status.textContent = '— ' + (e.message || 'error');
+    btn.disabled = false; btn.textContent = 'Retry';
+  }
 }
 
 async function submitAgentSettings(){
@@ -2156,6 +2214,8 @@ function buildSystemPrompt(){
   parts.push(`When drafting ANY pitch, cold email, outreach, brand introduction, or sponsor DM, you MUST format the response exactly as:\n\nSubject: <short specific subject line>\n\n<email body in 3-5 short paragraphs, plaintext, no markdown, signed with creator's first name>\n\nThe UI detects this format to offer a one-click "Open in Gmail" button, so do not wrap it in quotes, code fences, or explanatory prose. If the user asks a question ABOUT a pitch (critique, tweak, compare), answer naturally and don't use the Subject: format.`);
   parts.push(`\n--- Rate tools (use for any pricing question) ---`);
   parts.push(`Two functions are available. Call them when relevant — do not try to compute rates yourself, the benchmarks are in a live database.\n- get_rate_estimate(platform, deliverable, rights_months?, exclusivity_days?, whitelisting?, rush?) — returns the industry benchmark range plus peer median when available. Call whenever the user asks what to charge, how much something is worth, or wants a quote range.\n- compare_offer(platform, deliverable, amount_offered, ...) — the user got a specific $ offer; returns whether it is below/within/above benchmark. Call whenever a specific dollar amount is mentioned.\n\nWhen citing results to the user:\n- Give the range in dollars (e.g. "$1,500–$7,000 for a reel at your tier").\n- Mention the peer_data p50 if present ("similar creators report $5,500 median").\n- Always recommend aiming for the upper end of the range when engagement or niche multipliers are strong.\n- Frame it as a benchmark, not "your rate" — their actual number depends on scope and negotiation.\n- Never quote a number you didn't get from the tools. If the tool errored, say the rate data is temporarily unavailable rather than guessing.`);
+  parts.push(`\n--- Gmail send tool ---`);
+  parts.push(`send_pitch_email(to, subject, body) — sends an email from the creator's connected Gmail via Arcade. Call this ONLY when the user has explicitly asked you to send (not just draft) an email on their behalf. Never call it on your own initiative.\n\nIf the tool result contains status="needs_auth", the creator hasn't connected Gmail yet. Present the auth_url to them directly in your reply (as a clickable link) and ask them to retry after authorizing. If status="sent", briefly confirm with the recipient and mention they can find it in their Gmail sent folder.`);
   return parts.join('\n');
 }
 
@@ -2262,10 +2322,18 @@ async function sendChatMessage(){
     if (typeof raw === 'string'){ const m = raw.match(/([\d.]+)/); if(m) return parseFloat(m[1]); }
     return null;
   };
+  // Pull Supabase user id so Arcade tool calls can bind to this creator's
+  // connected Gmail (or whatever they've authorized).
+  let userId = null;
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    userId = user?.id || null;
+  } catch {}
   const creatorContext = {
     followers: parseFollowers(d._raw?.followers || d.followers || p.totalReach),
     engagementPct: parseEng(d.engagementRate || p.avgEngagement),
     niche: p.topCategory || d.topCategory || (p.pillars||[])[0]?.l || 'lifestyle',
+    userId,
   };
 
   let fullText = '';
