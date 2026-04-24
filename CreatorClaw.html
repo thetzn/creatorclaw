@@ -2128,6 +2128,8 @@ function buildSystemPrompt(){
 
   parts.push(`\n--- Style ---`);
   parts.push(`Use the data above freely when answering questions about their audience, performance, or strategy. Cite specific numbers and themes rather than speaking generically. When drafting content, match their voice (vibes + content pillars). Keep responses concise unless the user asks for detail. Only say you don't have certain data if the specific metric they asked about isn't listed above.`);
+  parts.push(`\n--- Pitch format (important) ---`);
+  parts.push(`When drafting ANY pitch, cold email, outreach, brand introduction, or sponsor DM, you MUST format the response exactly as:\n\nSubject: <short specific subject line>\n\n<email body in 3-5 short paragraphs, plaintext, no markdown, signed with creator's first name>\n\nThe UI detects this format to offer a one-click "Open in Gmail" button, so do not wrap it in quotes, code fences, or explanatory prose. If the user asks a question ABOUT a pitch (critique, tweak, compare), answer naturally and don't use the Subject: format.`);
   return parts.join('\n');
 }
 
@@ -2259,6 +2261,9 @@ async function sendChatMessage(){
     if(fullText){
       chatState.messages.push({ role: 'assistant', content: fullText });
       await saveMessage('assistant', fullText);
+      // If the assistant formatted a pitch (Subject: ... \n\n body...), attach
+      // an "Open in Gmail" button so the user can ship it in one tap.
+      try { maybeAttachGmailCta(bodyEl, fullText); } catch(e){ console.warn('gmail cta', e); }
     } else {
       bodyEl.textContent = '(no response — try again)';
       bodyEl.style.color = 'var(--muted)';
@@ -2789,6 +2794,85 @@ function toggleSent(btn,name){
 // the creator's voice, then open Gmail compose in a new tab pre-filled with
 // subject + body. Creator reviews and hits Send themselves. Counts as their
 // own outgoing email — no data passes through us.
+
+// Official-ish Gmail envelope mark (simplified from Google brand icon).
+// Used on "Open in Gmail" buttons across the app.
+const GMAIL_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:16px;height:16px;flex-shrink:0"><path d="M2 6.5v11A1.5 1.5 0 0 0 3.5 19H6V10l6 4 6-4v9h2.5A1.5 1.5 0 0 0 22 17.5v-11" stroke="#EA4335" stroke-width="1.5" fill="#fff"/><path d="M2 6.5 12 14l10-7.5" stroke="#4285F4" stroke-width="1.5" fill="none" stroke-linejoin="round"/><path d="M2 6.5A1.5 1.5 0 0 1 3.5 5H6l6 4.5L18 5h2.5A1.5 1.5 0 0 1 22 6.5" stroke="#FBBC04" stroke-width="1.5" fill="#fff"/><path d="M6 19V9l6 4.5L18 9v10" stroke="#34A853" stroke-width="1.5" fill="none"/></svg>`;
+
+// Single source of truth for launching Gmail compose. Works across desktop,
+// iOS (Gmail app deep link + mailto fallback), and Android (mailto).
+function openGmailCompose({ to = '', subject = '', body = '' }){
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Mac/i.test(ua) && 'ontouchend' in document);
+  const isAndroid = /Android/i.test(ua);
+  const isMobile = isIOS || isAndroid || /Mobi/i.test(ua);
+
+  const mailtoUrl = 'mailto:' + encodeURIComponent(to)
+    + '?subject=' + encodeURIComponent(subject)
+    + '&body=' + encodeURIComponent(body);
+  const gmailWebUrl = 'https://mail.google.com/mail/?' + new URLSearchParams({
+    view: 'cm', fs: '1', to, su: subject, body,
+  }).toString();
+  const gmailIosAppUrl = 'googlegmail://co?'
+    + 'to=' + encodeURIComponent(to)
+    + '&subject=' + encodeURIComponent(subject)
+    + '&body=' + encodeURIComponent(body);
+
+  if(isIOS){
+    const start = Date.now();
+    window.location.href = gmailIosAppUrl;
+    setTimeout(() => {
+      if(document.visibilityState === 'visible' && Date.now() - start < 2000){
+        window.location.href = mailtoUrl;
+      }
+    }, 1400);
+  } else if(isMobile){
+    window.location.href = mailtoUrl;
+  } else {
+    window.open(gmailWebUrl, '_blank', 'noopener');
+  }
+}
+
+// Detect the `Subject: ...\n\n<body>` pattern produced by the pitch-mode
+// system prompt, so we can offer the Gmail button on chat messages.
+function detectPitchInText(text){
+  if(!text) return null;
+  // Tolerate optional markdown bold wrapping.
+  const m = String(text).match(/^\s*(?:\*\*)?Subject:(?:\*\*)?\s*(.+?)\s*\n\s*\n([\s\S]+?)\s*$/i);
+  if(!m) return null;
+  const subject = m[1].trim().replace(/^["']|["']$/g, '').replace(/\*\*/g, '');
+  const body = m[2].trim();
+  if(!subject || body.length < 40) return null;
+  return { subject, body };
+}
+
+// Attach an "Open in Gmail" button to an assistant chat message if the
+// streamed response looks like a pitch.
+function maybeAttachGmailCta(bodyEl, fullText){
+  if(!bodyEl || bodyEl.querySelector('.chat-gmail-cta')) return;
+  const pitch = detectPitchInText(fullText);
+  if(!pitch) return;
+  const row = document.createElement('div');
+  row.className = 'chat-gmail-cta';
+  row.style.cssText = 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap';
+  const btn = document.createElement('button');
+  btn.className = 'copy-btn';
+  btn.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:10px 16px;flex:0 1 auto;font-size:11px';
+  btn.innerHTML = GMAIL_ICON_SVG + '<span>Open in Gmail</span>';
+  btn.onclick = () => openGmailCompose({ subject: pitch.subject, body: pitch.body, to: '' });
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'modal-cancel-btn';
+  copyBtn.style.cssText = 'padding:10px 14px;font-size:11px';
+  copyBtn.textContent = 'Copy';
+  copyBtn.onclick = () => {
+    const full = `Subject: ${pitch.subject}\n\n${pitch.body}`;
+    try { navigator.clipboard.writeText(full); copyBtn.textContent = 'Copied'; setTimeout(()=>copyBtn.textContent='Copy', 1500); }
+    catch { /* ignore */ }
+  };
+  row.appendChild(btn);
+  row.appendChild(copyBtn);
+  bodyEl.appendChild(row);
+}
 async function draftPitch(i){
   const brand = (state.brands||[])[i];
   if(!brand){ showError('Brand not found'); return; }
@@ -2876,7 +2960,9 @@ function showPitchModal(brand, pitch){
     '<div class="modal-label">Body</div>'+
     '<div class="pitch-body">'+bodyEsc+'</div>'+
     '<div class="modal-row">'+
-      '<button class="copy-btn" onclick="sendPitchViaGmail()" title="Opens Gmail compose in a new tab with your pitch pre-filled">✉️ Open in Gmail</button>'+
+      '<button class="copy-btn" onclick="sendPitchViaGmail()" title="Opens Gmail compose with your pitch pre-filled" style="display:inline-flex;align-items:center;justify-content:center;gap:8px">'+
+        GMAIL_ICON_SVG + '<span>Open in Gmail</span>'+
+      '</button>'+
       '<button class="modal-cancel-btn" onclick="copyPitchClipboard()">Copy</button>'+
       '<button class="modal-cancel-btn" onclick="closeModal()">Close</button>'+
     '</div>'
@@ -2890,49 +2976,7 @@ function sendPitchViaGmail(){
   const to = (toInput?.value || pending.to || '').trim();
   const subject = pending.pitch.subject || '';
   const body = pending.pitch.body || '';
-
-  const ua = navigator.userAgent || '';
-  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Mac/i.test(ua) && 'ontouchend' in document);
-  const isAndroid = /Android/i.test(ua);
-  const isMobile = isIOS || isAndroid || /Mobi/i.test(ua);
-
-  const mailtoUrl = 'mailto:' + encodeURIComponent(to)
-    + '?subject=' + encodeURIComponent(subject)
-    + '&body=' + encodeURIComponent(body);
-  const gmailWebUrl = 'https://mail.google.com/mail/?' + new URLSearchParams({
-    view: 'cm', fs: '1', to, su: subject, body,
-  }).toString();
-  // Gmail iOS app deep link — opens the Gmail app directly with compose
-  // pre-filled. Only fires if Gmail app is installed on the device.
-  const gmailIosAppUrl = 'googlegmail://co?'
-    + 'to=' + encodeURIComponent(to)
-    + '&subject=' + encodeURIComponent(subject)
-    + '&body=' + encodeURIComponent(body);
-
-  if(isIOS){
-    // iOS strategy: try the Gmail app deep link first. If Gmail isn't
-    // installed, iOS silently fails on the custom scheme, so we fall back
-    // to mailto: after a short delay (which opens Apple Mail or whatever
-    // app is set as the default email handler with the draft intact).
-    const start = Date.now();
-    window.location.href = gmailIosAppUrl;
-    setTimeout(() => {
-      // If we're still on the page ~1.4s later, Gmail app didn't catch it.
-      if(document.visibilityState === 'visible' && Date.now() - start < 2000){
-        window.location.href = mailtoUrl;
-      }
-    }, 1400);
-  } else if(isAndroid){
-    // Android: mailto reliably hands off to the user's default mail app
-    // (usually Gmail).
-    window.location.href = mailtoUrl;
-  } else if(isMobile){
-    // Other mobile: mailto fallback.
-    window.location.href = mailtoUrl;
-  } else {
-    // Desktop: Gmail web compose — opens in new tab.
-    window.open(gmailWebUrl, '_blank', 'noopener');
-  }
+  openGmailCompose({ to, subject, body });
 
   // Mark the brand as "Sent" on any visible brand cards so the creator
   // has a visual trail. Does not confirm the email actually sent — just
