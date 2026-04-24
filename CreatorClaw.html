@@ -327,6 +327,18 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 
 /* Charts */
 .chart-card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:24px}
+.rate-card-meta{font-size:11px;color:var(--muted);letter-spacing:0.02em;margin-top:4px}
+.rate-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:18px}
+.rate-card-item{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px;transition:border-color 0.2s}
+.rate-card-item:hover{border-color:var(--border2)}
+.rate-card-item-platform{font-size:9px;color:var(--gold);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:2px}
+.rate-card-item-label{font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px}
+.rate-card-item-range{font-size:17px;font-weight:700;color:var(--text);letter-spacing:-0.01em;line-height:1.2}
+.rate-card-item-low{color:var(--muted)}
+.rate-card-item-peer{font-size:11px;color:var(--green);margin-top:6px;letter-spacing:0.02em}
+.rate-card-item-error{font-size:11px;color:var(--red);margin-top:6px}
+.rate-card-footer{font-size:11px;color:var(--muted);margin-top:20px;padding-top:16px;border-top:1px solid var(--border);line-height:1.6}
+.rate-card-loading{text-align:center;padding:32px;color:var(--muted);font-size:12px}
 .chart-title{font-size:10px;font-weight:600;margin-bottom:20px;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase}
 
 .pie-container{display:flex;justify-content:center;margin-bottom:16px}
@@ -651,6 +663,14 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <div class="stat-card tier"><div class="stat-card-icon" style="background:var(--gold-dim);color:var(--gold)">★</div><div class="stat-card-val">Rising Star</div><div class="stat-card-label">Creator Tier</div></div>
     </div>
     <div class="card" style="margin-bottom:20px;padding:28px"><div class="chart-title">Content Pillars</div><div class="pillars" id="pillars-container"></div></div>
+    <div class="card" id="rate-card-section" style="margin-bottom:20px;padding:28px">
+      <div class="chart-title">Your Rate Card</div>
+      <div class="rate-card-meta" id="rate-card-meta">Industry benchmark based on your profile.</div>
+      <div class="rate-card-grid" id="rate-card-grid">
+        <div class="rate-card-loading">Calculating your rate card…</div>
+      </div>
+      <div class="rate-card-footer" id="rate-card-footer"></div>
+    </div>
     <div class="teaser-section">
       <div class="teaser-content">
         <div class="grid-3">
@@ -2631,6 +2651,104 @@ function renderPersona(d){
   document.getElementById('persona-result').classList.add('fade-up');
   document.getElementById('persona-download-btn')?.classList.remove('hidden');
   state.personaGen=true;
+  // Fire-and-forget rate card fetch; fills the section once resolved.
+  renderRateCard().catch(e => console.warn('rate card render failed:', e));
+}
+
+// ── Rate card ────────────────────────────────────────────────────────────────
+// Calls the Worker's /rateCard endpoint and renders a grid of deliverable
+// ranges on the Analytics tab. Uses the same Supabase benchmarks the chat
+// tool uses, so numbers stay consistent across surfaces.
+async function renderRateCard(){
+  const grid = document.getElementById('rate-card-grid');
+  const meta = document.getElementById('rate-card-meta');
+  const footer = document.getElementById('rate-card-footer');
+  if(!grid) return;
+
+  const p = state.persona || {};
+  const d = state.igData || {};
+  const parseFollowers = (raw) => {
+    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'string'){
+      const s = raw.replace(/[, ]/g,'');
+      if(/M$/i.test(s)) return Math.round(parseFloat(s)*1_000_000);
+      if(/K$/i.test(s)) return Math.round(parseFloat(s)*1_000);
+      const n = Number(s); if(!isNaN(n)) return n;
+    }
+    return 0;
+  };
+  const parseEng = (raw) => {
+    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'string'){ const m = raw.match(/([\d.]+)/); if(m) return parseFloat(m[1]); }
+    return null;
+  };
+  const ctx = {
+    followers: parseFollowers(d._raw?.followers || d.followers || p.totalReach),
+    engagementPct: parseEng(d.engagementRate || p.avgEngagement),
+    niche: p.topCategory || d.topCategory || (p.pillars||[])[0]?.l || 'lifestyle',
+  };
+
+  if(!ctx.followers){
+    grid.innerHTML = '<div class="rate-card-loading">Need follower data to compute rates.</div>';
+    return;
+  }
+
+  try {
+    const res = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ rateCard: true, creatorContext: ctx })
+    });
+    if(!res.ok){
+      grid.innerHTML = '<div class="rate-card-loading">Rate card unavailable right now.</div>';
+      console.warn('rate card HTTP', res.status);
+      return;
+    }
+    const data = await res.json();
+    if(!data || !Array.isArray(data.rates)){
+      grid.innerHTML = '<div class="rate-card-loading">No rate data returned.</div>';
+      return;
+    }
+
+    // Update the meta line with tier + engagement band
+    if(meta){
+      const parts = [];
+      if(data.tier_label) parts.push(`${data.tier_label} tier`);
+      if(data.engagement_band) parts.push(data.engagement_band + ' engagement');
+      if(data.niche) parts.push(data.niche + ' niche');
+      meta.textContent = parts.length ? `Industry benchmark — ${parts.join(' · ')}.` : 'Industry benchmark based on your profile.';
+    }
+
+    const fmtUSD = n => {
+      if(n == null || isNaN(n)) return '—';
+      if(n >= 1000) return '$' + (n/1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/,'') + 'K';
+      return '$' + Math.round(n).toLocaleString();
+    };
+
+    grid.innerHTML = data.rates.map(r => {
+      if(r.error){
+        return `<div class="rate-card-item">
+          <div class="rate-card-item-platform">${escapeHtml(r.platform||'')}</div>
+          <div class="rate-card-item-label">${escapeHtml(r.label||'')}</div>
+          <div class="rate-card-item-error">Rate unavailable</div>
+        </div>`;
+      }
+      const low = r.low_usd;
+      const high = r.high_usd;
+      const peer = r.peer_data && r.peer_data.n ? r.peer_data : null;
+      return `<div class="rate-card-item">
+        <div class="rate-card-item-platform">${escapeHtml(r.platform||'')}</div>
+        <div class="rate-card-item-label">${escapeHtml(r.label||'')}</div>
+        <div class="rate-card-item-range"><span class="rate-card-item-low">${fmtUSD(low)}</span> – ${fmtUSD(high)}</div>
+        ${peer ? `<div class="rate-card-item-peer">Peer median: ${fmtUSD(peer.p50)} · n=${peer.n}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    if(footer) footer.textContent = data.disclaimer || '';
+  } catch(e) {
+    console.warn('rate card fetch error', e);
+    grid.innerHTML = '<div class="rate-card-loading">Rate card unavailable right now.</div>';
+  }
 }
 
 function buildCharts(d){

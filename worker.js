@@ -1124,6 +1124,43 @@ export default {
       return runIGScrape(body.handle, env, origin, allowed);
     }
 
+    // ── Rate card: batch compute all common deliverables in one call ───
+    if (body.rateCard) {
+      const ctx = body.creatorContext || {};
+      const catalog = [
+        { platform: 'instagram', deliverable: 'static',       label: 'Static post' },
+        { platform: 'instagram', deliverable: 'carousel',     label: 'Carousel' },
+        { platform: 'instagram', deliverable: 'reel',         label: 'Reel' },
+        { platform: 'instagram', deliverable: 'story-series', label: 'Stories (3+)' },
+        { platform: 'tiktok',    deliverable: 'video',        label: 'TikTok video' },
+        { platform: 'youtube',   deliverable: 'youtube-short',label: 'YouTube Short' },
+        { platform: 'instagram', deliverable: 'ugc',          label: 'UGC (organic)' },
+        { platform: 'instagram', deliverable: 'full-bundle',  label: 'Full bundle' },
+      ];
+      const rates = await Promise.all(catalog.map(async (d) => {
+        try {
+          const est = await computeRateEstimate({
+            platform: d.platform,
+            deliverable: d.deliverable,
+            followers: ctx.followers,
+            engagementPct: ctx.engagementPct,
+            niche: ctx.niche,
+          });
+          return { ...d, ...est };
+        } catch (e) {
+          return { ...d, error: String((e && e.message) || e) };
+        }
+      }));
+      return json({
+        tier: rates[0]?.tier || null,
+        tier_label: rates[0]?.tier_label || null,
+        niche: rates[0]?.niche || null,
+        engagement_band: rates[0]?.engagement_band || null,
+        rates,
+        disclaimer: 'Industry benchmarks from IMH 2024 + Modash 2024, adjusted for your tier, engagement, and niche. Peer median shown when ≥3 anonymized creator rates exist for that bucket. Treat as a negotiation floor — aim for the upper end of each range.',
+      }, 200, origin, allowed);
+    }
+
     // ── Agent: brand research (Responses API + web_search allowlist) ────
     if (body.agentBrandResearch) {
       return runAgentBrandResearch(body, env, origin, allowed);
