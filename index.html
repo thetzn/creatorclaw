@@ -168,6 +168,7 @@ body.logged-out #chat-view #chat-input{cursor:not-allowed}
 .chat-msg-body .inline-persona-stat{font-size:9px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase}
 .chat-msg-body .inline-persona-stat strong{color:var(--text);font-weight:600;font-size:13px;display:block;letter-spacing:0;text-transform:none;margin-bottom:2px;white-space:nowrap}
 .chat-msg-body .inline-persona-vibes{display:flex;gap:6px;flex-wrap:wrap}
+.chat-msg-body .inline-persona-audience{font-size:12px;color:var(--muted);line-height:1.55;font-style:italic;border-left:2px solid var(--gold-border);padding-left:10px;margin:4px 0 2px}
 .chat-msg-body .inline-persona-vibe{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:4px 9px;border-radius:999px;background:var(--card);border:1px solid var(--border2);color:var(--muted)}
 .chat-msg-body .inline-picker{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
 .chat-msg-body .inline-pick-tile{background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:16px;cursor:pointer;text-align:left;transition:all 0.2s;font-family:inherit;color:var(--text);display:flex;flex-direction:column;gap:6px;align-items:flex-start}
@@ -1875,6 +1876,7 @@ function renderInlinePersonaCard(persona, igData){
   const growth = p.growthRate || '—';
   const topAge = (p.age||[]).slice().sort((a,b)=>(b.pct||0)-(a.pct||0))[0]?.age || '—';
   const topCity = (p.locations||[])[0]?.city || '—';
+  const audienceHints = String(d.audienceHints || '').trim();
   return `
     <div class="inline-persona">
       <div class="inline-persona-head">
@@ -1885,6 +1887,7 @@ function renderInlinePersonaCard(persona, igData){
         </div>
       </div>
       ${vibes.length?`<div class="inline-persona-vibes">${vibes.map(v=>`<span class="inline-persona-vibe">${escapeHtml(v)}</span>`).join('')}</div>`:''}
+      ${audienceHints?`<div class="inline-persona-audience">${escapeHtml(audienceHints)}</div>`:''}
       <div class="inline-persona-stats">
         <div class="inline-persona-stat"><strong>${escapeHtml(followers)}</strong>Reach</div>
         <div class="inline-persona-stat"><strong>${escapeHtml(engagement)}</strong>Engagement</div>
@@ -2885,6 +2888,17 @@ async function generateBrands(){
   document.getElementById('brands-loading').classList.remove('hidden');
   startLoading('brands', 10);
 
+  // Pull existing brand orbit (creators they already @-mention or that
+  // appeared as past partners in the persona). Use these as exclusion +
+  // tier signal — brands they already work with are existing relationships,
+  // not new leads.
+  const existingBrands = Array.isArray(state.igData?.brandAffinities)
+    ? state.igData.brandAffinities.slice(0,8).map(b=>String(b).replace(/^@/,'')).filter(Boolean)
+    : [];
+  const excludeLine = existingBrands.length
+    ? `\n\nBrands the creator already mentions / has worked with (DO NOT recommend any of these — they are existing relationships, not new leads): ${existingBrands.join(', ')}.\nUse them only as a TIER + AESTHETIC reference: recommend brands of similar size, niche, and brand sensibility — peers, complements, and step-ups, not the same brands.`
+    : '';
+
   const system=`Brand matchmaker. Return ONLY a JSON array of 8 brands, no markdown. Structure:
 [{"name":"Gymshark","domain":"gymshark.com","match":96,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"}]
 Real brands. domain is the primary website (no https:// or trailing slash). match 60-99. reasons exactly 3. deal is dollar range. Order by match desc.`;
@@ -2892,7 +2906,7 @@ Real brands. domain is the primary website (no https:// or trailing slash). matc
   const personaSummary=state.persona
     ? `${state.persona.name}: ${state.persona.bio} Pillars: ${state.persona.pillars.map(p=>p.l).join(', ')}. Vibes: ${state.persona.vibes.join(', ')}. Reach: ${state.persona.totalReach}, Engagement: ${state.persona.avgEngagement}`
     : getConnectedStats();
-  const user=`${personaSummary}\n\n8 brand matches:`;
+  const user=`${personaSummary}${excludeLine}\n\n8 brand matches:`;
 
   try {
     const raw=await chatLLM(system,user);
