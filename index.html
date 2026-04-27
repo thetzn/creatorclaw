@@ -169,6 +169,11 @@ body.logged-out #chat-view #chat-input{cursor:not-allowed}
 .chat-msg-body .inline-persona-stat strong{color:var(--text);font-weight:600;font-size:13px;display:block;letter-spacing:0;text-transform:none;margin-bottom:2px;white-space:nowrap}
 .chat-msg-body .inline-persona-vibes{display:flex;gap:6px;flex-wrap:wrap}
 .chat-msg-body .inline-persona-audience{font-size:12px;color:var(--muted);line-height:1.55;font-style:italic;border-left:2px solid var(--gold-border);padding-left:10px;margin:4px 0 2px}
+.chat-msg-body .onb-handle-form{display:flex;gap:8px;margin-top:8px}
+.chat-msg-body .onb-handle-form input{flex:1;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;transition:border-color 0.2s;min-width:0}
+.chat-msg-body .onb-handle-form input:focus{border-color:var(--gold)}
+.chat-msg-body .onb-handle-form button{background:var(--gold);border:none;border-radius:8px;padding:11px 18px;color:var(--bg);font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+.chat-msg-body .onb-handle-form button:hover{opacity:0.9}
 .chat-msg-body .inline-persona-vibe{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:4px 9px;border-radius:999px;background:var(--card);border:1px solid var(--border2);color:var(--muted)}
 .chat-msg-body .inline-picker{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
 .chat-msg-body .inline-pick-tile{background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:16px;cursor:pointer;text-align:left;transition:all 0.2s;font-family:inherit;color:var(--text);display:flex;flex-direction:column;gap:6px;align-items:flex-start}
@@ -518,9 +523,18 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 .intro-cta.visible{opacity:1;transform:translateY(0)}
 .intro-cta button{background:transparent;border:1px solid var(--gold);border-radius:8px;padding:14px 36px;color:var(--gold);font-size:12px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;transition:all 0.3s}
 .intro-cta button:hover{background:var(--gold);color:var(--bg)}
-.intro-connect{opacity:0;transform:translateY(8px);transition:opacity 0.5s ease,transform 0.5s ease;margin-top:36px}
+.intro-connect{opacity:0;transform:translateY(8px);transition:opacity 0.5s ease,transform 0.5s ease;margin-top:36px;display:flex;flex-direction:column;gap:10px}
 .intro-connect.visible{opacity:1;transform:translateY(0)}
-.intro-label{font-size:10px;color:var(--muted);letter-spacing:0.18em;text-transform:uppercase;margin-bottom:12px;font-weight:600}
+.intro-auth-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;border-radius:10px;padding:14px 20px;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--card2);color:var(--text);transition:all 0.2s;position:relative}
+.intro-auth-btn:hover{border-color:var(--muted2);transform:translateY(-1px)}
+.intro-auth-btn svg{width:18px;height:18px;flex-shrink:0}
+.intro-auth-btn.google{background:#fff;color:#1a1a1a;border-color:#fff}
+.intro-auth-btn.google:hover{background:#f3f3f3;border-color:#f3f3f3}
+.intro-auth-btn.ig{background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff;border-color:transparent}
+.intro-auth-btn.ig:hover{filter:brightness(1.05)}
+.intro-auth-soon{position:absolute;top:6px;right:8px;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;background:rgba(0,0,0,0.35);color:#fff;padding:2px 6px;border-radius:999px;backdrop-filter:blur(4px)}
+.intro-divider{display:flex;align-items:center;gap:12px;margin:8px 0;font-size:10px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase}
+.intro-divider::before,.intro-divider::after{content:'';flex:1;height:1px;background:var(--border2)}
 .intro-form{display:flex;gap:8px}
 .intro-form input{flex:1;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:14px 16px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none;transition:border-color 0.2s;min-width:0}
 .intro-form input:focus{border-color:var(--gold)}
@@ -565,7 +579,16 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
     <div class="intro-line" id="intro-1"><span class="intro-text" id="intro-text-1"></span><span class="intro-cursor" id="cursor-1"></span></div>
     <div class="intro-line" id="intro-2"><span class="intro-text" id="intro-text-2"></span><span class="intro-cursor" id="cursor-2" style="display:none"></span></div>
     <div class="intro-connect" id="intro-connect">
-      <div class="intro-label">Your Instagram handle</div>
+      <button class="intro-auth-btn google" type="button" onclick="introSignInGoogle()">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>
+        <span>Sign in with Google</span>
+      </button>
+      <button class="intro-auth-btn ig" type="button" onclick="introSignInInstagramSoon()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="#fff"/></svg>
+        <span>Continue with Instagram</span>
+        <span class="intro-auth-soon">Soon</span>
+      </button>
+      <div class="intro-divider"><span>or try it first — no account needed</span></div>
       <div class="intro-form">
         <input id="intro-ig-input" type="text" placeholder="@yourhandle" onkeydown="if(event.key==='Enter')introAnalyze()">
         <button onclick="introAnalyze()">Analyze</button>
@@ -817,7 +840,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 // Intro typewriter
 const introLines=[
   {el:'intro-text-1',cursor:'cursor-1',line:'intro-1',text:'Welcome to CreatorClaw.'},
-  {el:'intro-text-2',cursor:'cursor-2',line:'intro-2',text:'The AI agent for content creators.'}
+  {el:'intro-text-2',cursor:'cursor-2',line:'intro-2',text:'The AI Agent for content creators.'}
 ];
 
 function typeWriter(el,text,speed,cb){
@@ -872,6 +895,38 @@ function introAnalyze(){
   dismissIntro();
   // Chat-first onboarding: open chat thread and narrate analysis inline
   startOnboardingChat(v);
+}
+
+// Auth-first intro buttons.
+async function introSignInGoogle(){
+  const btn = document.querySelector('.intro-auth-btn.google');
+  if(btn){ btn.disabled = true; btn.style.opacity = '0.7'; }
+  try {
+    if(typeof signInWithGoogle === 'function'){
+      await signInWithGoogle();
+    }
+  } catch(e){
+    console.warn('intro Google sign-in failed', e);
+    if(btn){ btn.disabled = false; btn.style.opacity = '1'; }
+  }
+}
+
+function introSignInInstagramSoon(){
+  // Visual placeholder — IG-as-auth requires Worker-side Supabase session
+  // minting which we haven't built yet. Show a friendly toast and steer
+  // users to Google or try-first.
+  showIntroToast("Instagram sign-in is launching soon. For now, sign in with Google or try the public-handle option below.");
+}
+
+function showIntroToast(msg){
+  let t = document.getElementById('intro-toast');
+  if(t) t.remove();
+  t = document.createElement('div');
+  t.id = 'intro-toast';
+  t.style.cssText = 'position:fixed;left:50%;bottom:32px;transform:translateX(-50%);background:var(--card);border:1px solid var(--border2);border-radius:10px;padding:14px 18px;color:var(--text);font-size:13px;line-height:1.5;max-width:420px;z-index:200;box-shadow:0 8px 30px rgba(0,0,0,0.35);animation:fadeUp 0.3s ease forwards;text-align:center';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity 0.4s ease'; t.style.opacity='0'; setTimeout(()=>t.remove(), 500); }, 4500);
 }
 
 function dismissIntro(){
@@ -1401,12 +1456,20 @@ async function initAuth(){
           const connectTab = document.querySelector('#nav .nav-btn[data-tab="connect"]');
           if(connectTab) connectTab.style.display = 'none';
         }catch(e){ console.error('pending save failed', e); }
+      } else {
+        // Truly no persona yet — soft-prompt for handle in chat.
+        state._needsHandlePrompt = true;
       }
     }
     // Route signed-in users to chat as primary screen
     showChatView();
     loadConversations();
     if(canConnectInstagram(user)) loadIgConnection();
+    if(state._needsHandlePrompt){
+      state._needsHandlePrompt = false;
+      // Defer slightly so the chat view has rendered before we inject.
+      setTimeout(pushOnboardingHandlePrompt, 250);
+    }
   }
 
   // Subscribe to changes (sign-in / sign-out while tab open)
@@ -1786,6 +1849,32 @@ function startInlineLoading(bodyEl, key, estSec){
 }
 
 // ── Chat-first onboarding ─────────────────────────────────────────────────────
+// Soft prompt shown to a freshly Google-signed-in user who hasn't analyzed
+// their IG yet. Appears as the first chat bubble with a small handle input.
+function pushOnboardingHandlePrompt(){
+  const body = appendInlineCard('assistant', `
+    <div style="margin-bottom:10px">Welcome — I'll be your AI agent. To get started, what's your Instagram handle?</div>
+    <div class="onb-handle-form">
+      <input id="onb-handle-input" type="text" placeholder="@yourhandle" autocomplete="off" />
+      <button onclick="submitOnboardingHandle()">Analyze</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">We'll scan your last 25 posts to build your persona, rate card, and brand matches.</div>
+  `);
+  const inp = body.querySelector('#onb-handle-input');
+  if(inp){
+    inp.addEventListener('keydown', e => { if(e.key === 'Enter') submitOnboardingHandle(); });
+    setTimeout(()=>inp.focus(), 100);
+  }
+}
+
+function submitOnboardingHandle(){
+  const inp = document.getElementById('onb-handle-input');
+  if(!inp) return;
+  const v = (inp.value || '').trim();
+  if(!v){ inp.style.borderColor = 'var(--red)'; return; }
+  startOnboardingChat(v);
+}
+
 async function startOnboardingChat(handle){
   document.getElementById('intro-screen')?.remove();
 
