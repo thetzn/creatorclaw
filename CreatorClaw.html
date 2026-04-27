@@ -2690,12 +2690,14 @@ function timeAgo(iso){
 }
 
 function pipelineRollup(){
+  // By stage definition, Closed = creator delivered AND brand paid.
+  // So every Closed deal counts toward earned; everything else is pipeline.
   const deals = state.deals || [];
   let earned = 0, pipelineVal = 0, active = 0;
   for(const d of deals){
     const amt = Number(d.amount_usd) || 0;
-    if(d.status === 'closed' && d.paid){ earned += amt; }
-    else if(d.status !== 'closed'){ pipelineVal += amt; active += 1; }
+    if(d.status === 'closed'){ earned += amt; }
+    else { pipelineVal += amt; active += 1; }
   }
   return { earned, pipelineVal, active };
 }
@@ -2764,8 +2766,9 @@ function renderDealCard(d){
   const ts = timeAgo(d.updated_at || d.created_at);
   if(ts) metaParts.push(ts);
   const amount = Number(d.amount_usd) || 0;
+  const isClosed = d.status === 'closed';
   const amountDisplay = amount
-    ? `<div class="pipeline-card-amount${d.paid?' confirmed':''}">${d.paid?'✓ ':''}${fmtUsdShort(amount)}</div>`
+    ? `<div class="pipeline-card-amount${isClosed?' confirmed':''}">${isClosed?'✓ ':''}${fmtUsdShort(amount)}</div>`
     : '';
   return `
     <div class="pipeline-card" data-id="${esc(d.id)}" onclick="openDealModal('${esc(d.id)}')">
@@ -2811,9 +2814,6 @@ function moveDeal(id, newStatus){
   const deal = (state.deals||[]).find(d=>d.id===id);
   if(!deal) return;
   deal.status = newStatus;
-  // Closing automatically marks as paid unless explicitly toggled
-  if(newStatus === 'closed' && deal.paid == null) deal.paid = true;
-  if(newStatus !== 'closed') deal.paid = false;
   deal.updated_at = new Date().toISOString();
   saveDeals();
   renderPipeline();
@@ -2869,10 +2869,6 @@ function openDealModal(id){
         <input id="deal-amount" type="number" min="0" step="50" placeholder="3500" value="${esc(d.amount_usd)}" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;font-size:12px;color:var(--muted)">
-      <input type="checkbox" id="deal-paid" ${d.paid?'checked':''} style="width:16px;height:16px;cursor:pointer">
-      <label for="deal-paid" style="cursor:pointer">Confirmed / paid</label>
-    </div>
     <div class="modal-label">Notes</div>
     <textarea id="deal-notes" rows="3" placeholder="3-frame reel + 2 stories. Brand to send brief by Friday." style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;line-height:1.5;outline:none;resize:vertical;margin-bottom:18px">${esc(d.notes)}</textarea>
     <div class="modal-row" style="display:flex;justify-content:space-between;align-items:center">
@@ -2895,7 +2891,6 @@ function submitDealModal(id){
   const platform = document.getElementById('deal-platform')?.value || '';
   const deliverable = document.getElementById('deal-deliverable')?.value || '';
   const amount = Number(document.getElementById('deal-amount')?.value) || 0;
-  const paid = !!document.getElementById('deal-paid')?.checked;
   const notes = (document.getElementById('deal-notes')?.value || '').trim();
   const now = new Date().toISOString();
 
@@ -2905,7 +2900,7 @@ function submitDealModal(id){
     if(!deal) return;
     Object.assign(deal, {
       brand_name: brand, brand_domain: domain, status, platform,
-      deliverable, amount_usd: amount, paid, notes,
+      deliverable, amount_usd: amount, notes,
       updated_at: now,
     });
   } else {
@@ -2913,7 +2908,7 @@ function submitDealModal(id){
     state.deals.push({
       id: newId,
       brand_name: brand, brand_domain: domain, status, platform,
-      deliverable, amount_usd: amount, paid, notes,
+      deliverable, amount_usd: amount, notes,
       created_at: now, updated_at: now,
     });
   }
