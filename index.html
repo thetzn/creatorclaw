@@ -357,6 +357,54 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 .connection-btn:hover{border-color:var(--gold);color:var(--gold)}
 .connection-btn.connected{color:var(--green);border-color:rgba(107,158,107,0.4)}
 .connection-btn:disabled{opacity:0.6;cursor:wait}
+
+/* Pipeline tab */
+.pipeline-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.pipeline-title{font-size:32px;font-weight:300;letter-spacing:-0.01em;line-height:1.2;margin:0 0 4px}
+.pipeline-sub{font-size:13px;color:var(--muted);line-height:1.5}
+.pipeline-add-btn{display:inline-flex;align-items:center;gap:8px;background:var(--gold);border:none;border-radius:8px;padding:10px 18px;color:var(--bg);font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;transition:opacity 0.2s;flex-shrink:0}
+.pipeline-add-btn:hover{opacity:0.88}
+.pipeline-rollup{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px}
+.pipeline-stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
+.pipeline-stat-label{font-size:10px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px}
+.pipeline-stat-val{font-size:22px;font-weight:700;color:var(--text);letter-spacing:-0.01em}
+.pipeline-board{display:grid;grid-template-columns:repeat(6,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:8px}
+.pipeline-col{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:280px}
+.pipeline-col-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;color:var(--muted);letter-spacing:0.14em;text-transform:uppercase;font-weight:600;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.pipeline-col-count{background:var(--card);border-radius:999px;padding:2px 8px;font-size:10px;color:var(--text);letter-spacing:0;text-transform:none;font-weight:600}
+.pipeline-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:border-color 0.15s}
+.pipeline-card:hover{border-color:var(--border2)}
+.pipeline-card-head{display:flex;align-items:center;gap:8px}
+.pipeline-card-logo{width:24px;height:24px;border-radius:5px;background:var(--card2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
+.pipeline-card-logo img{width:100%;height:100%;object-fit:cover;display:block}
+.pipeline-card-brand{font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.pipeline-card-meta{font-size:10px;color:var(--muted);letter-spacing:0.04em;display:flex;flex-wrap:wrap;gap:6px;line-height:1.5}
+.pipeline-card-meta .sep{opacity:0.5}
+.pipeline-card-amount{font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:5px}
+.pipeline-card-amount.confirmed{color:var(--green)}
+.pipeline-card-actions{display:flex;gap:6px;margin-top:4px}
+.pipeline-card-act{background:transparent;border:1px solid var(--border2);border-radius:5px;padding:4px 8px;color:var(--muted);font-size:10px;letter-spacing:0.04em;cursor:pointer;transition:all 0.15s;font-family:inherit}
+.pipeline-card-act:hover{color:var(--text);border-color:var(--text)}
+.pipeline-card-act.danger:hover{color:var(--red);border-color:var(--red)}
+.pipeline-empty{text-align:center;padding:80px 24px;background:var(--card);border:1px dashed var(--border2);border-radius:14px;margin-top:8px}
+.pipeline-empty-icon{font-size:36px;color:var(--gold);margin-bottom:12px}
+.pipeline-empty h2{font-size:22px;font-weight:400;margin-bottom:8px}
+.pipeline-empty p{color:var(--muted);font-size:13px;max-width:400px;margin:0 auto 24px;line-height:1.6}
+.pipeline-empty-btn{background:var(--gold);border:none;border-radius:8px;padding:12px 22px;color:var(--bg);font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;font-family:inherit;transition:opacity 0.2s}
+.pipeline-empty-btn:hover{opacity:0.88}
+
+/* Mobile: collapse the board into stacked accordion sections */
+@media(max-width:768px){
+  .pipeline-board{display:block}
+  .pipeline-col{margin-bottom:10px;min-height:0}
+  .pipeline-col-head{cursor:pointer;padding:4px 0;border-bottom:none}
+  .pipeline-col.collapsed{padding-bottom:8px}
+  .pipeline-col.collapsed .pipeline-card{display:none}
+  .pipeline-col-head::after{content:'▾';margin-left:auto;font-size:11px;letter-spacing:0;text-transform:none;color:var(--muted);transition:transform 0.2s}
+  .pipeline-col.collapsed .pipeline-col-head::after{transform:rotate(-90deg)}
+  .pipeline-rollup{grid-template-columns:1fr 1fr}
+  .pipeline-rollup .pipeline-stat:first-child{grid-column:1/-1}
+}
 .chart-title{font-size:10px;font-weight:600;margin-bottom:20px;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase}
 
 .pie-container{display:flex;justify-content:center;margin-bottom:16px}
@@ -610,6 +658,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <button class="nav-btn" data-tab="persona" onclick="switchTab('persona')">Analytics</button>
       <button class="nav-btn" data-tab="pulse" onclick="switchTab('pulse')">Create</button>
       <button class="nav-btn" data-tab="brands" onclick="switchTab('brands')">Pitch</button>
+      <button class="nav-btn" data-tab="pipeline" onclick="switchTab('pipeline')">Pipeline</button>
       <button class="nav-btn hidden" id="nav-accounts" data-tab="accounts" onclick="switchTab('accounts')">Connect</button>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
@@ -764,6 +813,29 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
   </div>
 </div>
 
+<!-- PIPELINE TAB -->
+<div id="tab-pipeline" class="hidden">
+  <div class="pipeline-header">
+    <div>
+      <h1 class="pipeline-title">Pipeline</h1>
+      <div class="pipeline-sub">Your deal flow — from inbound DMs to closed checks.</div>
+    </div>
+    <button class="pipeline-add-btn" onclick="openDealModal()"><span style="font-size:14px;line-height:1">+</span> New deal</button>
+  </div>
+  <div class="pipeline-rollup" id="pipeline-rollup">
+    <div class="pipeline-stat"><div class="pipeline-stat-label">Total Earned</div><div class="pipeline-stat-val" id="pipeline-stat-earned">$0</div></div>
+    <div class="pipeline-stat"><div class="pipeline-stat-label">Pipeline Value</div><div class="pipeline-stat-val" id="pipeline-stat-pipeline">$0</div></div>
+    <div class="pipeline-stat"><div class="pipeline-stat-label">Active Deals</div><div class="pipeline-stat-val" id="pipeline-stat-count">0</div></div>
+  </div>
+  <div class="pipeline-board" id="pipeline-board"></div>
+  <div class="pipeline-empty hidden" id="pipeline-empty">
+    <div class="pipeline-empty-icon">◇</div>
+    <h2>No deals yet</h2>
+    <p>Track every brand conversation from first DM to final payment. Add your first deal to get started.</p>
+    <button class="pipeline-empty-btn" onclick="openDealModal()">+ Add your first deal</button>
+  </div>
+</div>
+
 <!-- PULSE TAB -->
 <div id="tab-pulse" class="hidden">
   <h1 class="page-title">What to <span class="gold-text">Create</span></h1>
@@ -793,6 +865,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <button class="chat-tool-btn" onclick="openTool('persona')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-3"/></svg>Analytics</button>
       <button class="chat-tool-btn" onclick="openTool('pulse')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>Create</button>
       <button class="chat-tool-btn" onclick="openTool('brands')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6"/><path d="M15 15l3 3-3 3"/><path d="M18 18h-4"/></svg>Pitch</button>
+      <button class="chat-tool-btn" onclick="openTool('pipeline')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="10" rx="1"/><rect x="17" y="4" width="4" height="6" rx="1"/></svg>Pipeline</button>
       <button class="chat-tool-btn" onclick="openAgentSettings()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</button>
     </div>
     <div class="chat-sidebar-footer">
@@ -1633,6 +1706,7 @@ function openTool(tab){
   // Lazy-generate if needed
   if(tab==='pulse' && !chatState.pulseKicked && state.persona){ chatState.pulseKicked=true; if(!state.pulseGen) generatePulse(); }
   if(tab==='brands' && !chatState.brandsKicked && state.persona){ chatState.brandsKicked=true; if(!state.brandsGen) generateBrands(); }
+  if(tab==='pipeline'){ renderPipeline(); }
 }
 
 function openChatSidebar(){
@@ -2571,7 +2645,281 @@ function getConnectedStats(){
 // ── Tab navigation ────────────────────────────────────────────────────────────
 function switchTab(id){
   document.querySelectorAll('#nav .nav-btn').forEach(b=>{b.classList.toggle('active',b.dataset.tab===id)});
-  ['connect','persona','brands','pulse','accounts'].forEach(t=>{document.getElementById('tab-'+t).classList.toggle('hidden',t!==id)});
+  ['connect','persona','brands','pulse','pipeline','accounts'].forEach(t=>{document.getElementById('tab-'+t)?.classList.toggle('hidden',t!==id)});
+}
+
+// ── Pipeline (deal tracker) ───────────────────────────────────────────────────
+// localStorage-backed for now. Same shape as the Supabase creator_deals
+// schema we drafted earlier so the swap is straightforward later.
+const PIPELINE_STAGES = [
+  { id: 'inbound',     label: 'Inbound',     hint: 'Brand reached out' },
+  { id: 'outreach',    label: 'Outreach',    hint: 'You reached out' },
+  { id: 'in_progress', label: 'In Progress', hint: 'Conversation started' },
+  { id: 'negotiating', label: 'Negotiating', hint: 'Terms / pricing' },
+  { id: 'producing',   label: 'Producing',   hint: 'Making the content' },
+  { id: 'closed',      label: 'Closed',      hint: 'Delivered + paid' },
+];
+const PIPELINE_DELIVERABLES = ['Reel','Static','Carousel','Story set','TikTok video','YouTube short','Full bundle','UGC','Other'];
+const PIPELINE_PLATFORMS = ['Instagram','TikTok','YouTube','Other'];
+
+function loadDeals(){
+  try {
+    const raw = localStorage.getItem('cc_deals');
+    state.deals = raw ? JSON.parse(raw) : [];
+  } catch { state.deals = []; }
+}
+function saveDeals(){
+  try { localStorage.setItem('cc_deals', JSON.stringify(state.deals||[])); } catch {}
+}
+
+function fmtUsdShort(n){
+  const v = Number(n) || 0;
+  if(!v) return '—';
+  if(v >= 1000) return '$' + (v/1000).toFixed(v >= 10000 ? 0 : 1).replace(/\.0$/,'') + 'K';
+  return '$' + v.toLocaleString();
+}
+function timeAgo(iso){
+  if(!iso) return '';
+  const d = new Date(iso); if(isNaN(d.getTime())) return '';
+  const sec = (Date.now() - d.getTime())/1000;
+  if(sec < 60) return 'just now';
+  if(sec < 3600) return Math.round(sec/60) + 'm ago';
+  if(sec < 86400) return Math.round(sec/3600) + 'h ago';
+  if(sec < 86400*30) return Math.round(sec/86400) + 'd ago';
+  return d.toLocaleDateString(undefined, { month:'short', day:'numeric' });
+}
+
+function pipelineRollup(){
+  const deals = state.deals || [];
+  let earned = 0, pipelineVal = 0, active = 0;
+  for(const d of deals){
+    const amt = Number(d.amount_usd) || 0;
+    if(d.status === 'closed' && d.paid){ earned += amt; }
+    else if(d.status !== 'closed'){ pipelineVal += amt; active += 1; }
+  }
+  return { earned, pipelineVal, active };
+}
+
+function renderPipeline(){
+  if(!state.deals) loadDeals();
+  const board = document.getElementById('pipeline-board');
+  const empty = document.getElementById('pipeline-empty');
+  const earnedEl = document.getElementById('pipeline-stat-earned');
+  const pipelineEl = document.getElementById('pipeline-stat-pipeline');
+  const countEl = document.getElementById('pipeline-stat-count');
+  const deals = state.deals || [];
+
+  // Rollup
+  const r = pipelineRollup();
+  if(earnedEl) earnedEl.textContent = fmtUsdShort(r.earned);
+  if(pipelineEl) pipelineEl.textContent = fmtUsdShort(r.pipelineVal);
+  if(countEl) countEl.textContent = String(r.active);
+
+  // Empty state
+  if(!deals.length){
+    if(board) board.innerHTML = '';
+    if(board) board.style.display = 'none';
+    if(empty) empty.classList.remove('hidden');
+    return;
+  }
+  if(empty) empty.classList.add('hidden');
+  if(board) board.style.display = '';
+
+  // Group by stage
+  const byStage = {};
+  for(const s of PIPELINE_STAGES) byStage[s.id] = [];
+  for(const d of deals){
+    if(byStage[d.status]) byStage[d.status].push(d);
+    else byStage['outreach'].push(d);  // fallback for malformed status
+  }
+  // Each column sorted newest first
+  for(const k of Object.keys(byStage)){
+    byStage[k].sort((a,b)=> (b.updated_at||b.created_at||0) > (a.updated_at||a.created_at||0) ? 1 : -1);
+  }
+
+  if(!board) return;
+  board.innerHTML = PIPELINE_STAGES.map(stage => {
+    const items = byStage[stage.id] || [];
+    const cards = items.map(d => renderDealCard(d)).join('');
+    return `
+      <div class="pipeline-col" data-stage="${stage.id}">
+        <div class="pipeline-col-head" onclick="togglePipelineCol(this)">
+          <span>${escapeHtml(stage.label)}</span>
+          <span class="pipeline-col-count">${items.length}</span>
+        </div>
+        ${cards}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderDealCard(d){
+  const esc = s => escapeHtml(String(s||''));
+  const logo = d.brand_domain
+    ? `<img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(d.brand_domain)}&sz=64" alt="" onerror="this.style.display='none'">`
+    : `<span style="font-size:11px;color:var(--muted)">${esc((d.brand_name||'?')[0]).toUpperCase()}</span>`;
+  const metaParts = [];
+  if(d.platform) metaParts.push(esc(d.platform));
+  if(d.deliverable) metaParts.push(esc(d.deliverable));
+  const ts = timeAgo(d.updated_at || d.created_at);
+  if(ts) metaParts.push(ts);
+  const amount = Number(d.amount_usd) || 0;
+  const amountDisplay = amount
+    ? `<div class="pipeline-card-amount${d.paid?' confirmed':''}">${d.paid?'✓ ':''}${fmtUsdShort(amount)}</div>`
+    : '';
+  return `
+    <div class="pipeline-card" data-id="${esc(d.id)}" onclick="openDealModal('${esc(d.id)}')">
+      <div class="pipeline-card-head">
+        <div class="pipeline-card-logo">${logo}</div>
+        <div class="pipeline-card-brand">${esc(d.brand_name || 'Untitled')}</div>
+      </div>
+      ${metaParts.length ? `<div class="pipeline-card-meta">${metaParts.map((p,i)=> i===0 ? esc(p) : `<span class="sep">·</span>${esc(p)}`).join('')}</div>` : ''}
+      ${amountDisplay}
+      <div class="pipeline-card-actions" onclick="event.stopPropagation()">
+        <button class="pipeline-card-act" onclick="openMoveDealMenu(event,'${esc(d.id)}')">Move</button>
+        <button class="pipeline-card-act" onclick="openDealModal('${esc(d.id)}')">Edit</button>
+      </div>
+    </div>
+  `;
+}
+
+function togglePipelineCol(headEl){
+  if(window.innerWidth > 768) return;  // accordion only on mobile
+  headEl.parentElement.classList.toggle('collapsed');
+}
+
+function openMoveDealMenu(ev, id){
+  ev.stopPropagation();
+  const deal = (state.deals||[]).find(d=>d.id===id);
+  if(!deal) return;
+  const opts = PIPELINE_STAGES
+    .filter(s=>s.id !== deal.status)
+    .map(s => `<button class="modal-cancel-btn" type="button" style="justify-content:flex-start;text-align:left;text-transform:none;letter-spacing:0;font-weight:500;padding:11px 14px" onclick="moveDeal('${id}','${s.id}')">${escapeHtml(s.label)} <span style="color:var(--muted);font-size:11px;margin-left:8px">${escapeHtml(s.hint)}</span></button>`)
+    .join('');
+  showModal(
+    `<div class="modal-title">Move deal</div>` +
+    `<div class="modal-sub">${escapeHtml(deal.brand_name || 'Untitled')} — currently in ${escapeHtml(stageLabel(deal.status))}</div>` +
+    `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">${opts}</div>` +
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid var(--border)">` +
+      `<button class="modal-cancel-btn" type="button" onclick="if(confirm('Delete this deal? This cannot be undone.')){deleteDeal('${id}');closeModal();}" style="color:var(--red);border-color:var(--red)">Delete deal</button>` +
+      `<button class="modal-cancel-btn" type="button" onclick="closeModal()">Cancel</button>` +
+    `</div>`
+  );
+}
+
+function moveDeal(id, newStatus){
+  const deal = (state.deals||[]).find(d=>d.id===id);
+  if(!deal) return;
+  deal.status = newStatus;
+  // Closing automatically marks as paid unless explicitly toggled
+  if(newStatus === 'closed' && deal.paid == null) deal.paid = true;
+  if(newStatus !== 'closed') deal.paid = false;
+  deal.updated_at = new Date().toISOString();
+  saveDeals();
+  renderPipeline();
+  closeModal();
+}
+
+function deleteDeal(id){
+  state.deals = (state.deals||[]).filter(d=>d.id !== id);
+  saveDeals();
+  renderPipeline();
+}
+
+function stageLabel(id){
+  return (PIPELINE_STAGES.find(s=>s.id===id) || {}).label || id || '—';
+}
+
+function openDealModal(id){
+  const isEdit = !!id;
+  const deal = isEdit ? (state.deals||[]).find(d=>d.id===id) : null;
+  if(isEdit && !deal) return;
+  const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const d = deal || {
+    brand_name:'', brand_domain:'', status:'outreach', platform:'Instagram',
+    deliverable:'Reel', amount_usd:'', paid:false, due_date:'', notes:''
+  };
+  const stageOpts = PIPELINE_STAGES.map(s=>`<option value="${s.id}"${d.status===s.id?' selected':''}>${esc(s.label)}</option>`).join('');
+  const platOpts = PIPELINE_PLATFORMS.map(p=>`<option value="${esc(p)}"${d.platform===p?' selected':''}>${esc(p)}</option>`).join('');
+  const delivOpts = PIPELINE_DELIVERABLES.map(p=>`<option value="${esc(p)}"${d.deliverable===p?' selected':''}>${esc(p)}</option>`).join('');
+  showModal(`
+    <div class="modal-title">${isEdit ? 'Edit deal' : 'New deal'}</div>
+    <div class="modal-sub">${isEdit ? 'Update details, move stage, or remove.' : 'Track the conversation from first DM to final payment.'}</div>
+    <div class="modal-label">Brand</div>
+    <input id="deal-brand" type="text" placeholder="e.g. Gymshark" value="${esc(d.brand_name)}" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;margin-bottom:14px">
+    <div class="modal-label">Domain (optional)</div>
+    <input id="deal-domain" type="text" placeholder="gymshark.com" value="${esc(d.brand_domain)}" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div>
+        <div class="modal-label">Stage</div>
+        <select id="deal-status" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none">${stageOpts}</select>
+      </div>
+      <div>
+        <div class="modal-label">Platform</div>
+        <select id="deal-platform" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none">${platOpts}</select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div>
+        <div class="modal-label">Deliverable</div>
+        <select id="deal-deliverable" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none">${delivOpts}</select>
+      </div>
+      <div>
+        <div class="modal-label">Amount USD</div>
+        <input id="deal-amount" type="number" min="0" step="50" placeholder="3500" value="${esc(d.amount_usd)}" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;font-size:12px;color:var(--muted)">
+      <input type="checkbox" id="deal-paid" ${d.paid?'checked':''} style="width:16px;height:16px;cursor:pointer">
+      <label for="deal-paid" style="cursor:pointer">Confirmed / paid</label>
+    </div>
+    <div class="modal-label">Notes</div>
+    <textarea id="deal-notes" rows="3" placeholder="3-frame reel + 2 stories. Brand to send brief by Friday." style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;line-height:1.5;outline:none;resize:vertical;margin-bottom:18px">${esc(d.notes)}</textarea>
+    <div class="modal-row" style="display:flex;justify-content:space-between;align-items:center">
+      ${isEdit ? `<button class="modal-cancel-btn" type="button" onclick="if(confirm('Delete this deal?')){deleteDeal('${esc(d.id)}');closeModal();}" style="color:var(--red);border-color:var(--red)">Delete</button>` : '<span></span>'}
+      <div style="display:flex;gap:8px">
+        <button class="modal-cancel-btn" type="button" onclick="closeModal()">Cancel</button>
+        <button class="modal-save-btn" type="button" onclick="submitDealModal(${isEdit ? `'${esc(d.id)}'` : 'null'})">Save</button>
+      </div>
+    </div>
+  `);
+  setTimeout(()=>{ document.getElementById('deal-brand')?.focus(); }, 50);
+}
+
+function submitDealModal(id){
+  const brand = (document.getElementById('deal-brand')?.value || '').trim();
+  if(!brand){ showError('Brand name is required'); return; }
+  let domain = (document.getElementById('deal-domain')?.value || '').trim();
+  domain = domain.replace(/^https?:\/\//,'').replace(/\/$/,'');
+  const status = document.getElementById('deal-status')?.value || 'outreach';
+  const platform = document.getElementById('deal-platform')?.value || '';
+  const deliverable = document.getElementById('deal-deliverable')?.value || '';
+  const amount = Number(document.getElementById('deal-amount')?.value) || 0;
+  const paid = !!document.getElementById('deal-paid')?.checked;
+  const notes = (document.getElementById('deal-notes')?.value || '').trim();
+  const now = new Date().toISOString();
+
+  if(!state.deals) state.deals = [];
+  if(id){
+    const deal = state.deals.find(d=>d.id===id);
+    if(!deal) return;
+    Object.assign(deal, {
+      brand_name: brand, brand_domain: domain, status, platform,
+      deliverable, amount_usd: amount, paid, notes,
+      updated_at: now,
+    });
+  } else {
+    const newId = 'd_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
+    state.deals.push({
+      id: newId,
+      brand_name: brand, brand_domain: domain, status, platform,
+      deliverable, amount_usd: amount, paid, notes,
+      created_at: now, updated_at: now,
+    });
+  }
+  saveDeals();
+  renderPipeline();
+  closeModal();
 }
 
 // ── Instagram URL Analysis ────────────────────────────────────────────────────
