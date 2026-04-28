@@ -102,9 +102,14 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 .chat-main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
 .chat-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
 .chat-context-badge{font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);background:var(--gold-dim);border:1px solid var(--gold-border);padding:4px 9px;border-radius:4px;flex-shrink:0}
-.chat-msg-body .tool-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-.chat-msg-body .tool-chip{background:var(--card2);border:1px solid var(--border2);border-radius:999px;padding:8px 14px;font-size:12px;color:var(--text);cursor:pointer;transition:all 0.2s;font-family:inherit}
-.chat-msg-body .tool-chip:hover{border-color:var(--gold);color:var(--gold);transform:translateY(-1px)}
+.chat-msg-body .tool-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.chat-msg-body .tool-chip{position:relative;display:inline-flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--border2);border-radius:999px;padding:9px 16px 9px 14px;font-size:12px;font-weight:500;letter-spacing:0.01em;color:var(--text);cursor:pointer;transition:transform 0.18s ease,border-color 0.18s ease,box-shadow 0.18s ease,color 0.18s ease,background 0.18s ease;font-family:inherit;overflow:hidden}
+.chat-msg-body .tool-chip::before{content:'';position:absolute;inset:0;border-radius:inherit;padding:1px;background:linear-gradient(135deg,var(--gold),transparent 40%,transparent 60%,var(--gold) 100%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;opacity:0;transition:opacity 0.2s ease;pointer-events:none}
+.chat-msg-body .tool-chip::after{content:'→';margin-left:2px;font-size:11px;color:var(--muted);transition:transform 0.18s ease,color 0.18s ease}
+.chat-msg-body .tool-chip:hover{transform:translateY(-1px);border-color:transparent;color:var(--text);background:linear-gradient(135deg,var(--card),var(--card2));box-shadow:0 4px 14px -2px rgba(0,0,0,0.35),0 0 0 1px rgba(212,167,89,0.25) inset}
+.chat-msg-body .tool-chip:hover::before{opacity:1}
+.chat-msg-body .tool-chip:hover::after{transform:translateX(3px);color:var(--gold)}
+.chat-msg-body .tool-chip:active{transform:translateY(0)}
 .chat-hamburger{display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:var(--text);cursor:pointer;padding:4px}
 .chat-hamburger svg{width:22px;height:22px}
 .header-hamburger{display:none;align-items:center;justify-content:center;background:transparent;border:none;color:var(--text);cursor:pointer;padding:4px}
@@ -132,6 +137,13 @@ body.in-tool .nav{display:none}
 .chat-msg-body{flex:1;font-size:14px;line-height:1.7;color:var(--text);min-width:0;padding-top:4px;word-wrap:break-word;white-space:pre-wrap}
 .chat-msg-body.has-card{white-space:normal}
 .chat-msg.assistant .chat-msg-body .typing-cursor{display:inline-block;width:6px;height:14px;background:var(--gold);animation:blink 0.9s infinite;vertical-align:text-bottom;margin-left:2px}
+.chat-msg-body strong{font-weight:600;color:var(--text)}
+.chat-msg-body em{font-style:italic;color:var(--text)}
+.chat-msg-body a{color:var(--gold);text-decoration:underline;text-underline-offset:2px}
+.chat-msg-body a:hover{color:var(--gold2)}
+.chat-msg-body .md-inline-code{background:var(--card2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-family:'JetBrains Mono','SF Mono',Menlo,monospace;font-size:0.9em;color:var(--text)}
+.chat-msg-body .md-code{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-family:'JetBrains Mono','SF Mono',Menlo,monospace;font-size:12px;color:var(--text);white-space:pre-wrap;overflow-x:auto;margin:8px 0}
+.chat-msg-body .md-code code{background:transparent;border:none;padding:0;font-size:inherit}
 .chat-composer{border-top:1px solid var(--border);padding:16px 20px 20px;background:var(--bg);flex-shrink:0}
 .chat-composer-inner{max-width:720px;margin:0 auto;position:relative}
 .chat-input{width:100%;background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:14px 50px 14px 18px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none;resize:none;min-height:52px;max-height:200px;line-height:1.5;transition:border-color 0.2s}
@@ -1295,7 +1307,7 @@ async function streamAgentAcknowledgement(){
           if(delta){
             fullText += delta;
             cursor.remove();
-            bodyEl.textContent = fullText;
+            bodyEl.innerHTML = renderMarkdown(fullText);
             bodyEl.appendChild(cursor);
             document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
           }
@@ -1956,7 +1968,14 @@ function appendMessage(role, content, scroll=true){
   }
   const body = document.createElement('div');
   body.className = 'chat-msg-body';
-  body.textContent = content;
+  // Assistant messages may include Markdown (bold/italic/links). User messages
+  // are plain text — render escaped so any incidental ** or backticks display
+  // verbatim instead of being parsed.
+  if(role === 'assistant'){
+    body.innerHTML = renderMarkdown(content);
+  } else {
+    body.textContent = content;
+  }
   wrap.appendChild(avatar);
   wrap.appendChild(body);
   container.appendChild(wrap);
@@ -1994,6 +2013,28 @@ function appendInlineCard(role, html){
 
 function escapeHtml(s){
   return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Tiny safe Markdown renderer for chat messages. Escape first, then apply
+// inline substitutions (bold, italic, code, links). Intentionally narrow —
+// we don't run the LLM through a full Markdown parser; pre-wrap CSS handles
+// line breaks and lists already.
+function renderMarkdown(text){
+  if(!text) return '';
+  let html = escapeHtml(text);
+  // Fenced code blocks: ```lang\n...\n```  → <pre><code>...</code></pre>
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, body) =>
+    `<pre class="md-code"><code>${body.replace(/^\n+|\n+$/g,'')}</code></pre>`
+  );
+  // Bold: **text** (no newlines inside)
+  html = html.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  // Italic: *text* (not adjacent to another *, no newlines inside)
+  html = html.replace(/(^|[^*\w])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+  // Inline code: `text`
+  html = html.replace(/`([^`\n]+)`/g, '<code class="md-inline-code">$1</code>');
+  // Links: [label](http(s)://url)
+  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return html;
 }
 
 function setComposerLock(locked){
@@ -2229,7 +2270,7 @@ async function streamOnboardingWelcome(){
           if(delta){
             full += delta;
             cursor.remove();
-            bodyEl.textContent = full;
+            bodyEl.innerHTML = renderMarkdown(full);
             bodyEl.appendChild(cursor);
             document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
           }
@@ -2625,6 +2666,7 @@ async function sendChatMessage(){
     followers: parseFollowers(d._raw?.followers || d.followers || p.totalReach),
     engagementPct: parseEng(d.engagementRate || p.avgEngagement),
     niche: p.topCategory || d.topCategory || (p.pillars||[])[0]?.l || 'lifestyle',
+    brandAffinities: Array.isArray(d.brandAffinities) ? d.brandAffinities.slice(0,8) : [],
     userId,
   };
 
@@ -2663,7 +2705,7 @@ async function sendChatMessage(){
           if(delta){
             fullText += delta;
             cursor.remove();
-            bodyEl.textContent = fullText;
+            bodyEl.innerHTML = renderMarkdown(fullText);
             bodyEl.appendChild(cursor);
             document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
           }
@@ -3679,6 +3721,9 @@ function renderToolMetadata(bodyEl, metadata){
   if(cards.type === 'pulse_ideas' && Array.isArray(cards.items) && cards.items.length){
     renderInlineIdeasIntoBody(bodyEl, cards.items);
   }
+  if(cards.type === 'brand_matches' && Array.isArray(cards.items) && cards.items.length){
+    renderInlineBrandsIntoBody(bodyEl, cards.items);
+  }
 }
 
 // Render a batch of content ideas as mini pulse-cards inside the assistant
@@ -3719,6 +3764,53 @@ function renderInlineIdeasIntoBody(bodyEl, ideas){
     grid.appendChild(card);
   });
   bodyEl.appendChild(grid);
+}
+
+// Inline brand-match cards. Mirrors renderInlineIdeasIntoBody but for brands.
+// Persists into state.brands so draftPitch can find by index.
+function renderInlineBrandsIntoBody(bodyEl, brands){
+  if(bodyEl.querySelector('.inline-brand-grid')) return;
+  if(!Array.isArray(state.brands)) state.brands = [];
+  // Append-merge dedup by name
+  const existing = new Set(state.brands.map(b => b.name));
+  brands.forEach(b => { if(!existing.has(b.name)) state.brands.push(b); });
+  const grid = document.createElement('div');
+  grid.className = 'inline-preview-grid inline-brand-grid';
+  grid.style.cssText = 'margin-top:14px';
+  brands.forEach((b) => {
+    const idx = state.brands.findIndex(x => x.name === b.name);
+    const safeName = (b.name||'').replace(/'/g,'&#39;');
+    const logoMarkup = b.domain
+      ? `<img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(b.domain)}&sz=128" alt="${escapeHtml(b.name||'')}" onerror="this.parentElement.style.background='var(--card2)';this.parentElement.textContent='${escapeHtml((b.name||'?')[0]).toUpperCase()}'">`
+      : escapeHtml((b.name||'?')[0]).toUpperCase();
+    const card = document.createElement('div');
+    card.className = 'brand-card';
+    card.innerHTML = `
+      <div class="brand-head">
+        <div class="brand-info">
+          <div class="brand-logo" style="background:#fff;border:1px solid var(--border2);color:var(--gold)">${logoMarkup}</div>
+          <div><div class="brand-name">${escapeHtml(b.name||'')}</div><div class="brand-cat">${escapeHtml(b.cat||'')}</div></div>
+        </div>
+        <div class="match-meter"><div class="match-meter-ring" style="--deg:${(b.match||0)*3.6}deg"></div><div class="match-meter-inner"><span class="match-meter-val">${escapeHtml(String(b.match||''))}</span><span class="match-meter-lbl">Match</span></div></div>
+      </div>
+      <div class="brand-reasons">${(b.reasons||[]).slice(0,3).map(r=>`<div class="brand-reason"><span class="chk">✓</span>${escapeHtml(r)}</div>`).join('')}</div>
+      <div class="brand-footer">
+        <div class="brand-deal">${escapeHtml(b.deal||'')}</div>
+        <div style="display:flex;gap:6px">
+          <button class="outreach-btn" onclick="draftPitch(${idx})">Draft Pitch</button>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+  bodyEl.appendChild(grid);
+  // Background-enrich top brands (program URL, IG signal) — same path as the
+  // grid view used to take. Cards self-decorate as enrichment lands.
+  try {
+    const personaSummary = state.persona
+      ? `${state.persona.name||''}: ${state.persona.bio||''} Pillars: ${(state.persona.pillars||[]).map(x=>x.l||x).join(', ')}`
+      : '';
+    enrichBrandsWithAgent(brands.slice(0,4), personaSummary).catch(e => console.warn('enrich failed', e));
+  } catch {}
 }
 
 async function draftPitch(i){

@@ -256,6 +256,20 @@ const RATE_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'find_brand_matches',
+      description: "Generate fresh brand match recommendations tailored to the creator's persona and niche. Call when the user asks for brand matches, who to pitch, brand recommendations, or refines a previous list. The UI renders the result as inline brand cards in the chat with Draft Pitch action.",
+      parameters: {
+        type: 'object',
+        properties: {
+          theme: { type: 'string', description: 'Optional category/angle filter, e.g. "luxury beauty" or "sustainable fashion".' },
+          count: { type: 'integer', description: 'Number of brand matches. Default 4. Max 6.' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'send_pitch_email',
       description: "Send an email from the creator's connected Gmail. Requires the creator to have connected Gmail via Arcade. If the account isn't connected, this returns a one-time authorization URL the user must visit. Call this when the user has asked you to send a pitch/outreach/email on their behalf (not just draft — actually send).",
       parameters: {
@@ -319,6 +333,52 @@ Real, specific, and shippable. Each idea distinct. match is 60-99 reflecting fit
         if (!Array.isArray(ideas)) ideas = [];
       } catch { ideas = []; }
       return { ideas: ideas.slice(0, count), count: ideas.length, theme };
+    }
+
+    // Brand-match tool — generates structured brand recommendations.
+    if (name === 'find_brand_matches') {
+      const count = Math.max(1, Math.min(Number(args.count) || 4, 6));
+      const theme = String(args.theme || '').trim();
+      const sys = `Brand matchmaker for individual creators. Return ONLY a JSON array of ${count} brands, no markdown. Schema:
+[{"name":"Gymshark","domain":"gymshark.com","match":92,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"}]
+domain has no protocol or trailing slash. match 60-99. Exactly 3 reasons each. Order by match desc. Real, currently-active brands; avoid generic ones the creator already mentioned (those are existing relationships, not new leads).`;
+      const ctxLines = [
+        creator.niche ? `Niche: ${creator.niche}` : null,
+        creator.followers ? `Followers: ${creator.followers}` : null,
+        creator.engagementPct ? `Engagement: ${creator.engagementPct}%` : null,
+        Array.isArray(creator.brandAffinities) && creator.brandAffinities.length
+          ? `Existing partnerships (DO NOT recommend, use as tier signal only): ${creator.brandAffinities.join(', ')}`
+          : null,
+        theme ? `Filter / angle: ${theme}` : null,
+      ].filter(Boolean).join('\n');
+      const userPrompt = `${ctxLines}\n\nReturn ${count} fresh brand matches:`;
+
+      const r = await fetch(CHAT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.API_KEY },
+        body: JSON.stringify({
+          model: MODEL,
+          temperature: 0.7,
+          messages: [
+            { role: 'system', content: sys },
+            { role: 'user', content: userPrompt },
+          ],
+        }),
+      });
+      if (!r.ok) {
+        const errText = await r.text().catch(() => r.statusText);
+        return { error: 'brand_match_failed', status: r.status, details: errText.slice(0, 200) };
+      }
+      const data = await r.json();
+      let txt = data?.choices?.[0]?.message?.content || '[]';
+      txt = txt.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
+      let brands = [];
+      try {
+        const m = txt.match(/\[[\s\S]*\]/);
+        brands = m ? JSON.parse(m[0]) : JSON.parse(txt);
+        if (!Array.isArray(brands)) brands = [];
+      } catch { brands = []; }
+      return { brands: brands.slice(0, count), count: brands.length, theme };
     }
 
     // Gmail send — routed through Arcade (managed OAuth, no CASA).
@@ -1439,6 +1499,10 @@ export default {
           if (tc.function?.name === 'generate_content_ideas' && Array.isArray(result?.ideas) && result.ideas.length) {
             renderMetadata = renderMetadata || {};
             renderMetadata.cards = { type: 'pulse_ideas', items: result.ideas };
+          }
+          if (tc.function?.name === 'find_brand_matches' && Array.isArray(result?.brands) && result.brands.length) {
+            renderMetadata = renderMetadata || {};
+            renderMetadata.cards = { type: 'brand_matches', items: result.brands };
           }
           messages.push({
             role: 'tool',
