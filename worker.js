@@ -257,12 +257,13 @@ const RATE_TOOLS = [
     type: 'function',
     function: {
       name: 'find_brand_matches',
-      description: "Generate fresh brand match recommendations tailored to the creator's persona and niche. Call when the user asks for brand matches, who to pitch, brand recommendations, or refines a previous list. The UI renders the result as inline brand cards in the chat with Draft Pitch action.",
+      description: "Generate fresh brand match recommendations tailored to the creator's persona and niche. Call when the user asks for brand matches, who to pitch, brand recommendations, or refines a previous list (e.g. 'show me 4 more', 'try a different angle'). The UI renders the result as inline brand cards in the chat with Draft Pitch action.",
       parameters: {
         type: 'object',
         properties: {
           theme: { type: 'string', description: 'Optional category/angle filter, e.g. "luxury beauty" or "sustainable fashion".' },
           count: { type: 'integer', description: 'Number of brand matches. Default 4. Max 6.' },
+          exclude: { type: 'array', items: { type: 'string' }, description: 'Brand names to exclude (already shown). Pass when the user wants more matches different from a prior list.' },
         },
       },
     },
@@ -339,6 +340,7 @@ Real, specific, and shippable. Each idea distinct. match is 60-99 reflecting fit
     if (name === 'find_brand_matches') {
       const count = Math.max(1, Math.min(Number(args.count) || 4, 6));
       const theme = String(args.theme || '').trim();
+      const exclude = Array.isArray(args.exclude) ? args.exclude.filter(Boolean).map(String).slice(0, 20) : [];
       const sys = `Brand matchmaker for individual creators. Return ONLY a JSON array of ${count} brands, no markdown. Schema:
 [{"name":"Gymshark","domain":"gymshark.com","match":92,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"}]
 domain has no protocol or trailing slash. match 60-99. Exactly 3 reasons each. Order by match desc. Real, currently-active brands; avoid generic ones the creator already mentioned (those are existing relationships, not new leads).`;
@@ -348,6 +350,9 @@ domain has no protocol or trailing slash. match 60-99. Exactly 3 reasons each. O
         creator.engagementPct ? `Engagement: ${creator.engagementPct}%` : null,
         Array.isArray(creator.brandAffinities) && creator.brandAffinities.length
           ? `Existing partnerships (DO NOT recommend, use as tier signal only): ${creator.brandAffinities.join(', ')}`
+          : null,
+        exclude.length
+          ? `Already shown (DO NOT repeat — return different brands): ${exclude.join(', ')}`
           : null,
         theme ? `Filter / angle: ${theme}` : null,
       ].filter(Boolean).join('\n');
