@@ -503,10 +503,10 @@ function sseWrapContent(text, origin, allowed, metadata) {
 const IG_APP_ID = '922455490592826';
 // IG_APP_SECRET is read from env.IG_APP_SECRET (set as a Cloudflare Worker secret — never hardcode)
 const IG_REDIRECT_URI = 'https://creatorclaw-proxy.creatorclaw.workers.dev/callback';
-const IG_SCOPES = 'instagram_basic,instagram_manage_insights,pages_read_engagement,pages_show_list';
-const IG_AUTH_URL = 'https://www.facebook.com/dialog/oauth';
-const IG_TOKEN_URL = 'https://graph.facebook.com/oauth/access_token';
-const IG_GRAPH_URL = 'https://graph.facebook.com/v21.0';
+const IG_SCOPES = 'instagram_basic,instagram_manage_insights';
+const IG_AUTH_URL = 'https://api.instagram.com/oauth/authorize';
+const IG_TOKEN_URL = 'https://api.instagram.com/oauth/access_token';
+const IG_GRAPH_URL = 'https://graph.instagram.com/v21.0';
 
 const ALLOWED_ORIGINS = [
   'https://creatorclaw.co',
@@ -1252,7 +1252,7 @@ export default {
         return Response.redirect(authUrl.toString(), 302);
       }
 
-      // ── IG OAuth: handle callback from Facebook ───────────────────────
+      // ── IG OAuth: handle callback from Instagram ───────────────────────
       if (path === '/callback') {
         const code = url.searchParams.get('code');
         const error = url.searchParams.get('error');
@@ -1262,13 +1262,19 @@ export default {
           return serveHTML(oauthErrorPage(error || 'unknown_error', errorDesc || 'Authorization was denied or cancelled.'));
         }
 
-        // Exchange code for short-lived token
-        const tokenRes = await fetch(IG_TOKEN_URL + '?' + new URLSearchParams({
+        // Exchange code for short-lived token (POST with form data)
+        const tokenFormData = new URLSearchParams({
           client_id: IG_APP_ID,
           client_secret: env.IG_APP_SECRET,
+          grant_type: 'authorization_code',
           redirect_uri: IG_REDIRECT_URI,
           code,
-        }), { method: 'GET' });
+        });
+        const tokenRes = await fetch(IG_TOKEN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: tokenFormData.toString(),
+        });
 
         if (!tokenRes.ok) {
           const errText = await tokenRes.text();
@@ -1277,17 +1283,20 @@ export default {
 
         const tokenData = await tokenRes.json();
         const shortToken = tokenData.access_token;
+        const shortIgUserId = tokenData.user_id ? String(tokenData.user_id) : null;
         if (!shortToken) {
           return serveHTML(oauthErrorPage('no_token', JSON.stringify(tokenData).slice(0, 300)));
         }
 
         // Exchange short-lived token for long-lived token (60 days)
-        const longTokenRes = await fetch(IG_GRAPH_URL + '/oauth/access_token?' + new URLSearchParams({
-          grant_type: 'fb_exchange_token',
-          client_id: IG_APP_ID,
-          client_secret: env.IG_APP_SECRET,
-          fb_exchange_token: shortToken,
-        }), { method: 'GET' });
+        const longTokenRes = await fetch(
+          'https://graph.instagram.com/access_token?' + new URLSearchParams({
+            grant_type: 'ig_exchange_token',
+            client_secret: env.IG_APP_SECRET,
+            access_token: shortToken,
+          }),
+          { method: 'GET' }
+        );
 
         let accessToken = shortToken;
         let expiresIn = 3600;
@@ -1299,23 +1308,16 @@ export default {
           }
         }
 
-        // Fetch the user's IG Business/Creator accounts linked to this token
-        const accountsRes = await fetch(
-          IG_GRAPH_URL + '/me/accounts?fields=id,name,instagram_business_account&access_token=' + accessToken
-        );
-        let igUserId = null;
+        // With Instagram Login, /me IS the IG user — no accounts lookup needed
+        const igUserId = shortIgUserId;
         let igUsername = null;
-        if (accountsRes.ok) {
-          const accountsData = await accountsRes.json();
-          const page = (accountsData.data || []).find(p => p.instagram_business_account);
-          if (page) {
-            igUserId = page.instagram_business_account.id;
-            // Fetch IG username
-            const igRes = await fetch(IG_GRAPH_URL + '/' + igUserId + '?fields=username&access_token=' + accessToken);
-            if (igRes.ok) {
-              const igData = await igRes.json();
-              igUsername = igData.username;
-            }
+        if (igUserId) {
+          const igRes = await fetch(
+            IG_GRAPH_URL + '/me?fields=id,username&access_token=' + accessToken
+          );
+          if (igRes.ok) {
+            const igData = await igRes.json();
+            igUsername = igData.username || null;
           }
         }
 
