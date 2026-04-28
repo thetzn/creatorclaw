@@ -1290,13 +1290,18 @@ async function streamAgentAcknowledgement(){
         if(data === '[DONE]') continue;
         try {
           const parsed = JSON.parse(data);
-          const delta = parsed.choices?.[0]?.delta?.content;
+          const deltaObj = parsed.choices?.[0]?.delta;
+          const delta = deltaObj?.content;
           if(delta){
             fullText += delta;
             cursor.remove();
             bodyEl.textContent = fullText;
             bodyEl.appendChild(cursor);
             document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+          }
+          if(deltaObj?.metadata){
+            try { renderToolMetadata(bodyEl, deltaObj.metadata); }
+            catch(e){ console.warn('renderToolMetadata failed', e); }
           }
         } catch {}
       }
@@ -2653,13 +2658,18 @@ async function sendChatMessage(){
         if(data === '[DONE]') continue;
         try {
           const parsed = JSON.parse(data);
-          const delta = parsed.choices?.[0]?.delta?.content;
+          const deltaObj = parsed.choices?.[0]?.delta;
+          const delta = deltaObj?.content;
           if(delta){
             fullText += delta;
             cursor.remove();
             bodyEl.textContent = fullText;
             bodyEl.appendChild(cursor);
             document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+          }
+          if(deltaObj?.metadata){
+            try { renderToolMetadata(bodyEl, deltaObj.metadata); }
+            catch(e){ console.warn('renderToolMetadata failed', e); }
           }
         } catch {}
       }
@@ -3658,6 +3668,59 @@ function maybeAttachGmailCta(bodyEl, fullText){
   row.appendChild(copyBtn);
   bodyEl.appendChild(row);
 }
+
+// Tool side-channel renderer — handles structured payloads emitted by the
+// Worker after the LLM's text turn (e.g. content idea cards from
+// generate_content_ideas). Dispatches by type.
+function renderToolMetadata(bodyEl, metadata){
+  if(!bodyEl || !metadata) return;
+  const cards = metadata.cards;
+  if(!cards) return;
+  if(cards.type === 'pulse_ideas' && Array.isArray(cards.items) && cards.items.length){
+    renderInlineIdeasIntoBody(bodyEl, cards.items);
+  }
+}
+
+// Render a batch of content ideas as mini pulse-cards inside the assistant
+// message bubble. Reuses the pulse-card styles + existing schedule/draft
+// global handlers, so click flows are unchanged.
+function renderInlineIdeasIntoBody(bodyEl, ideas){
+  if(bodyEl.querySelector('.inline-pulse-grid')) return;  // already rendered
+  // Persist ideas into state.pulseIdeas so draftScript can find them by title.
+  if(!Array.isArray(state.pulseIdeas)) state.pulseIdeas = [];
+  for(const idea of ideas){
+    if(!state.pulseIdeas.find(x => x.title === idea.title)) state.pulseIdeas.push(idea);
+  }
+  const grid = document.createElement('div');
+  grid.className = 'inline-preview-grid inline-pulse-grid';
+  grid.style.cssText = 'margin-top:14px';
+  ideas.forEach((idea) => {
+    const card = document.createElement('div');
+    card.className = 'pulse-card';
+    const trendLabel = {hot:'Hot',rising:'Rising',steady:'Steady',new:'New'}[idea.trend] || (idea.trend || '');
+    const safeTitle = (idea.title||'').replace(/'/g,'&#39;');
+    const persona = (idea.persona||[]).join(' + ');
+    card.innerHTML = `
+      <div class="pulse-trend-badge ${escapeHtml(idea.trend||'new')}">${escapeHtml(trendLabel)}</div>
+      <div class="pulse-idea-title">${escapeHtml(idea.title||'')}</div>
+      <div class="pulse-idea-hook">${escapeHtml(idea.hook||'')}</div>
+      <div class="pulse-persona-match">
+        <div class="match-score">${escapeHtml(String(idea.match||''))}%</div>
+        <div class="match-text">persona match${persona?` — aligns with <strong style="color:var(--text)">${escapeHtml(persona)}</strong>`:''}</div>
+      </div>
+      <div class="pulse-meta">
+        ${idea.format?`<div class="pulse-meta-item">Format: <span class="val">${escapeHtml(idea.format)}</span></div>`:''}
+        ${idea.estReach?`<div class="pulse-meta-item">Est. reach: <span class="val">${escapeHtml(idea.estReach)}</span></div>`:''}
+      </div>
+      <div class="pulse-actions">
+        <button class="pulse-save-btn" onclick="openSchedule('${safeTitle}')">📅 Schedule</button>
+        <button class="pulse-draft-btn" onclick="draftScript('${safeTitle}')">Draft Script</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+  bodyEl.appendChild(grid);
+}
+
 async function draftPitch(i){
   const brand = (state.brands||[])[i];
   if(!brand){ showError('Brand not found'); return; }

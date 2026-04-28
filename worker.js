@@ -242,6 +242,20 @@ const RATE_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'generate_content_ideas',
+      description: "Generate a fresh batch of content ideas tailored to the creator's persona, pillars, and engagement profile. Call this whenever the user asks for ideas, brainstorming, what to post, refining a previous batch, or explores a content theme. The UI renders the result as mini cards inline in the chat with Schedule and Draft Script actions.",
+      parameters: {
+        type: 'object',
+        properties: {
+          theme: { type: 'string', description: 'Optional topic or angle to focus the batch on, e.g. "western fashion" or "morning routines".' },
+          count: { type: 'integer', description: 'Number of ideas to return. Default 4. Max 6.' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'send_pitch_email',
       description: "Send an email from the creator's connected Gmail. Requires the creator to have connected Gmail via Arcade. If the account isn't connected, this returns a one-time authorization URL the user must visit. Call this when the user has asked you to send a pitch/outreach/email on their behalf (not just draft — actually send).",
       parameters: {
@@ -262,6 +276,50 @@ async function executeRateToolCall(toolCall, creatorContext, env) {
     const name = toolCall.function.name;
     const args = JSON.parse(toolCall.function.arguments || '{}');
     const creator = creatorContext || {};
+
+    // Content ideation tool — generates structured ideas as JSON. Frontend
+    // renders the items as inline mini-cards in the chat.
+    if (name === 'generate_content_ideas') {
+      const count = Math.max(1, Math.min(Number(args.count) || 4, 6));
+      const theme = String(args.theme || '').trim();
+      const sys = `You generate Instagram/TikTok content ideas for individual creators. Return ONLY a JSON array (no markdown), each item shaped:
+{"title":"...","hook":"first 3-second hook","format":"reel|carousel|static|story-series","platform":"Instagram|TikTok","trend":"hot|rising|steady|new","match":85,"persona":["Authentic","Relatable"],"estReach":"50K-150K","tags":["#tag1","#tag2"],"sound":"optional audio cue or empty string"}
+Real, specific, and shippable. Each idea distinct. match is 60-99 reflecting fit to this creator. trend reflects timeliness.`;
+      const ctxLines = [
+        creator.niche ? `Niche: ${creator.niche}` : null,
+        creator.followers ? `Followers: ${creator.followers}` : null,
+        creator.engagementPct ? `Engagement: ${creator.engagementPct}%` : null,
+        theme ? `Requested theme/angle: ${theme}` : null,
+      ].filter(Boolean).join('\n');
+      const userPrompt = `${ctxLines}\n\nReturn ${count} ideas:`;
+
+      const r = await fetch(CHAT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.API_KEY },
+        body: JSON.stringify({
+          model: MODEL,
+          temperature: 0.8,
+          messages: [
+            { role: 'system', content: sys },
+            { role: 'user', content: userPrompt },
+          ],
+        }),
+      });
+      if (!r.ok) {
+        const errText = await r.text().catch(() => r.statusText);
+        return { error: 'idea_generation_failed', status: r.status, details: errText.slice(0, 200) };
+      }
+      const data = await r.json();
+      let txt = data?.choices?.[0]?.message?.content || '[]';
+      txt = txt.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
+      let ideas = [];
+      try {
+        const m = txt.match(/\[[\s\S]*\]/);
+        ideas = m ? JSON.parse(m[0]) : JSON.parse(txt);
+        if (!Array.isArray(ideas)) ideas = [];
+      } catch { ideas = []; }
+      return { ideas: ideas.slice(0, count), count: ideas.length, theme };
+    }
 
     // Gmail send — routed through Arcade (managed OAuth, no CASA).
     if (name === 'send_pitch_email') {
@@ -342,7 +400,7 @@ async function executeRateToolCall(toolCall, creatorContext, env) {
 // Wrap non-streaming chat output as a Server-Sent Events stream so the
 // client's existing streaming reader still works. Chunks small enough to
 // feel natural.
-function sseWrapContent(text, origin, allowed) {
+function sseWrapContent(text, origin, allowed, metadata) {
   const encoder = new TextEncoder();
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
@@ -353,6 +411,12 @@ function sseWrapContent(text, origin, allowed) {
         const chunk = text.slice(i, i + chunkSize);
         const event = `data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\n\n`;
         await writer.write(encoder.encode(event));
+      }
+      // After all text chunks, optionally emit a metadata event (e.g. tool
+      // results that the frontend should render as cards or special UI).
+      if (metadata) {
+        const metaEvent = `data: ${JSON.stringify({ choices: [{ delta: { metadata } }] })}\n\n`;
+        await writer.write(encoder.encode(metaEvent));
       }
       await writer.write(encoder.encode('data: [DONE]\n\n'));
     } finally {
@@ -1330,6 +1394,10 @@ export default {
       const MAX_ROUNDS = 3;
       let finalContent = '';
       let lastError = null;
+      // Tool-result side-channel: tools that produce structured UI (cards,
+      // etc.) populate this so the frontend can render rich output beyond
+      // the LLM's text turn.
+      let renderMetadata = null;
       for (let round = 0; round < MAX_ROUNDS; round++) {
         const r = await fetch(CHAT_URL, {
           method: 'POST',
@@ -1367,6 +1435,11 @@ export default {
             result = { error: String((e && e.message) || e) };
           }
           console.log('[rate-tool]', tc.function?.name, 'called');
+          // Capture renderable side-channel data for known tools.
+          if (tc.function?.name === 'generate_content_ideas' && Array.isArray(result?.ideas) && result.ideas.length) {
+            renderMetadata = renderMetadata || {};
+            renderMetadata.cards = { type: 'pulse_ideas', items: result.ideas };
+          }
           messages.push({
             role: 'tool',
             tool_call_id: tc.id,
@@ -1377,7 +1450,7 @@ export default {
       if (!finalContent) {
         finalContent = lastError ? `(${lastError})` : '(tool-call loop exhausted — please retry)';
       }
-      return sseWrapContent(finalContent, origin, allowed);
+      return sseWrapContent(finalContent, origin, allowed, renderMetadata);
     }
 
     // Regular Chat Completions (non-streaming)
