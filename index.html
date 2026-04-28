@@ -1609,8 +1609,18 @@ async function initAuth(){
       showChatView();
       loadConversations();
       if(canConnectInstagram(session.user)) loadIgConnection();
+      // Pull (and one-time migrate) the pipeline now that the user is identified.
+      state.deals = null;
+      loadDeals().then(() => {
+        if(!document.getElementById('tab-pipeline')?.classList.contains('hidden')) renderPipeline();
+      }).catch(e => console.warn('loadDeals on signin', e));
     }
-    if(event === 'SIGNED_OUT'){ handledSignIn = false; igConnection = null; }
+    if(event === 'SIGNED_OUT'){
+      handledSignIn = false;
+      igConnection = null;
+      // Drop the in-memory deals so a logged-out view re-reads localStorage cleanly.
+      state.deals = null;
+    }
   });
 }
 
@@ -2896,14 +2906,114 @@ const PIPELINE_STAGES = [
 const PIPELINE_DELIVERABLES = ['Reel','Static','Carousel','Story set','TikTok video','YouTube short','Full bundle','UGC','Other'];
 const PIPELINE_PLATFORMS = ['Instagram','TikTok','YouTube','Other'];
 
-function loadDeals(){
+// Pipeline persistence: Supabase when logged in, localStorage when not.
+// On first login the local rows are migrated up once and then cleared.
+
+async function loadDeals(){
+  const user = await getCurrentUser();
+  if(!user){
+    try {
+      const raw = localStorage.getItem('cc_deals');
+      state.deals = raw ? JSON.parse(raw) : [];
+    } catch { state.deals = []; }
+    return state.deals;
+  }
+  const { data, error } = await sb.from('creator_deals')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('updated_at', { ascending: false });
+  if(error){ console.error('loadDeals failed', error); state.deals = []; return state.deals; }
+  state.deals = data || [];
+  await maybeMigrateLocalDeals(user.id);
+  return state.deals;
+}
+
+async function maybeMigrateLocalDeals(userId){
+  if(localStorage.getItem('cc_deals_migrated_v1')) return;
+  let local = [];
   try {
     const raw = localStorage.getItem('cc_deals');
-    state.deals = raw ? JSON.parse(raw) : [];
-  } catch { state.deals = []; }
+    local = raw ? JSON.parse(raw) : [];
+  } catch { local = []; }
+  if(!local.length){
+    localStorage.setItem('cc_deals_migrated_v1', '1');
+    return;
+  }
+  const rows = local.map(d => ({
+    user_id: userId,
+    brand_name: d.brand_name || 'Untitled',
+    brand_domain: d.brand_domain || null,
+    status: PIPELINE_STAGES.some(s => s.id === d.status) ? d.status : 'outreach',
+    platform: d.platform || null,
+    deliverable: d.deliverable || null,
+    amount_usd: Number(d.amount_usd) || 0,
+    notes: d.notes || null,
+  }));
+  const { data, error } = await sb.from('creator_deals').insert(rows).select();
+  if(error){ console.error('migrate deals failed', error); return; }
+  localStorage.setItem('cc_deals_migrated_v1', '1');
+  try { localStorage.removeItem('cc_deals'); } catch {}
+  if(Array.isArray(data) && data.length){
+    const existing = new Set((state.deals || []).map(d => d.id));
+    state.deals = [...(state.deals || []), ...data.filter(d => !existing.has(d.id))];
+  }
 }
-function saveDeals(){
-  try { localStorage.setItem('cc_deals', JSON.stringify(state.deals||[])); } catch {}
+
+function saveLocalDeals(){
+  try { localStorage.setItem('cc_deals', JSON.stringify(state.deals || [])); } catch {}
+}
+
+async function upsertDealRemote(deal){
+  const user = await getCurrentUser();
+  if(!user) return null;
+  const row = {
+    brand_name: deal.brand_name,
+    brand_domain: deal.brand_domain || null,
+    status: deal.status,
+    platform: deal.platform || null,
+    deliverable: deal.deliverable || null,
+    amount_usd: Number(deal.amount_usd) || 0,
+    notes: deal.notes || null,
+  };
+  // UUID rows are server-side; legacy local 'd_*' ids mean an unsaved row
+  if(deal.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deal.id)){
+    const { data, error } = await sb.from('creator_deals')
+      .update(row)
+      .eq('id', deal.id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+    if(error){ console.error('update deal failed', error); return null; }
+    return data;
+  }
+  const { data, error } = await sb.from('creator_deals')
+    .insert({ ...row, user_id: user.id })
+    .select()
+    .single();
+  if(error){ console.error('insert deal failed', error); return null; }
+  return data;
+}
+
+async function updateDealStatusRemote(id, status){
+  const user = await getCurrentUser();
+  if(!user) return false;
+  const { error } = await sb.from('creator_deals')
+    .update({ status })
+    .eq('id', id)
+    .eq('user_id', user.id);
+  if(error){ console.error('update status failed', error); return false; }
+  return true;
+}
+
+async function deleteDealRemote(id){
+  const user = await getCurrentUser();
+  if(!user) return false;
+  const { error } = await sb.from('creator_deals')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
+  if(error){ console.error('delete deal failed', error); return false; }
+  return true;
 }
 
 function fmtUsdShort(n){
@@ -2936,8 +3046,8 @@ function pipelineRollup(){
   return { earned, pipelineVal, active };
 }
 
-function renderPipeline(){
-  if(!state.deals) loadDeals();
+async function renderPipeline(){
+  if(!state.deals) await loadDeals();
   const board = document.getElementById('pipeline-board');
   const empty = document.getElementById('pipeline-empty');
   const earnedEl = document.getElementById('pipeline-stat-earned');
@@ -3044,20 +3154,34 @@ function openMoveDealMenu(ev, id){
   );
 }
 
-function moveDeal(id, newStatus){
+async function moveDeal(id, newStatus){
   const deal = (state.deals||[]).find(d=>d.id===id);
   if(!deal) return;
+  const prevStatus = deal.status;
   deal.status = newStatus;
   deal.updated_at = new Date().toISOString();
-  saveDeals();
   renderPipeline();
   closeModal();
+  const user = await getCurrentUser();
+  if(user){
+    const ok = await updateDealStatusRemote(id, newStatus);
+    if(!ok){ deal.status = prevStatus; renderPipeline(); showError('Could not save move — please try again.'); }
+  } else {
+    saveLocalDeals();
+  }
 }
 
-function deleteDeal(id){
-  state.deals = (state.deals||[]).filter(d=>d.id !== id);
-  saveDeals();
+async function deleteDeal(id){
+  const prev = state.deals || [];
+  state.deals = prev.filter(d => d.id !== id);
   renderPipeline();
+  const user = await getCurrentUser();
+  if(user){
+    const ok = await deleteDealRemote(id);
+    if(!ok){ state.deals = prev; renderPipeline(); showError('Could not delete — please try again.'); }
+  } else {
+    saveLocalDeals();
+  }
 }
 
 function stageLabel(id){
@@ -3116,7 +3240,7 @@ function openDealModal(id){
   setTimeout(()=>{ document.getElementById('deal-brand')?.focus(); }, 50);
 }
 
-function submitDealModal(id){
+async function submitDealModal(id){
   const brand = (document.getElementById('deal-brand')?.value || '').trim();
   if(!brand){ showError('Brand name is required'); return; }
   let domain = (document.getElementById('deal-domain')?.value || '').trim();
@@ -3129,24 +3253,31 @@ function submitDealModal(id){
   const now = new Date().toISOString();
 
   if(!state.deals) state.deals = [];
-  if(id){
-    const deal = state.deals.find(d=>d.id===id);
-    if(!deal) return;
-    Object.assign(deal, {
-      brand_name: brand, brand_domain: domain, status, platform,
-      deliverable, amount_usd: amount, notes,
-      updated_at: now,
-    });
+  const user = await getCurrentUser();
+  const fields = { brand_name: brand, brand_domain: domain, status, platform, deliverable, amount_usd: amount, notes };
+
+  if(user){
+    // Optimistic local apply, then server upsert. On failure, roll back UI.
+    const remote = await upsertDealRemote(id ? { id, ...fields } : fields);
+    if(!remote){ showError('Could not save deal — please try again.'); return; }
+    if(id){
+      const idx = state.deals.findIndex(d => d.id === id);
+      if(idx >= 0) state.deals[idx] = remote;
+      else state.deals.unshift(remote);
+    } else {
+      state.deals.unshift(remote);
+    }
   } else {
-    const newId = 'd_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
-    state.deals.push({
-      id: newId,
-      brand_name: brand, brand_domain: domain, status, platform,
-      deliverable, amount_usd: amount, notes,
-      created_at: now, updated_at: now,
-    });
+    if(id){
+      const deal = state.deals.find(d => d.id === id);
+      if(!deal) return;
+      Object.assign(deal, { ...fields, updated_at: now });
+    } else {
+      const newId = 'd_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
+      state.deals.push({ id: newId, ...fields, created_at: now, updated_at: now });
+    }
+    saveLocalDeals();
   }
-  saveDeals();
   renderPipeline();
   closeModal();
 }
