@@ -1514,6 +1514,17 @@ export default {
       if (!finalContent) {
         finalContent = lastError ? `(${lastError})` : '(tool-call loop exhausted — please retry)';
       }
+      // When tools produced inline cards, override the LLM's prose with a
+      // short deterministic acknowledgement. The cards carry the data; any
+      // text the model adds is duplication. (System-prompt instructions to
+      // stop listing items are not reliable.)
+      if (renderMetadata?.cards?.type === 'brand_matches') {
+        const n = renderMetadata.cards.items?.length || 0;
+        finalContent = `Here ${n === 1 ? 'is 1 brand' : `are ${n} brands`} that fit your audience — tap **Draft Pitch** on any of them.`;
+      } else if (renderMetadata?.cards?.type === 'pulse_ideas') {
+        const n = renderMetadata.cards.items?.length || 0;
+        finalContent = `Here ${n === 1 ? 'is 1 idea' : `are ${n} ideas`} tuned to your pillars — tap **Schedule** or **Script** on any card.`;
+      }
       return sseWrapContent(finalContent, origin, allowed, renderMetadata);
     }
 
