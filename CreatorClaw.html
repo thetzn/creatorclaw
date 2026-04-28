@@ -410,7 +410,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 .pipeline-stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
 .pipeline-stat-label{font-size:10px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px}
 .pipeline-stat-val{font-size:22px;font-weight:700;color:var(--text);letter-spacing:-0.01em}
-.pipeline-board{display:grid;grid-template-columns:repeat(6,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:8px}
+.pipeline-board{display:grid;grid-template-columns:repeat(7,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:8px}
 .pipeline-col{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:280px}
 .pipeline-col-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;color:var(--muted);letter-spacing:0.14em;text-transform:uppercase;font-weight:600;padding-bottom:8px;border-bottom:1px solid var(--border)}
 .pipeline-col-count{background:var(--card);border-radius:999px;padding:2px 8px;font-size:10px;color:var(--text);letter-spacing:0;text-transform:none;font-weight:600}
@@ -2896,12 +2896,13 @@ function switchTab(id){
 // localStorage-backed for now. Same shape as the Supabase creator_deals
 // schema we drafted earlier so the swap is straightforward later.
 const PIPELINE_STAGES = [
-  { id: 'inbound',     label: 'Inbound',     hint: 'Brand reached out' },
-  { id: 'outreach',    label: 'Outreach',    hint: 'You reached out' },
-  { id: 'in_progress', label: 'In Progress', hint: 'Conversation started' },
-  { id: 'negotiating', label: 'Negotiating', hint: 'Terms / pricing' },
-  { id: 'producing',   label: 'Producing',   hint: 'Making the content' },
-  { id: 'closed',      label: 'Closed',      hint: 'Delivered + paid' },
+  { id: 'inbound',          label: 'Inbound',          hint: 'Brand reached out' },
+  { id: 'outreach',         label: 'Outreach',         hint: 'You reached out' },
+  { id: 'in_progress',      label: 'In Progress',      hint: 'Conversation started' },
+  { id: 'negotiating',      label: 'Negotiating',      hint: 'Terms / pricing' },
+  { id: 'producing',        label: 'Producing',        hint: 'Making the content' },
+  { id: 'awaiting_payment', label: 'Awaiting Payment', hint: 'Delivered, waiting on check' },
+  { id: 'closed',           label: 'Closed',           hint: 'Delivered + paid' },
 ];
 const PIPELINE_DELIVERABLES = ['Reel','Static','Carousel','Story set','TikTok video','YouTube short','Full bundle','UGC','Other'];
 const PIPELINE_PLATFORMS = ['Instagram','TikTok','YouTube','Other'];

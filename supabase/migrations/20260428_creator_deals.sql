@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS creator_deals (
   brand_name    TEXT NOT NULL,
   brand_domain  TEXT,
   status        TEXT NOT NULL DEFAULT 'outreach'
-                CHECK (status IN ('inbound','outreach','in_progress','negotiating','producing','closed')),
+                CHECK (status IN ('inbound','outreach','in_progress','negotiating','producing','awaiting_payment','closed')),
   platform      TEXT,                       -- 'Instagram' | 'TikTok' | 'YouTube' | 'Other'
   deliverable   TEXT,                       -- 'Reel' | 'Static' | 'Carousel' | 'Story set' | etc.
   amount_usd    NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (amount_usd >= 0),
