@@ -101,6 +101,10 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 .chat-signout-btn:hover{color:var(--gold)}
 .chat-main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
 .chat-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
+.chat-context-badge{font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);background:var(--gold-dim);border:1px solid var(--gold-border);padding:4px 9px;border-radius:4px;flex-shrink:0}
+.chat-msg-body .tool-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.chat-msg-body .tool-chip{background:var(--card2);border:1px solid var(--border2);border-radius:999px;padding:8px 14px;font-size:12px;color:var(--text);cursor:pointer;transition:all 0.2s;font-family:inherit}
+.chat-msg-body .tool-chip:hover{border-color:var(--gold);color:var(--gold);transform:translateY(-1px)}
 .chat-hamburger{display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:var(--text);cursor:pointer;padding:4px}
 .chat-hamburger svg{width:22px;height:22px}
 .header-hamburger{display:none;align-items:center;justify-content:center;background:transparent;border:none;color:var(--text);cursor:pointer;padding:4px}
@@ -850,7 +854,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 <!-- Shared side menu (used by chat view AND tool views) -->
 <div class="chat-sidebar-backdrop" id="chat-sidebar-backdrop" onclick="closeChatSidebar()"></div>
 <aside class="chat-sidebar" id="chat-sidebar">
-    <div class="chat-sidebar-head">
+    <div class="chat-sidebar-head" style="cursor:pointer" onclick="showChatView('main');closeChatSidebar()" title="Main chat">
       <img class="logo-mark" data-crab-img alt="">
       <span class="logo-text gold-text">CreatorClaw</span>
     </div>
@@ -880,6 +884,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
   <main class="chat-main">
     <div class="chat-header">
       <button class="chat-hamburger" onclick="openChatSidebar()" aria-label="Open menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+      <div class="chat-context-badge" id="chat-context-badge" style="display:none"></div>
       <div class="chat-title" id="chat-active-title">New chat</div>
       <button class="chat-theme-toggle" onclick="openAgentSettings()" aria-label="Agent settings" title="Agent settings" style="margin-right:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       <button class="chat-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><svg id="chat-theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>
@@ -1674,15 +1679,57 @@ const chatState = {
   conversationId: null,
   messages: [],
   streaming: false,
-  conversations: []
+  conversations: [],
+  activeTool: 'main',  // 'main' | 'create' | 'pitch' — drives system prompt, greeting, conversation scope
 };
 
-function showChatView(){
+// Tool agent configs. Each tool runs the same chat shell but with its own
+// greeting, suggestion chips, system-prompt addendum, and (eventually) a
+// scoped function-tool list. Phase 1 wires the plumbing; Phase 2 adds
+// content-ideation tools to Create and brand-match tools to Pitch.
+const TOOL_CONFIG = {
+  main: {
+    label: 'Main',
+    placeholder: 'Ask anything…',
+    greeting: null,
+    chips: [],
+    promptExt: '',
+  },
+  create: {
+    label: 'Create',
+    placeholder: 'Ask Create…',
+    greeting: "Ready to plan what's next? I can pull trending formats matched to your pillars, riff on a topic, or just brainstorm. What are you in the mood to make?",
+    chips: ['Trending now', 'Quick wins this week', 'Ideas in my niche'],
+    promptExt: '\n--- Tool context: CREATE ---\nYou are running as the Create agent. Focus on content ideation, formats, hooks, scheduling, and visual concepts. Default to actionable specifics over generic advice. When the user wants ideas, deliver concrete options they can ship; when they want to refine, build on the prior turn rather than restarting.',
+  },
+  pitch: {
+    label: 'Pitch',
+    placeholder: 'Ask Pitch…',
+    greeting: "Looking for brand matches, drafting outreach, or analyzing an offer? I can find brands that fit your audience and pitch them in your voice.",
+    chips: ['Find new brand matches', 'Draft a cold pitch', 'Analyze an offer'],
+    promptExt: '\n--- Tool context: PITCH ---\nYou are running as the Pitch agent. Focus on brand discovery, pitch drafting, negotiation, and outreach strategy. Always ground recommendations in the creator profile + brand affinities you have access to. When the user asks for matches, return real, current brand names with niche fit reasoning.',
+  },
+};
+
+function activeToolConfig(){
+  return TOOL_CONFIG[chatState.activeTool] || TOOL_CONFIG.main;
+}
+
+function showChatView(tool){
+  // tool is optional. Undefined = keep current; 'main'/'create'/'pitch' = switch.
   document.getElementById('intro-screen')?.remove();
   document.querySelector('.header')?.classList.add('hidden');
   document.querySelector('.main')?.classList.add('hidden');
   document.getElementById('chat-view').classList.remove('hidden');
   document.body.classList.remove('in-tool');
+
+  if(tool && tool !== chatState.activeTool){
+    setActiveTool(tool);
+  } else if(tool && tool === chatState.activeTool && chatState.messages.length === 0){
+    // Re-entering same tool with empty thread → re-render greeting so chips show.
+    renderToolGreeting();
+  }
+
   // Sync theme icon in chat header
   const chatIcon = document.getElementById('chat-theme-icon');
   const mainIcon = document.getElementById('theme-icon');
@@ -1699,14 +1746,71 @@ function hideChatView(){
   document.body.classList.add('in-tool');
 }
 
+// Switch the chat shell to a different tool agent. Clears active conversation,
+// reloads tool-scoped conversation list, updates header badge + composer, and
+// renders the tool greeting + chips into a fresh thread.
+function setActiveTool(tool){
+  if(!TOOL_CONFIG[tool]) tool = 'main';
+  chatState.activeTool = tool;
+  chatState.conversationId = null;
+  chatState.messages = [];
+  const cfg = TOOL_CONFIG[tool];
+
+  // Header context label + active title
+  const titleEl = document.getElementById('chat-active-title');
+  if(titleEl) titleEl.textContent = tool === 'main' ? 'New chat' : (cfg.label + ' · new');
+  const badge = document.getElementById('chat-context-badge');
+  if(badge){
+    if(tool === 'main'){ badge.textContent = ''; badge.style.display = 'none'; }
+    else { badge.textContent = cfg.label.toUpperCase(); badge.style.display = ''; }
+  }
+
+  // Composer placeholder
+  const input = document.getElementById('chat-input');
+  if(input) input.placeholder = cfg.placeholder;
+
+  // Clear messages pane, render greeting
+  renderMessages();
+  renderToolGreeting();
+
+  // Refresh conversation list filtered by this tool
+  loadConversations();
+}
+
+function renderToolGreeting(){
+  const cfg = activeToolConfig();
+  if(!cfg.greeting) return;
+  const chipsHtml = (cfg.chips || []).map(c =>
+    `<button class="tool-chip" type="button" data-chip="${escapeHtml(c)}">${escapeHtml(c)}</button>`
+  ).join('');
+  const body = appendInlineCard('assistant', `
+    <div>${escapeHtml(cfg.greeting)}</div>
+    ${chipsHtml ? `<div class="tool-chips">${chipsHtml}</div>` : ''}
+  `);
+  // Wire chips after insertion (avoids quoting headaches in onclick attrs)
+  body?.querySelectorAll('.tool-chip').forEach(btn => {
+    btn.addEventListener('click', () => useToolChip(btn.dataset.chip || ''));
+  });
+}
+
+function useToolChip(text){
+  const input = document.getElementById('chat-input');
+  if(!input) return;
+  input.value = text;
+  input.focus();
+  // Submit immediately — chips are designed as one-tap prompts
+  sendChatMessage();
+}
+
 function openTool(tab){
+  closeChatSidebar();
+  // Pulse and Brands now live as chat-first agents inside chat-view.
+  if(tab === 'pulse'){ showChatView('create'); return; }
+  if(tab === 'brands'){ showChatView('pitch'); return; }
+  // Other tools (connect, persona, pipeline) keep their grid views.
   hideChatView();
   switchTab(tab);
-  closeChatSidebar();
-  // Lazy-generate if needed
-  if(tab==='pulse' && !chatState.pulseKicked && state.persona){ chatState.pulseKicked=true; if(!state.pulseGen) generatePulse(); }
-  if(tab==='brands' && !chatState.brandsKicked && state.persona){ chatState.brandsKicked=true; if(!state.brandsGen) generateBrands(); }
-  if(tab==='pipeline'){ renderPipeline(); }
+  if(tab === 'pipeline'){ renderPipeline(); }
 }
 
 function openChatSidebar(){
@@ -1738,9 +1842,11 @@ function sendSuggestion(text){
 async function loadConversations(){
   const user = await getCurrentUser();
   if(!user) return;
+  const tool = chatState.activeTool || 'main';
   const { data, error } = await sb.from('conversations')
-    .select('id, title, updated_at')
+    .select('id, title, updated_at, tool')
     .eq('user_id', user.id)
+    .eq('tool', tool)
     .order('updated_at', { ascending: false })
     .limit(50);
   if(error){ console.error('Load conversations failed', error); return; }
@@ -1782,8 +1888,12 @@ async function openConversation(id){
 function newChat(){
   chatState.conversationId = null;
   chatState.messages = [];
-  document.getElementById('chat-active-title').textContent = 'New chat';
+  const cfg = activeToolConfig();
+  const tool = chatState.activeTool || 'main';
+  document.getElementById('chat-active-title').textContent = tool === 'main' ? 'New chat' : (cfg.label + ' · new');
   renderMessages();
+  // For tool agents, re-render greeting + chips in the fresh thread
+  if(tool !== 'main') renderToolGreeting();
   renderConversationList();
   closeChatSidebar();
   if(document.body.classList.contains('in-tool')) showChatView();
@@ -2389,6 +2499,9 @@ function buildSystemPrompt(){
   parts.push(`Two functions are available. Call them when relevant — do not try to compute rates yourself, the benchmarks are in a live database.\n- get_rate_estimate(platform, deliverable, rights_months?, exclusivity_days?, whitelisting?, rush?) — returns the industry benchmark range plus peer median when available. Call whenever the user asks what to charge, how much something is worth, or wants a quote range.\n- compare_offer(platform, deliverable, amount_offered, ...) — the user got a specific $ offer; returns whether it is below/within/above benchmark. Call whenever a specific dollar amount is mentioned.\n\nWhen citing results to the user:\n- Give the range in dollars (e.g. "$1,500–$7,000 for a reel at your tier").\n- Mention the peer_data p50 if present ("similar creators report $5,500 median").\n- Always recommend aiming for the upper end of the range when engagement or niche multipliers are strong.\n- Frame it as a benchmark, not "your rate" — their actual number depends on scope and negotiation.\n- Never quote a number you didn't get from the tools. If the tool errored, say the rate data is temporarily unavailable rather than guessing.`);
   parts.push(`\n--- Gmail send tool ---`);
   parts.push(`send_pitch_email(to, subject, body) — sends an email from the creator's connected Gmail via Arcade. Call this ONLY when the user has explicitly asked you to send (not just draft) an email on their behalf. Never call it on your own initiative.\n\nIf the tool result contains status="needs_auth", the creator hasn't connected Gmail yet. Present the auth_url to them directly in your reply (as a clickable link) and ask them to retry after authorizing. If status="sent", briefly confirm with the recipient and mention they can find it in their Gmail sent folder.`);
+  // Tool-agent context (Create / Pitch). Empty for main.
+  const toolCfg = activeToolConfig();
+  if(toolCfg && toolCfg.promptExt) parts.push(toolCfg.promptExt);
   return parts.join('\n');
 }
 
@@ -2397,8 +2510,9 @@ async function ensureConversation(firstMessage){
   const user = await getCurrentUser();
   if(!user) return null;
   const title = firstMessage.slice(0, 60) + (firstMessage.length>60?'…':'');
+  const tool = chatState.activeTool || 'main';
   const { data, error } = await sb.from('conversations').insert({
-    user_id: user.id, title
+    user_id: user.id, title, tool
   }).select().single();
   if(error){ console.error('Create conversation failed', error); return null; }
   chatState.conversationId = data.id;
@@ -2514,7 +2628,7 @@ async function sendChatMessage(){
     const res = await fetch(PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stream: true, messages: apiMessages, temperature: 0.7, creatorContext }),
+      body: JSON.stringify({ stream: true, messages: apiMessages, temperature: 0.7, creatorContext, tool: chatState.activeTool || 'main' }),
       signal: chatState.abortController.signal
     });
     if(!res.ok){

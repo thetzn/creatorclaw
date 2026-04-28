@@ -1324,6 +1324,8 @@ export default {
     // stream back to the client so its existing streaming reader works.
     if (body.stream) {
       const creatorContext = body.creatorContext || null;
+      const activeTool = (body.tool && ['main', 'create', 'pitch'].includes(body.tool)) ? body.tool : 'main';
+      console.log('[chat]', activeTool, 'turn');
       let messages = Array.isArray(body.messages) ? [...body.messages] : [];
       const MAX_ROUNDS = 3;
       let finalContent = '';
