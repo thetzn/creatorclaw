@@ -503,7 +503,7 @@ function sseWrapContent(text, origin, allowed, metadata) {
 const IG_APP_ID = '922455490592826';
 // IG_APP_SECRET is read from env.IG_APP_SECRET (set as a Cloudflare Worker secret — never hardcode)
 const IG_REDIRECT_URI = 'https://creatorclaw-proxy.creatorclaw.workers.dev/callback';
-const IG_SCOPES = 'instagram_basic,instagram_manage_insights';
+const IG_SCOPES = 'instagram_business_basic,instagram_business_manage_insights';
 const IG_AUTH_URL = 'https://api.instagram.com/oauth/authorize';
 const IG_TOKEN_URL = 'https://api.instagram.com/oauth/access_token';
 const IG_GRAPH_URL = 'https://graph.instagram.com/v21.0';
