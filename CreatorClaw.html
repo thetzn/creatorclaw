@@ -1337,7 +1337,7 @@ async function streamAgentAcknowledgement(){
             cursor.remove();
             bodyEl.innerHTML = renderMarkdown(fullText);
             bodyEl.appendChild(cursor);
-            document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+            { const _cm = document.getElementById('chat-messages'); if(_cm && chatState.followBottom) _cm.scrollTop = _cm.scrollHeight; }
           }
           if(deltaObj?.metadata){
             try { renderToolMetadata(bodyEl, deltaObj.metadata); }
@@ -1726,6 +1726,7 @@ const chatState = {
   streaming: false,
   conversations: [],
   activeTool: 'main',  // 'main' | 'create' | 'pitch' — drives system prompt, greeting, conversation scope
+  followBottom: true,  // sticky-scroll: follow streaming content unless user scrolls up
 };
 
 // Tool agent configs. Each tool runs the same chat shell but with its own
@@ -2007,11 +2008,49 @@ function appendMessage(role, content, scroll=true){
   wrap.appendChild(avatar);
   wrap.appendChild(body);
   container.appendChild(wrap);
-  if(scroll) container.scrollTop = container.scrollHeight;
+  if(scroll){
+    if(role === 'user'){
+      // Smooth-scroll the new user bubble near the top of the chat area so
+      // the streaming response below it is visible. Avoids the jarring
+      // jump-to-bottom that mobile users were hitting when tapping chips.
+      requestAnimationFrame(()=>revealBubble(body, 16));
+    } else if(chatState.followBottom){
+      container.scrollTop = container.scrollHeight;
+    }
+  }
   return body;
 }
 
+// Bind once: if the user scrolls the chat area up themselves, disengage
+// sticky-bottom so streaming content doesn't yank them back. Re-engaged
+// when they next submit a message.
+(function bindChatScrollFollow(){
+  let bound = false;
+  function attach(){
+    if(bound) return;
+    const cm = document.getElementById('chat-messages');
+    if(!cm) return;
+    bound = true;
+    cm.addEventListener('scroll', () => {
+      if(!chatState.streaming) return;
+      // If user scrolled away from the bottom, drop sticky.
+      const distFromBottom = cm.scrollHeight - cm.scrollTop - cm.clientHeight;
+      if(distFromBottom > 120) chatState.followBottom = false;
+      else if(distFromBottom < 20) chatState.followBottom = true;
+    }, { passive: true });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', attach);
+  else attach();
+  // Re-attempt — chat-messages may not be in DOM at script load
+  setTimeout(attach, 500);
+})();
+
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function isNearBottom(container, threshold=80){
+  if(!container) return true;
+  return (container.scrollHeight - container.scrollTop - container.clientHeight) < threshold;
+}
 
 function revealBubble(bodyEl, offsetFromTop=20){
   const container = document.getElementById('chat-messages');
@@ -2300,7 +2339,7 @@ async function streamOnboardingWelcome(){
             cursor.remove();
             bodyEl.innerHTML = renderMarkdown(full);
             bodyEl.appendChild(cursor);
-            document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+            { const _cm = document.getElementById('chat-messages'); if(_cm && chatState.followBottom) _cm.scrollTop = _cm.scrollHeight; }
           }
         } catch {}
       }
@@ -2627,6 +2666,7 @@ async function sendChatMessage(){
   autoResizeChat(input);
 
   chatState.streaming = true;
+  chatState.followBottom = true;  // user just submitted — re-engage sticky-bottom
   chatState.abortController = new AbortController();
   document.getElementById('chat-send-btn').disabled = true;
 
@@ -2735,7 +2775,7 @@ async function sendChatMessage(){
             cursor.remove();
             bodyEl.innerHTML = renderMarkdown(fullText);
             bodyEl.appendChild(cursor);
-            document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+            { const _cm = document.getElementById('chat-messages'); if(_cm && chatState.followBottom) _cm.scrollTop = _cm.scrollHeight; }
           }
           if(deltaObj?.metadata){
             try { renderToolMetadata(bodyEl, deltaObj.metadata); }
