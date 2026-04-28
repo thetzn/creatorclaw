@@ -1724,7 +1724,7 @@ const TOOL_CONFIG = {
     placeholder: 'Ask Pitch…',
     greeting: "Looking for brand matches, drafting outreach, or analyzing an offer? I can find brands that fit your audience and pitch them in your voice.",
     chips: ['Find new brand matches', 'Draft a cold pitch', 'Analyze an offer'],
-    promptExt: '\n--- Tool context: PITCH ---\nYou are running as the Pitch agent. Focus on brand discovery, pitch drafting, negotiation, and outreach strategy. Always ground recommendations in the creator profile + brand affinities you have access to. When the user asks for matches, return real, current brand names with niche fit reasoning.\n\nIMPORTANT: When you call find_brand_matches, the frontend renders the brands as inline cards with logos, match scores, and a Draft Pitch button. DO NOT list the brands in prose afterwards. Reply with ONE short sentence acknowledging the result (e.g. "Here are 4 brands that fit your audience — tap Draft Pitch on any of them.") and stop.',
+    promptExt: '\n--- Tool context: PITCH ---\nYou are running as the Pitch agent. Focus on brand discovery, pitch drafting, negotiation, and outreach strategy. Always ground recommendations in the creator profile + brand affinities you have access to. When the user asks for matches, return real, current brand names with niche fit reasoning.\n\nIMPORTANT: When you call find_brand_matches, the frontend renders the brands as inline cards with logos, match scores, and a Draft Pitch button. DO NOT list the brands in prose afterwards. Reply with ONE short sentence acknowledging the result (e.g. "Here are 4 brands that fit your audience — tap Draft Pitch on any of them.") and stop.\n\nWhen the user asks you to draft a pitch for a specific brand, write a complete cold-outreach email in the creator\'s authentic voice. Format EXACTLY like this so the frontend can attach an Open-in-Gmail button:\n\nSubject: <one short, specific line>\n\n<body — 3-5 short plaintext paragraphs, no markdown. First line names the creator + niche + a metric. Second references the brand\'s program/aesthetic if known. Third is a concrete concept idea. Fourth is the ask. Sign off with the creator\'s first name.>\n\nNo preamble, no "Here\'s the pitch:" lead-in, no markdown bolding. Start directly with "Subject:".',
   },
 };
 
@@ -3797,7 +3797,7 @@ function renderInlineBrandsIntoBody(bodyEl, brands){
       <div class="brand-footer">
         <div class="brand-deal">${escapeHtml(b.deal||'')}</div>
         <div style="display:flex;gap:6px">
-          <button class="outreach-btn" onclick="draftPitch(${idx})">Draft Pitch</button>
+          <button class="outreach-btn" onclick="draftPitchInline(${idx})">Draft Pitch</button>
         </div>
       </div>`;
     grid.appendChild(card);
@@ -3811,6 +3811,22 @@ function renderInlineBrandsIntoBody(bodyEl, brands){
       : '';
     enrichBrandsWithAgent(brands.slice(0,4), personaSummary).catch(e => console.warn('enrich failed', e));
   } catch {}
+}
+
+// Inline pitch flow used from chat brand cards. Routes through the normal
+// chat stream so the pitch lands as an assistant message; the Gmail CTA
+// auto-attaches via maybeAttachGmailCta when the response matches the
+// "Subject: ...\n\n<body>" shape.
+function draftPitchInline(i){
+  const brand = (state.brands||[])[i];
+  if(!brand){ showError('Brand not found'); return; }
+  const input = document.getElementById('chat-input');
+  if(!input){ draftPitch(i); return; }
+  // The Pitch agent system prompt knows the brand from the prior
+  // find_brand_matches tool turn, so a short ask is enough.
+  input.value = `Draft a pitch for ${brand.name}`;
+  if(typeof autoResizeChat === 'function') autoResizeChat(input);
+  sendChatMessage();
 }
 
 async function draftPitch(i){
