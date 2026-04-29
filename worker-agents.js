@@ -127,12 +127,25 @@ const findBrandMatchesTool = tool({
   },
 });
 
+const sendPitchEmailTool = tool({
+  name: 'send_pitch_email',
+  description: "Send an email from the creator's connected Gmail. Requires the creator to have connected Gmail via Arcade. If the account isn't connected, this returns a one-time authorization URL the user must visit. Call this when the user has asked you to send a pitch/outreach/email on their behalf (not just draft — actually send).",
+  parameters: z.object({
+    to: z.string().describe('Recipient email address.'),
+    subject: z.string().describe('Email subject line.'),
+    body: z.string().describe('Plain-text email body.'),
+  }),
+  async execute(args, runContext) {
+    return runContext.context.executeToolByName('send_pitch_email', args);
+  },
+});
+
 const TOOL_REGISTRY = {
   get_rate_estimate:       { tool: rateEstimateTool,         agents: ['main', 'create', 'pitch'] },
   compare_offer:           { tool: compareOfferTool,         agents: ['main', 'create', 'pitch'] },
   generate_content_ideas:  { tool: generateContentIdeasTool, agents: ['main', 'create'] },
   find_brand_matches:      { tool: findBrandMatchesTool,     agents: ['main', 'pitch'] },
-  // Commit E appends: send_pitch_email
+  send_pitch_email:        { tool: sendPitchEmailTool,       agents: ['main', 'pitch'] },
 };
 
 function buildAgent(toolName, instructions) {
