@@ -4036,25 +4036,27 @@ function guessRecipientFromConversation(){
 function confirmAndSendPitchInline(pitch){
   const guessed = guessRecipientFromConversation();
   const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  const bodyPreview = pitch.body.length > 220 ? pitch.body.slice(0,220) + '…' : pitch.body;
+  // Single statement + single authorize button. The email frame above
+  // already shows the full subject/body — no need to re-render it here.
+  // Fallback inline input only when we couldn't infer a recipient.
+  const statement = guessed
+    ? `Sending to <span style="color:var(--text);font-weight:600">${esc(guessed)}</span> via your connected Gmail. There is no undo.`
+    : `It will go through your connected Gmail. There is no undo.`;
+  const fallbackInput = guessed
+    ? ''
+    : `<input id="cc-send-to" type="email" placeholder="recipient@example.com" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;margin-top:18px">`;
   showModal(
     '<div class="modal-title">Send this email?</div>' +
-    '<div class="modal-sub">It will go through your connected Google account. There is no undo.</div>' +
-    '<div class="modal-label">To</div>' +
-    `<input id="cc-send-to" type="email" placeholder="recipient@example.com" value="${esc(guessed)}" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;margin-bottom:14px">` +
-    '<div class="modal-label">Subject</div>' +
-    `<div style="font-weight:600;color:var(--text);margin-bottom:14px;font-size:13px">${esc(pitch.subject)}</div>` +
-    '<div class="modal-label">Body</div>' +
-    `<div style="white-space:pre-wrap;color:var(--muted);font-size:12.5px;line-height:1.55;max-height:200px;overflow-y:auto;margin-bottom:18px;padding:10px 12px;background:var(--card2);border-radius:8px;border:1px solid var(--border2)">${esc(bodyPreview)}</div>` +
-    '<div class="modal-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
-      '<button class="modal-cancel-btn" type="button" onclick="closeModal()">Cancel</button>' +
-      `<button class="modal-save-btn" type="button" onclick="executePitchSend()" style="display:inline-flex;align-items:center;gap:8px">${GMAIL_ICON_SVG}<span>Send now</span></button>` +
+    `<div class="modal-sub">${statement}</div>` +
+    fallbackInput +
+    '<div class="modal-row" style="display:flex;justify-content:center;margin-top:22px">' +
+      `<button class="modal-save-btn" type="button" onclick="executePitchSend()" style="display:inline-flex;align-items:center;gap:10px;padding:12px 28px">${GMAIL_ICON_SVG}<span>Send now</span></button>` +
     '</div>'
   );
-  // Stash the pitch on the window so executePitchSend can grab it after the
-  // user confirms — keeps the function args simple.
-  window._ccPendingSend = { pitch };
-  setTimeout(()=>document.getElementById('cc-send-to')?.focus(), 50);
+  // Stash the pitch + resolved recipient so executePitchSend doesn't need
+  // to re-derive them from the (now optional) input field.
+  window._ccPendingSend = { pitch, to: guessed };
+  if(!guessed) setTimeout(()=>document.getElementById('cc-send-to')?.focus(), 50);
 }
 
 // Called from the confirmation modal's Send-now button. Reads the recipient
@@ -4063,7 +4065,10 @@ function confirmAndSendPitchInline(pitch){
 function executePitchSend(){
   const pending = window._ccPendingSend;
   if(!pending){ closeModal(); return; }
-  const to = (document.getElementById('cc-send-to')?.value || '').trim();
+  // The fallback input only renders when no recipient was inferred. When
+  // it isn't in the DOM, fall back to the recipient stashed on _ccPendingSend.
+  const inputEl = document.getElementById('cc-send-to');
+  const to = (inputEl ? inputEl.value : (pending.to || '')).trim();
   if(!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)){
     showError('Please enter a valid email address.');
     return;
