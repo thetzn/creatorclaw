@@ -40,21 +40,32 @@ function ensureResponsesApi() {
   _responsesApiActive = true;
 }
 
-// TODO: re-enable allowlist once we know the actual MCP tool names for
-// calendar. Initial guess (list_calendar_events / create_calendar_event)
-// was wrong — the LLM was firing many mcp_call retries presumably because
-// those names don't exist. Open the gates so it can pick the real ones,
-// then we'll lock down again.
-//
-// Drafting tools (gmail.compose scope) are still going to 403, but the
-// new prompt rule "do NOT call draft_gmail_message" should keep the LLM
-// away from them.
+// Allowlist of MCP tools we expose to the agent. Sourced from
+// taylorwilsdon/google_workspace_mcp gmail/gmail_tools.py +
+// gcalendar/calendar_tools.py. Excludes draft_gmail_message (needs
+// gmail.compose scope, which we don't request — would 403). Excludes
+// out-of-office, focus-time, attachments, and the batch variants for
+// now since the LLM doesn't need them yet.
+const GOOGLE_MCP_ALLOWED_TOOLS = [
+  // Gmail
+  'search_gmail_messages',
+  'get_gmail_message_content',
+  'get_gmail_thread_content',
+  'send_gmail_message',
+  // Calendar — manage_event is the create/update/delete tool
+  'list_calendars',
+  'get_events',
+  'manage_event',
+  'query_freebusy',
+];
+
 function buildGoogleMcpTool(accessToken) {
   if (!accessToken) return null;
   return hostedMcpTool({
     serverLabel: 'google_workspace',
     serverUrl: GOOGLE_MCP_URL,
     headers: { Authorization: 'Bearer ' + accessToken },
+    allowedTools: GOOGLE_MCP_ALLOWED_TOOLS,
     requireApproval: 'never',  // creator pre-authorized via the Connect Google flow
   });
 }
@@ -364,7 +375,18 @@ export async function handleAgentChat(request, env, body, cors, deps) {
   // lifecycle to manage — it's just a tool definition.
   const googleMcp = buildGoogleMcpTool(deps.googleAccessToken);
 
-  const agents = buildAgentSet(activeTool, instructions, googleMcp);
+  // Append runtime context the frontend can't easily bake into the prompt:
+  // user's IANA timezone (Calendar API rejects events without it) and
+  // today's date (so "tomorrow at 9am" can be resolved).
+  const tz = cc.timezone || 'UTC';
+  const today = new Date().toISOString().slice(0, 10);
+  const runtimeCtx =
+    `\n\nRUNTIME CONTEXT (current as of this turn):\n` +
+    `- Today's date (UTC): ${today}\n` +
+    `- User's IANA timezone: ${tz}\n` +
+    `- When calling manage_event for calendar events, the start/end objects MUST include "timeZone": "${tz}" alongside "dateTime": "<YYYY-MM-DDTHH:MM:SS>" (no offset on the dateTime — Google composes the offset from the timeZone field). Without timeZone, the API rejects with HTTP 400.`;
+
+  const agents = buildAgentSet(activeTool, (instructions || '') + runtimeCtx, googleMcp);
   const startAgent = agents[activeTool] || agents.main;
   const runCtx = {
     creatorContext: cc,
