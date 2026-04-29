@@ -201,94 +201,11 @@ async function computeRateEstimate(opts) {
   };
 }
 
-// ── Chat tools exposed to the LLM ────────────────────────────────────────────
-// Rate estimator tools + Gmail send tool (via Arcade).
-const RATE_TOOLS = [
-  {
-    type: 'function',
-    function: {
-      name: 'get_rate_estimate',
-      description: "Compute the industry benchmark rate range for a specific deliverable on a platform, adjusted for the creator's followers, engagement, and niche. Call this whenever the user asks about rates, pricing, what to charge, quote ranges, or pitches that involve a specific deliverable.",
-      parameters: {
-        type: 'object',
-        properties: {
-          platform: { type: 'string', enum: ['instagram', 'tiktok', 'youtube'] },
-          deliverable: { type: 'string', description: "e.g. 'reel', 'static', 'carousel', 'story-series', 'video', 'ugc', 'youtube-short', 'youtube-integration', 'full-bundle', 'crosspost-ig-tt'" },
-          rights_months: { type: 'integer', description: 'Months of paid-ad usage rights the brand wants. 0 if none.' },
-          exclusivity_days: { type: 'integer', description: 'Days of category exclusivity. 0 if none.' },
-          whitelisting: { type: 'boolean', description: 'True if brand wants to whitelist (run ads under creator handle).' },
-          rush: { type: 'boolean', description: 'True if <7 day turnaround.' },
-        },
-        required: ['platform', 'deliverable'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'compare_offer',
-      description: "A brand offered a specific dollar amount. Compute the benchmark range and tell whether the offer is below, within, or above benchmark. Call this whenever the user mentions a specific offer amount.",
-      parameters: {
-        type: 'object',
-        properties: {
-          platform: { type: 'string', enum: ['instagram', 'tiktok', 'youtube'] },
-          deliverable: { type: 'string' },
-          amount_offered: { type: 'number', description: 'The $ the brand offered.' },
-          rights_months: { type: 'integer' },
-          exclusivity_days: { type: 'integer' },
-          whitelisting: { type: 'boolean' },
-        },
-        required: ['platform', 'deliverable', 'amount_offered'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'generate_content_ideas',
-      description: "Generate a fresh batch of content ideas tailored to the creator's persona, pillars, and engagement profile. Call this whenever the user asks for ideas, brainstorming, what to post, refining a previous batch, or explores a content theme. The UI renders the result as mini cards inline in the chat with Schedule and Draft Script actions.",
-      parameters: {
-        type: 'object',
-        properties: {
-          theme: { type: 'string', description: 'Optional topic or angle to focus the batch on, e.g. "western fashion" or "morning routines".' },
-          count: { type: 'integer', description: 'Number of ideas to return. Default 4. Max 6.' },
-        },
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'find_brand_matches',
-      description: "Generate fresh brand match recommendations tailored to the creator's persona and niche. Call when the user asks for brand matches, who to pitch, brand recommendations, or refines a previous list (e.g. 'show me 4 more', 'try a different angle'). The UI renders the result as inline brand cards in the chat with Draft Pitch action.",
-      parameters: {
-        type: 'object',
-        properties: {
-          theme: { type: 'string', description: 'Optional category/angle filter, e.g. "luxury beauty" or "sustainable fashion".' },
-          count: { type: 'integer', description: 'Number of brand matches. Default 4. Max 6.' },
-          exclude: { type: 'array', items: { type: 'string' }, description: 'Brand names to exclude (already shown). Pass when the user wants more matches different from a prior list.' },
-        },
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'send_pitch_email',
-      description: "Send an email from the creator's connected Gmail. Requires the creator to have connected Gmail via Arcade. If the account isn't connected, this returns a one-time authorization URL the user must visit. Call this when the user has asked you to send a pitch/outreach/email on their behalf (not just draft — actually send).",
-      parameters: {
-        type: 'object',
-        properties: {
-          to: { type: 'string', description: 'Recipient email address.' },
-          subject: { type: 'string', description: 'Email subject line.' },
-          body: { type: 'string', description: 'Plain-text email body.' },
-        },
-        required: ['to', 'subject', 'body'],
-      },
-    },
-  },
-];
-
+// ── Per-tool executor ────────────────────────────────────────────────────────
+// Tool schemas now live in worker-agents.js (zod-typed for the SDK). This
+// switch is the implementation half — invoked from the SDK tool's execute()
+// via runContext.context.executeToolByName. The fakeToolCall shape preserves
+// the original signature so we don't have to rewrite the body here.
 async function executeRateToolCall(toolCall, creatorContext, env) {
   try {
     const name = toolCall.function.name;
@@ -463,43 +380,6 @@ domain has no protocol or trailing slash. match 60-99. Exactly 3 reasons each. O
   } catch (e) {
     return { error: String((e && e.message) || e) };
   }
-}
-
-// Wrap non-streaming chat output as a Server-Sent Events stream so the
-// client's existing streaming reader still works. Chunks small enough to
-// feel natural.
-function sseWrapContent(text, origin, allowed, metadata) {
-  const encoder = new TextEncoder();
-  const { readable, writable } = new TransformStream();
-  const writer = writable.getWriter();
-  (async () => {
-    try {
-      const chunkSize = 18;
-      for (let i = 0; i < text.length; i += chunkSize) {
-        const chunk = text.slice(i, i + chunkSize);
-        const event = `data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\n\n`;
-        await writer.write(encoder.encode(event));
-      }
-      // After all text chunks, optionally emit a metadata event (e.g. tool
-      // results that the frontend should render as cards or special UI).
-      if (metadata) {
-        const metaEvent = `data: ${JSON.stringify({ choices: [{ delta: { metadata } }] })}\n\n`;
-        await writer.write(encoder.encode(metaEvent));
-      }
-      await writer.write(encoder.encode('data: [DONE]\n\n'));
-    } finally {
-      try { await writer.close(); } catch {}
-    }
-  })();
-  return new Response(readable, {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      ...cors(origin, allowed),
-    },
-  });
 }
 
 // ── Instagram Graph API OAuth ─────────────────────────────────────────────────
@@ -1460,97 +1340,16 @@ export default {
       });
     }
 
-    // Streaming chat — always routes through the Agents SDK now (Phase 1
-    // migration complete). The hand-rolled loop below is dead code, kept
-    // for one commit so a quick revert is possible. Removed in Commit H.
+    // Streaming chat — routes through the Agents SDK (handleAgentChat).
+    // executeToolByName lets SDK tools delegate to the existing per-tool
+    // implementations in executeRateToolCall (Apify, Arcade, peer
+    // aggregates, sub-LLM JSON generation) instead of duplicating logic.
     if (body.stream) {
-      // Delegate tool execution to executeRateToolCall so the SDK doesn't
-      // need to know about Apify, Arcade, peer-aggregate fetches, etc.
       const executeToolByName = async (name, args) => {
         const fakeToolCall = { function: { name, arguments: JSON.stringify(args || {}) } };
         return await executeRateToolCall(fakeToolCall, body.creatorContext || {}, env);
       };
       return handleAgentChat(request, env, body, cors(origin, allowed), { executeToolByName });
-      /* eslint-disable no-unreachable */
-      const creatorContext = body.creatorContext || null;
-      const activeTool = (body.tool && ['main', 'create', 'pitch'].includes(body.tool)) ? body.tool : 'main';
-      console.log('[chat]', activeTool, 'turn');
-      let messages = Array.isArray(body.messages) ? [...body.messages] : [];
-      const MAX_ROUNDS = 3;
-      let finalContent = '';
-      let lastError = null;
-      // Tool-result side-channel: tools that produce structured UI (cards,
-      // etc.) populate this so the frontend can render rich output beyond
-      // the LLM's text turn.
-      let renderMetadata = null;
-      for (let round = 0; round < MAX_ROUNDS; round++) {
-        const r = await fetch(CHAT_URL, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            model: MODEL,
-            temperature: body.temperature || 0.7,
-            messages,
-            tools: RATE_TOOLS,
-            tool_choice: 'auto',
-          }),
-        });
-        if (!r.ok) {
-          const errText = await r.text().catch(() => r.statusText);
-          return new Response(errText, { status: r.status, headers: { 'Content-Type': 'application/json', ...cors(origin, allowed) } });
-        }
-        const data = await r.json();
-        const assistant = data?.choices?.[0]?.message;
-        if (!assistant) { lastError = 'no assistant message'; break; }
-
-        const toolCalls = assistant.tool_calls || [];
-        if (!toolCalls.length) {
-          finalContent = assistant.content || '';
-          break;
-        }
-
-        // Append the assistant's tool-call message + each tool's result,
-        // then loop so the model can synthesize a final reply using the data.
-        messages.push(assistant);
-        for (const tc of toolCalls) {
-          let result;
-          try {
-            result = await executeRateToolCall(tc, creatorContext, env);
-          } catch (e) {
-            result = { error: String((e && e.message) || e) };
-          }
-          console.log('[rate-tool]', tc.function?.name, 'called');
-          // Capture renderable side-channel data for known tools.
-          if (tc.function?.name === 'generate_content_ideas' && Array.isArray(result?.ideas) && result.ideas.length) {
-            renderMetadata = renderMetadata || {};
-            renderMetadata.cards = { type: 'pulse_ideas', items: result.ideas };
-          }
-          if (tc.function?.name === 'find_brand_matches' && Array.isArray(result?.brands) && result.brands.length) {
-            renderMetadata = renderMetadata || {};
-            renderMetadata.cards = { type: 'brand_matches', items: result.brands };
-          }
-          messages.push({
-            role: 'tool',
-            tool_call_id: tc.id,
-            content: JSON.stringify(result),
-          });
-        }
-      }
-      if (!finalContent) {
-        finalContent = lastError ? `(${lastError})` : '(tool-call loop exhausted — please retry)';
-      }
-      // When tools produced inline cards, override the LLM's prose with a
-      // short deterministic acknowledgement. The cards carry the data; any
-      // text the model adds is duplication. (System-prompt instructions to
-      // stop listing items are not reliable.)
-      if (renderMetadata?.cards?.type === 'brand_matches') {
-        const n = renderMetadata.cards.items?.length || 0;
-        finalContent = `Here ${n === 1 ? 'is 1 brand' : `are ${n} brands`} that fit your audience — tap **Draft Pitch** on any of them.`;
-      } else if (renderMetadata?.cards?.type === 'pulse_ideas') {
-        const n = renderMetadata.cards.items?.length || 0;
-        finalContent = `Here ${n === 1 ? 'is 1 idea' : `are ${n} ideas`} tuned to your pillars — tap **Schedule** or **Script** on any card.`;
-      }
-      return sseWrapContent(finalContent, origin, allowed, renderMetadata);
     }
 
     // Regular Chat Completions (non-streaming)
