@@ -1460,23 +1460,18 @@ export default {
       });
     }
 
-    // Streaming chat with tool-calling. We run the OpenAI call non-streaming
-    // so we can handle rate-estimator tool calls cleanly, then fake an SSE
-    // stream back to the client so its existing streaming reader works.
+    // Streaming chat — always routes through the Agents SDK now (Phase 1
+    // migration complete). The hand-rolled loop below is dead code, kept
+    // for one commit so a quick revert is possible. Removed in Commit H.
     if (body.stream) {
-      // Feature flag: route through the Agents SDK path. Enabled per-request
-      // by the frontend during Phase 1 migration. Once stable, this becomes
-      // the default and the hand-rolled loop below is removed.
-      if (body.useAgentsSdk) {
-        // Delegate tool execution to the existing implementation so the
-        // SDK doesn't need to know about Apify, Arcade, peer-aggregate
-        // fetches, etc. — it's just orchestration.
-        const executeToolByName = async (name, args) => {
-          const fakeToolCall = { function: { name, arguments: JSON.stringify(args || {}) } };
-          return await executeRateToolCall(fakeToolCall, body.creatorContext || {}, env);
-        };
-        return handleAgentChat(request, env, body, cors(origin, allowed), { executeToolByName });
-      }
+      // Delegate tool execution to executeRateToolCall so the SDK doesn't
+      // need to know about Apify, Arcade, peer-aggregate fetches, etc.
+      const executeToolByName = async (name, args) => {
+        const fakeToolCall = { function: { name, arguments: JSON.stringify(args || {}) } };
+        return await executeRateToolCall(fakeToolCall, body.creatorContext || {}, env);
+      };
+      return handleAgentChat(request, env, body, cors(origin, allowed), { executeToolByName });
+      /* eslint-disable no-unreachable */
       const creatorContext = body.creatorContext || null;
       const activeTool = (body.tool && ['main', 'create', 'pitch'].includes(body.tool)) ? body.tool : 'main';
       console.log('[chat]', activeTool, 'turn');

@@ -1730,22 +1730,6 @@ function updateIgConnectUI(){
 }
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
-// Agents SDK opt-in: append ?agentsdk=1 to the URL to route this session's
-// chat requests through the new SDK-driven path instead of the hand-rolled
-// tool-call loop. Persisted in localStorage so a refresh keeps the flag on
-// (visit ?agentsdk=0 to turn off).
-(function readAgentsSdkFlag(){
-  try {
-    const params = new URLSearchParams(location.search);
-    const v = params.get('agentsdk');
-    if(v === '1' || v === 'true') localStorage.setItem('cc_agents_sdk', '1');
-    else if(v === '0' || v === 'false') localStorage.removeItem('cc_agents_sdk');
-  } catch {}
-})();
-function useAgentsSdk(){
-  try { return localStorage.getItem('cc_agents_sdk') === '1'; } catch { return false; }
-}
-
 const chatState = {
   conversationId: null,
   messages: [],
@@ -2769,7 +2753,7 @@ async function sendChatMessage(){
     const res = await fetch(PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stream: true, messages: apiMessages, temperature: 0.7, creatorContext, tool: chatState.activeTool || 'main', useAgentsSdk: useAgentsSdk() }),
+      body: JSON.stringify({ stream: true, messages: apiMessages, temperature: 0.7, creatorContext, tool: chatState.activeTool || 'main' }),
       signal: chatState.abortController.signal
     });
     if(!res.ok){
