@@ -4,6 +4,7 @@
  * - Web search mode: Responses API with gpt-4o + web_search_preview
  * - IG scrape mode: Apify Instagram Profile Scraper → OpenAI interpretation
  * - Agents SDK spike: POST /v1/agents/test (validation only — see worker-agents.js)
+ * - Production agent chat: handleAgentChat in worker-agents.js — multi-agent orchestration with delegate-tool specialists.
  */
 
 import { handleAgentsSpike, handleAgentChat } from './worker-agents.js';
