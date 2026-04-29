@@ -361,15 +361,17 @@ export async function handleAgentChat(request, env, body, cors, deps) {
 
   try {
     const result = await run(startAgent, convo, { stream: true, maxTurns: 6, context: runCtx });
-    return sseWrapAgentRun(result, cors);
+    // Defer MCP cleanup until the stream finishes — sseWrapAgentRun returns
+    // a Response immediately and consumes the stream asynchronously inside
+    // its TransformStream pipe. Closing in a finally here would tear down
+    // the MCP connection before the agent ever uses it.
+    return sseWrapAgentRun(result, cors, { onFinish: () => {
+      if (googleMcp) { googleMcp.close().catch(() => {}); }
+    }});
   } catch (err) {
     console.error('[agents] run failed', err);
+    if (googleMcp) { try { await googleMcp.close(); } catch {} }
     return errorJSON('agent_run_failed', err, cors);
-  } finally {
-    // Best-effort cleanup of the per-request MCP connection.
-    if (googleMcp) {
-      try { await googleMcp.close(); } catch (e) { /* ignore */ }
-    }
   }
 }
 
@@ -381,7 +383,7 @@ export async function handleAgentChat(request, env, body, cors, deps) {
 // in prose) and emit a deterministic acknowledgement at the end. Pre-tool
 // text streams normally — gives a natural "Looking for brand matches…"
 // lead-in before cards render.
-function sseWrapAgentRun(result, corsHeaders) {
+function sseWrapAgentRun(result, corsHeaders, hooks = {}) {
   const encoder = new TextEncoder();
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
@@ -490,6 +492,7 @@ function sseWrapAgentRun(result, corsHeaders) {
       } catch {}
     } finally {
       try { await writer.close(); } catch {}
+      try { hooks.onFinish && hooks.onFinish(); } catch {}
     }
   })();
 
