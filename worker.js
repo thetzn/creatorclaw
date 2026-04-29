@@ -391,6 +391,25 @@ const IG_AUTH_URL = 'https://api.instagram.com/oauth/authorize';
 const IG_TOKEN_URL = 'https://api.instagram.com/oauth/access_token';
 const IG_GRAPH_URL = 'https://graph.instagram.com/v21.0';
 
+// ── Google Workspace OAuth ─────────────────────────────────────────────────
+// Powers the google_workspace_mcp integration (Gmail + Calendar). Worker owns
+// the OAuth flow, stores tokens in Supabase under RLS, and forwards bearer
+// tokens to the MCP server on each tool call.
+const GOOGLE_OAUTH_CLIENT_ID = '586278275362-v680riblnb2evqk5m84q0rogbqigth2l.apps.googleusercontent.com';
+// GOOGLE_OAUTH_CLIENT_SECRET is read from env.GOOGLE_OAUTH_CLIENT_SECRET (Worker secret)
+const GOOGLE_REDIRECT_URI = 'https://creatorclaw-proxy.creatorclaw.workers.dev/google/callback';
+const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
+const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
+const GOOGLE_SCOPES = [
+  'openid',
+  'email',
+  'profile',
+  'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/calendar',
+].join(' ');
+
 const ALLOWED_ORIGINS = [
   'https://creatorclaw.co',
   'http://creatorclaw.co',
@@ -1206,6 +1225,117 @@ export default {
 
         // Return a success page that passes the token + metadata back to the opener window
         return serveHTML(oauthSuccessPage(accessToken, expiresIn, igUserId, igUsername));
+      }
+
+      // ── Google Workspace OAuth: initiate ─────────────────────────────
+      // Frontend opens this in a popup with ?t=<supabase access token>. We
+      // forward the JWT through Google's `state` param so the callback can
+      // write tokens to Supabase under RLS without needing a server-side
+      // session store.
+      if (path === '/google/auth') {
+        const t = url.searchParams.get('t') || '';
+        if (!t) return serveHTML(oauthErrorPage('missing_token', 'No session token provided. Please try connecting again from the app.'));
+        const state = base64UrlEncode(t);
+        const authUrl = new URL(GOOGLE_AUTH_URL);
+        authUrl.searchParams.set('client_id', GOOGLE_OAUTH_CLIENT_ID);
+        authUrl.searchParams.set('redirect_uri', GOOGLE_REDIRECT_URI);
+        authUrl.searchParams.set('response_type', 'code');
+        authUrl.searchParams.set('scope', GOOGLE_SCOPES);
+        authUrl.searchParams.set('access_type', 'offline');     // request refresh_token
+        authUrl.searchParams.set('prompt', 'consent');          // force consent so refresh_token is always granted
+        authUrl.searchParams.set('include_granted_scopes', 'true');
+        authUrl.searchParams.set('state', state);
+        return Response.redirect(authUrl.toString(), 302);
+      }
+
+      // ── Google Workspace OAuth: callback ─────────────────────────────
+      if (path === '/google/callback') {
+        const code = url.searchParams.get('code');
+        const state = url.searchParams.get('state');
+        const error = url.searchParams.get('error');
+        if (error || !code || !state) {
+          return serveHTML(googleOauthErrorPage(error || 'unknown_error', url.searchParams.get('error_description') || 'Authorization was denied or cancelled.'));
+        }
+
+        // Recover the user's session JWT from state.
+        let sbAccessToken;
+        try { sbAccessToken = base64UrlDecode(state); }
+        catch { return serveHTML(googleOauthErrorPage('bad_state', 'State parameter could not be decoded.')); }
+        if (!sbAccessToken || sbAccessToken.length < 20) {
+          return serveHTML(googleOauthErrorPage('bad_state', 'State payload was empty.'));
+        }
+
+        // Exchange code → tokens.
+        const tokenForm = new URLSearchParams({
+          code,
+          client_id: GOOGLE_OAUTH_CLIENT_ID,
+          client_secret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+          redirect_uri: GOOGLE_REDIRECT_URI,
+          grant_type: 'authorization_code',
+        });
+        const tokRes = await fetch(GOOGLE_TOKEN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: tokenForm.toString(),
+        });
+        if (!tokRes.ok) {
+          const errText = await tokRes.text().catch(() => 'token exchange failed');
+          return serveHTML(googleOauthErrorPage('token_exchange_failed', errText.slice(0, 300)));
+        }
+        const tok = await tokRes.json();
+        const accessToken = tok.access_token;
+        const refreshToken = tok.refresh_token || null;
+        const expiresIn = Number(tok.expires_in) || 3600;
+        const grantedScopes = String(tok.scope || GOOGLE_SCOPES);
+        if (!accessToken) {
+          return serveHTML(googleOauthErrorPage('no_token', 'Token response missing access_token.'));
+        }
+
+        // Look up the connected email from /userinfo so we can show it in the UI.
+        let email = null;
+        try {
+          const userRes = await fetch(GOOGLE_USERINFO_URL, {
+            headers: { Authorization: 'Bearer ' + accessToken },
+          });
+          if (userRes.ok) {
+            const u = await userRes.json();
+            email = u.email || null;
+          }
+        } catch {}
+
+        // Upsert into Supabase under the user's RLS context (auth.uid() = self).
+        const expiresAt = new Date(Date.now() + (expiresIn - 60) * 1000).toISOString(); // refresh 1 min early
+        // Need user_id for the row PK. Decode it from the Supabase JWT's `sub` claim.
+        let userId = null;
+        try { userId = decodeJwtSub(sbAccessToken); } catch {}
+        if (!userId) {
+          return serveHTML(googleOauthErrorPage('bad_jwt', 'Could not extract user id from session.'));
+        }
+
+        const upsertBody = {
+          user_id: userId,
+          email,
+          access_token: accessToken,
+          refresh_token: refreshToken,
+          scopes: grantedScopes,
+          expires_at: expiresAt,
+        };
+        const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/google_workspace_connections?on_conflict=user_id`, {
+          method: 'POST',
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: 'Bearer ' + sbAccessToken,
+            'Content-Type': 'application/json',
+            Prefer: 'resolution=merge-duplicates,return=minimal',
+          },
+          body: JSON.stringify(upsertBody),
+        });
+        if (!upsertRes.ok) {
+          const errText = await upsertRes.text().catch(() => upsertRes.statusText);
+          return serveHTML(googleOauthErrorPage('persist_failed', errText.slice(0, 300)));
+        }
+
+        return serveHTML(googleOauthSuccessPage(email));
       }
 
       // ── IG Graph API: fetch real insights for a connected account ─────
@@ -2155,6 +2285,151 @@ function oauthErrorPage(error, description) {
 <script>
   if (window.opener) {
     window.opener.postMessage({ type: 'cc_ig_auth_error', error: ${JSON.stringify(error)} }, 'https://creatorclaw.co');
+    setTimeout(() => window.close(), 3000);
+  }
+</script>
+</body>
+</html>`;
+}
+
+// ── Google Workspace OAuth helpers ─────────────────────────────────────────
+function base64UrlEncode(s) {
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function base64UrlDecode(s) {
+  const pad = s.length % 4 === 0 ? '' : '='.repeat(4 - (s.length % 4));
+  return atob(s.replace(/-/g, '+').replace(/_/g, '/') + pad);
+}
+function decodeJwtSub(jwt) {
+  const parts = String(jwt).split('.');
+  if (parts.length !== 3) return null;
+  const payload = JSON.parse(base64UrlDecode(parts[1]));
+  return payload?.sub || null;
+}
+
+// Fetch the current Google access token for a user, refreshing if expired.
+// Called from the agent runtime each chat turn that uses the MCP server.
+// Returns { accessToken, email } or null if no connection / refresh failed.
+async function getGoogleAccessToken(userId, sbAccessToken, env) {
+  if (!userId || !sbAccessToken) return null;
+  const r = await fetch(
+    `${SUPABASE_URL}/rest/v1/google_workspace_connections?user_id=eq.${userId}&select=*`,
+    { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + sbAccessToken } }
+  );
+  if (!r.ok) return null;
+  const rows = await r.json().catch(() => []);
+  const row = Array.isArray(rows) && rows[0];
+  if (!row || !row.access_token) return null;
+
+  const expiresAt = row.expires_at ? new Date(row.expires_at).getTime() : 0;
+  if (expiresAt > Date.now()) {
+    return { accessToken: row.access_token, email: row.email };
+  }
+  // Expired (or near it) — refresh.
+  if (!row.refresh_token) {
+    console.warn('[google] expired token, no refresh_token available — user must reconnect');
+    return null;
+  }
+  const refreshForm = new URLSearchParams({
+    client_id: GOOGLE_OAUTH_CLIENT_ID,
+    client_secret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+    grant_type: 'refresh_token',
+    refresh_token: row.refresh_token,
+  });
+  const tokRes = await fetch(GOOGLE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: refreshForm.toString(),
+  });
+  if (!tokRes.ok) {
+    console.warn('[google] refresh failed', tokRes.status);
+    return null;
+  }
+  const tok = await tokRes.json();
+  const newAccessToken = tok.access_token;
+  const newExpiresIn = Number(tok.expires_in) || 3600;
+  if (!newAccessToken) return null;
+  const newExpiresAt = new Date(Date.now() + (newExpiresIn - 60) * 1000).toISOString();
+
+  await fetch(
+    `${SUPABASE_URL}/rest/v1/google_workspace_connections?user_id=eq.${userId}`,
+    {
+      method: 'PATCH',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: 'Bearer ' + sbAccessToken,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({ access_token: newAccessToken, expires_at: newExpiresAt }),
+    }
+  ).catch(e => console.warn('[google] persist refreshed token failed', e));
+
+  return { accessToken: newAccessToken, email: row.email };
+}
+
+function googleOauthSuccessPage(email) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Google Connected — CreatorClaw</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0A0A0A;color:#F0EDE8;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+  .card{background:#111;border:1px solid #1E1E1E;border-radius:12px;padding:40px;max-width:420px;text-align:center}
+  .icon{font-size:40px;margin-bottom:16px}
+  h2{font-size:20px;font-weight:600;margin-bottom:8px;letter-spacing:-0.01em}
+  p{font-size:13px;color:#6B6560;line-height:1.6;margin-bottom:4px}
+  .email{color:#C9A96E;font-weight:600}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">✅</div>
+  <h2>Google Workspace Connected</h2>
+  ${email ? '<p>Connected as <span class="email">' + email + '</span></p>' : ''}
+  <p style="margin-top:12px;font-size:12px">You can close this window.</p>
+</div>
+<script>
+  if (window.opener) {
+    window.opener.postMessage({ type: 'cc_google_connected', email: ${JSON.stringify(email)} }, 'https://creatorclaw.co');
+    setTimeout(() => window.close(), 1200);
+  }
+</script>
+</body>
+</html>`;
+}
+
+function googleOauthErrorPage(error, description) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Connection Failed — CreatorClaw</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0A0A0A;color:#F0EDE8;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+  .card{background:#111;border:1px solid #1E1E1E;border-radius:12px;padding:40px;max-width:420px;text-align:center}
+  .icon{font-size:40px;margin-bottom:16px}
+  h2{font-size:20px;font-weight:600;margin-bottom:8px}
+  p{font-size:13px;color:#6B6560;line-height:1.6}
+  code{font-size:11px;color:#C46E6E;background:#1A1010;padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">❌</div>
+  <h2>Google Connection Failed</h2>
+  <p>${description || 'Something went wrong during Google authorization.'}</p>
+  <p style="margin-top:12px"><code>${error}</code></p>
+  <p style="margin-top:16px;font-size:12px">You can close this window and try again.</p>
+</div>
+<script>
+  if (window.opener) {
+    window.opener.postMessage({ type: 'cc_google_auth_error', error: ${JSON.stringify(error)} }, 'https://creatorclaw.co');
     setTimeout(() => window.close(), 3000);
   }
 </script>
