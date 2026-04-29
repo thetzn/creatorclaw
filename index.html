@@ -3931,8 +3931,8 @@ function detectPitchInText(text){
   return { subject, body };
 }
 
-// Attach an "Open in Gmail" button to an assistant chat message if the
-// streamed response looks like a pitch.
+// Attach action buttons to an assistant chat message if the streamed
+// response looks like a pitch (Subject: ... \n\n body).
 function maybeAttachGmailCta(bodyEl, fullText){
   if(!bodyEl || bodyEl.querySelector('.chat-gmail-cta')) return;
   const pitch = detectPitchInText(fullText);
@@ -3940,11 +3940,22 @@ function maybeAttachGmailCta(bodyEl, fullText){
   const row = document.createElement('div');
   row.className = 'chat-gmail-cta';
   row.style.cssText = 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap';
-  const btn = document.createElement('button');
-  btn.className = 'copy-btn';
-  btn.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:10px 16px;flex:0 1 auto;font-size:11px';
-  btn.innerHTML = GMAIL_ICON_SVG + '<span>Open in Gmail</span>';
-  btn.onclick = () => openGmailCompose({ subject: pitch.subject, body: pitch.body, to: '' });
+
+  // Send via CreatorClaw — fires send_gmail_message through the agent.
+  // Confirmation modal first so the user can review + set recipient.
+  const sendBtn = document.createElement('button');
+  sendBtn.className = 'copy-btn';
+  sendBtn.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:10px 16px;flex:0 1 auto;font-size:11px;background:var(--gold);color:var(--bg);border:none';
+  sendBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg><span>Send</span>';
+  sendBtn.onclick = () => confirmAndSendPitchInline(pitch);
+
+  // Open in Gmail compose UI — review-and-send-yourself path.
+  const gmailBtn = document.createElement('button');
+  gmailBtn.className = 'copy-btn';
+  gmailBtn.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:10px 16px;flex:0 1 auto;font-size:11px';
+  gmailBtn.innerHTML = GMAIL_ICON_SVG + '<span>Open in Gmail</span>';
+  gmailBtn.onclick = () => openGmailCompose({ subject: pitch.subject, body: pitch.body, to: '' });
+
   const copyBtn = document.createElement('button');
   copyBtn.className = 'modal-cancel-btn';
   copyBtn.style.cssText = 'padding:10px 14px;font-size:11px';
@@ -3954,9 +3965,76 @@ function maybeAttachGmailCta(bodyEl, fullText){
     try { navigator.clipboard.writeText(full); copyBtn.textContent = 'Copied'; setTimeout(()=>copyBtn.textContent='Copy', 1500); }
     catch { /* ignore */ }
   };
-  row.appendChild(btn);
+  row.appendChild(sendBtn);
+  row.appendChild(gmailBtn);
   row.appendChild(copyBtn);
   bodyEl.appendChild(row);
+}
+
+// Best-effort: pull a recipient email out of recent conversation context.
+// Looks at the last user message — if it contains an email address, use it.
+function guessRecipientFromConversation(){
+  const msgs = chatState.messages || [];
+  for(let i = msgs.length - 1; i >= 0; i--){
+    const m = msgs[i];
+    if(m.role === 'user' && m.content){
+      const match = String(m.content).match(/[a-z0-9._+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
+      if(match) return match[0];
+    }
+  }
+  return '';
+}
+
+// Two-step send: confirmation modal with recipient input, then directive
+// to the agent to call send_gmail_message. The directive includes the
+// exact subject + body + recipient so the agent doesn't have to infer.
+function confirmAndSendPitchInline(pitch){
+  const guessed = guessRecipientFromConversation();
+  const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const bodyPreview = pitch.body.length > 220 ? pitch.body.slice(0,220) + '…' : pitch.body;
+  showModal(
+    '<div class="modal-title">Send this email?</div>' +
+    '<div class="modal-sub">It will go through your connected Google account. There is no undo.</div>' +
+    '<div class="modal-label">To</div>' +
+    `<input id="cc-send-to" type="email" placeholder="recipient@example.com" value="${esc(guessed)}" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;margin-bottom:14px">` +
+    '<div class="modal-label">Subject</div>' +
+    `<div style="font-weight:600;color:var(--text);margin-bottom:14px;font-size:13px">${esc(pitch.subject)}</div>` +
+    '<div class="modal-label">Body</div>' +
+    `<div style="white-space:pre-wrap;color:var(--muted);font-size:12.5px;line-height:1.55;max-height:200px;overflow-y:auto;margin-bottom:18px;padding:10px 12px;background:var(--card2);border-radius:8px;border:1px solid var(--border2)">${esc(bodyPreview)}</div>` +
+    '<div class="modal-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
+      '<button class="modal-cancel-btn" type="button" onclick="closeModal()">Cancel</button>' +
+      '<button class="modal-save-btn" type="button" onclick="executePitchSend()">Send now</button>' +
+    '</div>'
+  );
+  // Stash the pitch on the window so executePitchSend can grab it after the
+  // user confirms — keeps the function args simple.
+  window._ccPendingSend = { pitch };
+  setTimeout(()=>document.getElementById('cc-send-to')?.focus(), 50);
+}
+
+// Called from the confirmation modal's Send-now button. Reads the recipient
+// the user entered, validates it, then submits a directive to the agent
+// that includes the full pitch contents so the LLM doesn't have to infer.
+function executePitchSend(){
+  const pending = window._ccPendingSend;
+  if(!pending){ closeModal(); return; }
+  const to = (document.getElementById('cc-send-to')?.value || '').trim();
+  if(!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)){
+    showError('Please enter a valid email address.');
+    return;
+  }
+  closeModal();
+  window._ccPendingSend = null;
+  const { pitch } = pending;
+  // Push a fully-specified directive to the chat input. The agent's
+  // prompt rules tell it to call send_gmail_message immediately on this
+  // pattern, with no further confirmation.
+  const directive = `Send this email NOW via send_gmail_message. To: ${to}. Subject: ${pitch.subject}. Body: ${pitch.body}`;
+  const input = document.getElementById('chat-input');
+  if(!input){ showError('Chat input not found'); return; }
+  input.value = directive;
+  if(typeof autoResizeChat === 'function') autoResizeChat(input);
+  sendChatMessage();
 }
 
 // Tool side-channel renderer — handles structured payloads emitted by the
