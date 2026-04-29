@@ -735,14 +735,14 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <div class="connection-row">
         <div class="connection-left">
           <div class="connection-icon" style="background:#fff;border:1px solid var(--border2)">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 36" aria-hidden="true"><path fill="#4285F4" d="M3.6 36C1.61 36 0 34.39 0 32.4V10.8L6.78 16l.02 20z"/><path fill="#34A853" d="M41.18 36 48 30.89V10.8L41.22 16z"/><path fill="#FBBC04" d="M41.22 16 48 10.8V5.4c0-3.34-3.82-5.25-6.48-3.24L41.22 2.4z"/><path fill="#C5221F" d="M6.78 2.4 6.48 2.16C3.82.15 0 2.06 0 5.4v5.4L6.78 16z"/><path fill="#EA4335" d="M6.78 2.4 24 15.6 41.22 2.4l.02 13.6L24 29.2 6.78 16z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
           </div>
           <div class="connection-info">
-            <div class="connection-name">Gmail</div>
-            <div class="connection-desc" id="connect-gmail-desc">Send pitches directly from your Gmail. We never read your inbox.</div>
+            <div class="connection-name">Google Workspace</div>
+            <div class="connection-desc" id="connect-google-desc">Read inbox, send pitches, manage calendar. Required for Gmail + Calendar tools in chat.</div>
           </div>
         </div>
-        <button class="connection-btn" id="connect-gmail-btn" onclick="connectGmailViaArcade()">Connect</button>
+        <button class="connection-btn" id="connect-google-btn" onclick="connectGoogleWorkspace()">Connect</button>
       </div>
 
     </div>
@@ -1205,52 +1205,94 @@ function openAgentSettings(){
 // Kick off the Arcade OAuth flow for the user's Gmail. The Worker calls
 // Arcade's authorize endpoint; if the account isn't connected yet, Arcade
 // returns a one-time URL we open in a new tab for the user to complete OAuth.
-async function connectGmailViaArcade(){
-  const btn = document.getElementById('connect-gmail-btn');
-  const desc = document.getElementById('connect-gmail-desc');
+// Google Workspace OAuth: open Worker /google/auth in a popup carrying the
+// user's Supabase JWT. The Worker forwards it through Google's `state` param
+// so the callback can write tokens to Supabase under the user's RLS context.
+// Popup posts back via window.postMessage when complete.
+async function connectGoogleWorkspace(){
+  const btn = document.getElementById('connect-google-btn');
+  const desc = document.getElementById('connect-google-desc');
   if(!btn) return;
   const setDesc = t => { if(desc) desc.textContent = t; };
-  btn.disabled = true; btn.textContent = 'Checking…';
+  btn.disabled = true; btn.textContent = 'Opening…';
   try {
-    const { data: { user } } = await sb.auth.getUser();
-    if(!user){
+    const { data: { session } } = await sb.auth.getSession();
+    const accessToken = session?.access_token;
+    if(!accessToken){
       setDesc('Sign in to CreatorClaw first, then come back here.');
       btn.disabled = false; btn.textContent = 'Connect';
       return;
     }
-    const res = await fetch(PROXY_URL, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ arcadeAuthorize: true, toolName: 'Gmail.SendEmail', userId: user.id })
-    });
-    if(!res.ok){
-      setDesc('Couldn\'t reach our server (HTTP ' + res.status + '). Try again.');
-      btn.disabled = false; btn.textContent = 'Retry';
+    const w = 540, h = 720;
+    const left = window.screenX + (window.outerWidth - w) / 2;
+    const top = window.screenY + (window.outerHeight - h) / 2;
+    const popup = window.open(
+      `${PROXY_URL}/google/auth?t=${encodeURIComponent(accessToken)}`,
+      'cc_google_auth',
+      `width=${w},height=${h},left=${left},top=${top}`
+    );
+    if(!popup){
+      setDesc('Popup blocked. Allow popups for creatorclaw.co and try again.');
+      btn.disabled = false; btn.textContent = 'Connect';
       return;
     }
-    const data = await res.json();
-    if(data.status === 'completed'){
-      setDesc('Gmail connected. Pitches will send from your Gmail.');
-      btn.classList.add('connected');
-      btn.textContent = '✓ Connected';
-      btn.disabled = false;
-      return;
-    }
-    if(data.auth_url){
-      window.open(data.auth_url, '_blank', 'noopener');
-      setDesc('Authorize Gmail in the new tab, then come back and tap "Check again".');
-      btn.textContent = 'Check again';
-      btn.disabled = false;
-      return;
-    }
-    setDesc('Unexpected response from server. Try again or check console.');
-    btn.disabled = false; btn.textContent = 'Retry';
+    btn.textContent = 'Waiting for Google…';
+    // The popup posts back to window when done; the listener below updates
+    // button state.
   } catch(e) {
-    console.warn('connectGmailViaArcade', e);
+    console.warn('connectGoogleWorkspace', e);
     setDesc('Error: ' + (e.message || 'unknown'));
     btn.disabled = false; btn.textContent = 'Retry';
   }
 }
+
+// Refresh the Google connection button to reflect current connection state.
+async function refreshGoogleConnectionState(){
+  const btn = document.getElementById('connect-google-btn');
+  const desc = document.getElementById('connect-google-desc');
+  if(!btn) return;
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    if(!user) return;  // logged-out: leave default copy
+    const { data, error } = await sb.from('google_workspace_connections')
+      .select('email, expires_at')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if(error || !data){
+      btn.classList.remove('connected');
+      btn.textContent = 'Connect';
+      btn.disabled = false;
+      return;
+    }
+    btn.classList.add('connected');
+    btn.textContent = '✓ Connected';
+    btn.disabled = false;
+    if(desc) desc.textContent = 'Connected as ' + (data.email || 'your Google account') + '. Gmail + Calendar tools are available in chat.';
+  } catch(e) {
+    console.warn('refreshGoogleConnectionState', e);
+  }
+}
+
+// Listen for the popup's postMessage and update UI on success/failure.
+window.addEventListener('message', (msg) => {
+  if(!msg || !msg.data) return;
+  if(msg.data.type === 'cc_google_connected'){
+    const email = msg.data.email || '';
+    const btn = document.getElementById('connect-google-btn');
+    const desc = document.getElementById('connect-google-desc');
+    if(btn){
+      btn.classList.add('connected');
+      btn.textContent = '✓ Connected';
+      btn.disabled = false;
+    }
+    if(desc) desc.textContent = 'Connected as ' + email + '. Gmail + Calendar tools are available in chat.';
+  } else if(msg.data.type === 'cc_google_auth_error'){
+    const btn = document.getElementById('connect-google-btn');
+    const desc = document.getElementById('connect-google-desc');
+    if(btn){ btn.disabled = false; btn.textContent = 'Retry'; }
+    if(desc) desc.textContent = 'Connection failed: ' + (msg.data.error || 'unknown') + '. Try again.';
+  }
+});
 
 async function submitAgentSettings(){
   const nameEl = document.getElementById('agent-name-input');
@@ -1539,6 +1581,7 @@ async function initAuth(){
   // Check auth state on load
   const user = await getCurrentUser();
   updateAuthUI(user);
+  if(user) refreshGoogleConnectionState();
 
   // If signed in, load saved persona + go straight to chat
   if(user){
@@ -1609,6 +1652,7 @@ async function initAuth(){
       showChatView();
       loadConversations();
       if(canConnectInstagram(session.user)) loadIgConnection();
+      refreshGoogleConnectionState();
       // Pull (and one-time migrate) the pipeline now that the user is identified.
       state.deals = null;
       loadDeals().then(() => {

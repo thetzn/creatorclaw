@@ -14,8 +14,27 @@
 // our inline-card side-channel (brand_matches, pulse_ideas).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Agent, run, tool } from '@openai/agents';
+import { Agent, run, tool, MCPServerStreamableHttp } from '@openai/agents';
 import { z } from 'zod';
+
+// Google Workspace MCP server (Gmail + Calendar). Self-hosted on Fly.io;
+// see google_workspace_mcp/. Bearer token comes from the user's stored
+// Google OAuth access token (refreshed by the Worker's getGoogleAccessToken
+// helper). One server instance per request so each creator hits Google with
+// their own credentials.
+const GOOGLE_MCP_URL = 'https://creatorclaw-google-mcp.fly.dev/mcp';
+
+function buildGoogleMcpServer(accessToken) {
+  if (!accessToken) return null;
+  return new MCPServerStreamableHttp({
+    url: GOOGLE_MCP_URL,
+    name: 'google_workspace',
+    cacheToolsList: false,  // tools shouldn't change per user, but keep fresh while we're learning the server
+    requestInit: {
+      headers: { Authorization: 'Bearer ' + accessToken },
+    },
+  });
+}
 
 // ── Env shim ────────────────────────────────────────────────────────────────
 // SDK reads OPENAI_API_KEY from process.env. Workers don't have process by
@@ -67,8 +86,9 @@ export async function handleAgentsSpike(req, env, cors) {
 // ── Production chat handler ─────────────────────────────────────────────────
 // Tool definitions delegate to the existing hand-rolled executor in worker.js
 // via runContext.context.executeToolByName. Avoids duplicating the rate
-// math, peer-aggregate fetching, sub-LLM JSON generation, and Arcade Gmail
-// plumbing — the SDK is just the orchestration layer.
+// math, peer-aggregate fetching, and sub-LLM JSON generation — the SDK is
+// just the orchestration layer. Gmail/Calendar are served by the
+// google_workspace_mcp server attached at runtime.
 
 const rateEstimateTool = tool({
   name: 'get_rate_estimate',
@@ -124,19 +144,6 @@ const findBrandMatchesTool = tool({
   }),
   async execute(args, runContext) {
     return runContext.context.executeToolByName('find_brand_matches', args);
-  },
-});
-
-const sendPitchEmailTool = tool({
-  name: 'send_pitch_email',
-  description: "Send an email from the creator's connected Gmail. Requires the creator to have connected Gmail via Arcade. If the account isn't connected, this returns a one-time authorization URL the user must visit. Call this when the user has asked you to send a pitch/outreach/email on their behalf (not just draft — actually send).",
-  parameters: z.object({
-    to: z.string().describe('Recipient email address.'),
-    subject: z.string().describe('Email subject line.'),
-    body: z.string().describe('Plain-text email body.'),
-  }),
-  async execute(args, runContext) {
-    return runContext.context.executeToolByName('send_pitch_email', args);
   },
 });
 
@@ -211,7 +218,6 @@ const TOOL_REGISTRY = {
   compare_offer:           { tool: compareOfferTool,         agents: ['main', 'create', 'pitch', 'pipeline'] },
   generate_content_ideas:  { tool: generateContentIdeasTool, agents: ['main', 'create'] },
   find_brand_matches:      { tool: findBrandMatchesTool,     agents: ['main', 'pitch'] },
-  send_pitch_email:        { tool: sendPitchEmailTool,       agents: ['main', 'pitch'] },
   create_outreach_deal:    { tool: createOutreachDealTool,   agents: ['pipeline'] },
 };
 
@@ -244,31 +250,35 @@ const AGENT_HANDOFF_DESCRIPTIONS = {
 // Build all four agents and wire handoffs between them. Cheap (no LLM calls);
 // done per request so the active agent's instructions can come from the
 // frontend's tool-specific system prompt.
-function buildAgentSet(activeName, frontendInstructions) {
-  const make = (name) => {
+//
+// `mcpServers` is a list of MCPServer instances to attach to agents that
+// can use Google Workspace (gmail + calendar). Currently main, pitch, and
+// pipeline all get it — Create stays focused on ideation.
+function buildAgentSet(activeName, frontendInstructions, mcpServers) {
+  const mcp = Array.isArray(mcpServers) ? mcpServers.filter(Boolean) : [];
+  const make = (name, attachMcp) => {
     const tools = Object.values(TOOL_REGISTRY)
       .filter(reg => reg.agents.includes(name))
       .map(reg => reg.tool);
     const instructions = name === activeName && frontendInstructions
       ? frontendInstructions
       : AGENT_INSTRUCTION_FALLBACKS[name];
-    return new Agent({
+    const cfg = {
       name: name === 'main' ? 'CreatorClaw' : `CreatorClaw-${name}`,
       model: 'gpt-4o-mini',
       instructions,
       handoffDescription: AGENT_HANDOFF_DESCRIPTIONS[name],
       tools,
-    });
+    };
+    if (attachMcp && mcp.length) cfg.mcpServers = mcp;
+    return new Agent(cfg);
   };
   const agents = {
-    main: make('main'),
-    create: make('create'),
-    pitch: make('pitch'),
-    pipeline: make('pipeline'),
+    main: make('main', true),
+    create: make('create', false),
+    pitch: make('pitch', true),
+    pipeline: make('pipeline', true),
   };
-  // Handoff topology: every agent can reach pipeline; main can route into
-  // any specialist; create/pitch can hand back to each other for cross-tool
-  // questions. Pipeline doesn't hand off — it's a one-shot specialist.
   agents.main.handoffs    = [agents.create, agents.pitch, agents.pipeline];
   agents.create.handoffs  = [agents.pitch, agents.pipeline];
   agents.pitch.handoffs   = [agents.create, agents.pipeline];
@@ -316,7 +326,14 @@ export async function handleAgentChat(request, env, body, cors, deps) {
   }
 
   const cc = body.creatorContext || {};
-  const agents = buildAgentSet(activeTool, instructions);
+
+  // If the user has connected Google Workspace, build an MCP server with
+  // their bearer token so agents can call gmail/calendar tools. Per-request
+  // construction — token is per-user and refreshed on the Worker side.
+  const googleMcp = buildGoogleMcpServer(deps.googleAccessToken);
+  const mcpServers = googleMcp ? [googleMcp] : [];
+
+  const agents = buildAgentSet(activeTool, instructions, mcpServers);
   const startAgent = agents[activeTool] || agents.main;
   const runCtx = {
     creatorContext: cc,
@@ -333,6 +350,11 @@ export async function handleAgentChat(request, env, body, cors, deps) {
   } catch (err) {
     console.error('[agents] run failed', err);
     return errorJSON('agent_run_failed', err, cors);
+  } finally {
+    // Best-effort cleanup of the per-request MCP connection.
+    if (googleMcp) {
+      try { await googleMcp.close(); } catch (e) { /* ignore */ }
+    }
   }
 }
 

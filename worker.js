@@ -18,46 +18,6 @@ const MODEL_SEARCH = 'gpt-4o';
 const SUPABASE_URL = 'https://ctohycrbzennyzgffodo.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_MsXw1OuEe9ZTBnSU8LSHwA_X19dr90J';
 
-// Arcade (managed OAuth + tool execution). API key is a secret bound via
-// `wrangler secret put ARCADE_API_KEY`.
-const ARCADE_BASE = 'https://api.arcade.dev/v1';
-
-async function arcadeAuthorize({ toolName, userId }, env) {
-  if (!env.ARCADE_API_KEY) return { error: 'ARCADE_API_KEY not set on Worker' };
-  const r = await fetch(`${ARCADE_BASE}/tools/authorize`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + env.ARCADE_API_KEY,
-    },
-    body: JSON.stringify({ tool_name: toolName, user_id: userId }),
-  });
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    console.log('[arcade] authorize failed', r.status, JSON.stringify(data).slice(0, 200));
-    return { error: 'authorize_failed', status: r.status, details: data };
-  }
-  return data; // { status, url, id, ... }
-}
-
-async function arcadeExecute({ toolName, input, userId }, env) {
-  if (!env.ARCADE_API_KEY) return { error: 'ARCADE_API_KEY not set on Worker' };
-  const r = await fetch(`${ARCADE_BASE}/tools/execute`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + env.ARCADE_API_KEY,
-    },
-    body: JSON.stringify({ tool_name: toolName, user_id: userId, input }),
-  });
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    console.log('[arcade] execute failed', r.status, JSON.stringify(data).slice(0, 200));
-    return { error: 'execute_failed', status: r.status, details: data };
-  }
-  return data; // { output: { value: ... }, ... }
-}
-
 // ── Rate estimator: multipliers (benchmark base rates come from Supabase) ───
 const ENGAGEMENT_BANDS = [
   { maxPct: 1,   multiplier: 0.5, label: 'Below 1% — red flag' },
@@ -306,46 +266,8 @@ domain has no protocol or trailing slash. match 60-99. Exactly 3 reasons each. O
       return { brands: brands.slice(0, count), count: brands.length, theme };
     }
 
-    // Gmail send — routed through Arcade (managed OAuth, no CASA).
-    if (name === 'send_pitch_email') {
-      const userId = creator.userId;
-      if (!userId) {
-        return { error: 'not_signed_in', message: 'The creator must sign in to CreatorClaw before sending email via Arcade.' };
-      }
-      // Check/obtain authorization. Arcade returns status:'completed' once the
-      // user has previously connected Gmail; otherwise returns a one-time URL.
-      const auth = await arcadeAuthorize({ toolName: 'Gmail.SendEmail', userId }, env);
-      if (auth?.error) {
-        return { error: 'arcade_auth_error', details: auth };
-      }
-      if (auth.status && auth.status !== 'completed') {
-        return {
-          status: 'needs_auth',
-          auth_url: auth.url,
-          message: "The creator hasn't connected Gmail yet. Present this exact URL to them and explain: once they authorize, ask them to retry sending.",
-        };
-      }
-      const exec = await arcadeExecute({
-        toolName: 'Gmail.SendEmail',
-        userId,
-        input: {
-          recipient: args.to,
-          subject: args.subject,
-          body: args.body,
-        },
-      }, env);
-      if (exec?.error) {
-        return { error: 'arcade_execute_error', details: exec };
-      }
-      const out = exec?.output?.value || exec?.output || exec || {};
-      return {
-        status: 'sent',
-        message_id: out.id || null,
-        thread_id: out.thread_id || null,
-        gmail_url: out.url || null,
-        message: `Email sent to ${args.to}.`,
-      };
-    }
+    // Gmail / Calendar are now served by the google_workspace_mcp server
+    // attached to the SDK runtime — no executor branch needed here.
 
     // Rate estimator path (unchanged).
     const opts = {
@@ -1376,26 +1298,6 @@ export default {
       return runIGScrape(body.handle, env, origin, allowed);
     }
 
-    // ── Arcade: proactive connection for a tool (e.g. Gmail.SendEmail) ───
-    // Frontend hits this when user clicks "Connect Gmail" so they can OAuth
-    // before any agent call tries to send. Returns { status, auth_url }.
-    if (body.arcadeAuthorize) {
-      const toolName = String(body.toolName || '').trim();
-      const userId = String(body.userId || '').trim();
-      if (!toolName || !userId) {
-        return json({ error: 'toolName and userId required' }, 400, origin, allowed);
-      }
-      const auth = await arcadeAuthorize({ toolName, userId }, env);
-      if (auth?.error) {
-        return json({ error: auth.error, details: auth.details || null }, 500, origin, allowed);
-      }
-      return json({
-        status: auth.status || 'unknown',
-        auth_url: auth.url || null,
-        auth_id: auth.id || null,
-      }, 200, origin, allowed);
-    }
-
     // ── Rate card: batch compute all common deliverables in one call ───
     if (body.rateCard) {
       const ctx = body.creatorContext || {};
@@ -1472,14 +1374,28 @@ export default {
 
     // Streaming chat — routes through the Agents SDK (handleAgentChat).
     // executeToolByName lets SDK tools delegate to the existing per-tool
-    // implementations in executeRateToolCall (Apify, Arcade, peer
-    // aggregates, sub-LLM JSON generation) instead of duplicating logic.
+    // implementations in executeRateToolCall (rate math, peer aggregates,
+    // sub-LLM JSON generation) instead of duplicating logic.
     if (body.stream) {
       const executeToolByName = async (name, args) => {
         const fakeToolCall = { function: { name, arguments: JSON.stringify(args || {}) } };
         return await executeRateToolCall(fakeToolCall, body.creatorContext || {}, env);
       };
-      return handleAgentChat(request, env, body, cors(origin, allowed), { executeToolByName });
+      // Look up the user's Google Workspace access token (refreshing if
+      // expired). Passed to the SDK so agents can call gmail/calendar via
+      // the MCP server. Null = user hasn't connected Google yet, agents
+      // run without those tools.
+      const cc = body.creatorContext || {};
+      let googleAccessToken = null;
+      if (cc.userId && cc.accessToken) {
+        try {
+          const g = await getGoogleAccessToken(cc.userId, cc.accessToken, env);
+          googleAccessToken = g?.accessToken || null;
+        } catch (e) {
+          console.warn('[chat] getGoogleAccessToken failed', e);
+        }
+      }
+      return handleAgentChat(request, env, body, cors(origin, allowed), { executeToolByName, googleAccessToken });
     }
 
     // Regular Chat Completions (non-streaming)
