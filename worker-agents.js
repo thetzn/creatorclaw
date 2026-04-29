@@ -359,7 +359,7 @@ export async function handleAgentChat(request, env, body, cors, deps) {
   };
 
   try {
-    const result = await run(startAgent, convo, { stream: true, maxTurns: 6, context: runCtx });
+    const result = await run(startAgent, convo, { stream: true, maxTurns: 10, context: runCtx });
     return sseWrapAgentRun(result, cors);
   } catch (err) {
     console.error('[agents] run failed', err);
