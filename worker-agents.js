@@ -285,20 +285,24 @@ const AGENT_HANDOFF_DESCRIPTIONS = {
 // lists alongside the regular function tools. Create stays focused on
 // ideation.
 function buildAgentSet(activeName, frontendInstructions, googleMcp) {
+  // Cost optimization: gpt-4o-mini is reliable enough for our function
+  // tools (rate, brands, ideas, deal-creation), but it hallucinated tool
+  // calls under hostedMcpTool (claimed "email sent" without firing the
+  // tool). Upgrade to gpt-4o only for agents that actually have the
+  // hosted MCP attached. Disconnected users + Create-only flows stay on
+  // mini (~10x cheaper).
   const make = (name, attachGoogleMcp) => {
     const tools = Object.values(TOOL_REGISTRY)
       .filter(reg => reg.agents.includes(name))
       .map(reg => reg.tool);
-    if (attachGoogleMcp && googleMcp) tools.push(googleMcp);
+    const willAttachMcp = attachGoogleMcp && !!googleMcp;
+    if (willAttachMcp) tools.push(googleMcp);
     const instructions = name === activeName && frontendInstructions
       ? frontendInstructions
       : AGENT_INSTRUCTION_FALLBACKS[name];
     return new Agent({
       name: name === 'main' ? 'CreatorClaw' : `CreatorClaw-${name}`,
-      // gpt-4o (not mini) — mini was hallucinating tool calls under
-      // hostedMcpTool, claiming "email sent" without ever firing
-      // gmail_send_message. gpt-4o is more reliable for tool use.
-      model: 'gpt-4o',
+      model: willAttachMcp ? 'gpt-4o' : 'gpt-4o-mini',
       instructions,
       handoffDescription: AGENT_HANDOFF_DESCRIPTIONS[name],
       tools,
