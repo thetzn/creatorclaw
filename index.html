@@ -3885,9 +3885,10 @@ function toggleSent(btn,name){
 // subject + body. Creator reviews and hits Send themselves. Counts as their
 // own outgoing email — no data passes through us.
 
-// Official Gmail mark — 5-panel multicolor envelope matching Google's brand.
-// Used on "Open in Gmail" buttons across the app.
-const GMAIL_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 36" aria-hidden="true" style="width:18px;height:14px;flex-shrink:0"><path fill="#4285F4" d="M3.6 36C1.61 36 0 34.39 0 32.4V10.8L6.78 16l.02 20z"/><path fill="#34A853" d="M41.18 36 48 30.89V10.8L41.22 16z"/><path fill="#FBBC04" d="M41.22 16 48 10.8V5.4c0-3.34-3.82-5.25-6.48-3.24L41.22 2.4z"/><path fill="#C5221F" d="M6.78 2.4 6.48 2.16C3.82.15 0 2.06 0 5.4v5.4L6.78 16z"/><path fill="#EA4335" d="M6.78 2.4 24 15.6 41.22 2.4l.02 13.6L24 29.2 6.78 16z"/></svg>`;
+// Official Gmail mark — Google's 2020 5-panel multicolor envelope, sourced
+// from the Google Brand Resource Center (same path data Wikipedia uses).
+// Reused on every email-action button in the app for consistent branding.
+const GMAIL_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="52 42 88 66" aria-hidden="true" style="width:18px;height:14px;flex-shrink:0"><path fill="#4285f4" d="M58 108h14V74L52 59v43c0 3.32 2.69 6 6 6"/><path fill="#34a853" d="M120 108h14c3.32 0 6-2.69 6-6V59l-20 15"/><path fill="#fbbc04" d="M120 48v26l20-15v-8c0-7.42-8.47-11.65-14.4-7.2"/><path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92"/><path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2C60.47 39.35 52 43.58 52 51"/></svg>`;
 
 // Single source of truth for launching Gmail compose. Works across desktop,
 // iOS (Gmail app deep link + mailto fallback), and Android (mailto).
@@ -3951,7 +3952,7 @@ function maybeAttachGmailCta(bodyEl, fullText){
   const sendBtn = document.createElement('button');
   sendBtn.className = 'copy-btn';
   sendBtn.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:10px 16px;flex:0 1 auto;font-size:11px;background:var(--gold);color:var(--bg);border:none';
-  sendBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg><span>Send</span>';
+  sendBtn.innerHTML = GMAIL_ICON_SVG + '<span>Send</span>';
   sendBtn.onclick = () => confirmAndSendPitchInline(pitch);
 
   // Open in Gmail compose UI — review-and-send-yourself path.
@@ -4008,7 +4009,7 @@ function confirmAndSendPitchInline(pitch){
     `<div style="white-space:pre-wrap;color:var(--muted);font-size:12.5px;line-height:1.55;max-height:200px;overflow-y:auto;margin-bottom:18px;padding:10px 12px;background:var(--card2);border-radius:8px;border:1px solid var(--border2)">${esc(bodyPreview)}</div>` +
     '<div class="modal-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
       '<button class="modal-cancel-btn" type="button" onclick="closeModal()">Cancel</button>' +
-      '<button class="modal-save-btn" type="button" onclick="executePitchSend()">Send now</button>' +
+      `<button class="modal-save-btn" type="button" onclick="executePitchSend()" style="display:inline-flex;align-items:center;gap:8px">${GMAIL_ICON_SVG}<span>Send now</span></button>` +
     '</div>'
   );
   // Stash the pitch on the window so executePitchSend can grab it after the
