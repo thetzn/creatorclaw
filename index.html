@@ -2733,12 +2733,15 @@ async function sendChatMessage(){
     if (typeof raw === 'string'){ const m = raw.match(/([\d.]+)/); if(m) return parseFloat(m[1]); }
     return null;
   };
-  // Pull Supabase user id so Arcade tool calls can bind to this creator's
-  // connected Gmail (or whatever they've authorized).
-  let userId = null;
+  // Pull Supabase user id + JWT so:
+  //  - Arcade tool calls bind to this creator's connected Gmail
+  //  - The Worker's pipeline tools can write to creator_deals under RLS
+  //    (auth.uid() resolves to this user via the JWT)
+  let userId = null, accessToken = null;
   try {
-    const { data: { user } } = await sb.auth.getUser();
-    userId = user?.id || null;
+    const { data: { session } } = await sb.auth.getSession();
+    userId = session?.user?.id || null;
+    accessToken = session?.access_token || null;
   } catch {}
   const creatorContext = {
     followers: parseFollowers(d._raw?.followers || d.followers || p.totalReach),
@@ -2746,6 +2749,7 @@ async function sendChatMessage(){
     niche: p.topCategory || d.topCategory || (p.pillars||[])[0]?.l || 'lifestyle',
     brandAffinities: Array.isArray(d.brandAffinities) ? d.brandAffinities.slice(0,8) : [],
     userId,
+    accessToken,
   };
 
   let fullText = '';

@@ -140,25 +140,140 @@ const sendPitchEmailTool = tool({
   },
 });
 
+// ── Pipeline tools ──────────────────────────────────────────────────────────
+// Writes to Supabase creator_deals with the user's session JWT (passed via
+// runContext.context.accessToken) so RLS validates auth.uid() = the creator.
+// No service-role key needed.
+const SUPABASE_REST_URL = 'https://ctohycrbzennyzgffodo.supabase.co/rest/v1';
+const SUPABASE_ANON_KEY_PUB = 'sb_publishable_MsXw1OuEe9ZTBnSU8LSHwA_X19dr90J';
+
+async function createOutreachDealRemote(args, ctx) {
+  const accessToken = ctx?.accessToken;
+  const userId = ctx?.userId;
+  if (!accessToken || !userId) {
+    return { error: 'not_signed_in', message: 'Creator must sign in before deals can be tracked.' };
+  }
+  const row = {
+    user_id: userId,
+    brand_name: String(args.brand_name || '').trim(),
+    brand_domain: args.brand_domain ? String(args.brand_domain).replace(/^https?:\/\//, '').replace(/\/$/, '') : null,
+    status: 'outreach',
+    platform: args.platform || null,
+    deliverable: args.deliverable || null,
+    amount_usd: Number(args.amount_usd) || 0,
+    notes: args.notes || null,
+  };
+  if (!row.brand_name) return { error: 'invalid', message: 'brand_name is required.' };
+
+  const r = await fetch(`${SUPABASE_REST_URL}/creator_deals`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY_PUB,
+      Authorization: `Bearer ${accessToken}`,
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify(row),
+  });
+  if (!r.ok) {
+    const errText = await r.text().catch(() => r.statusText);
+    return { error: 'insert_failed', status: r.status, details: errText.slice(0, 300) };
+  }
+  const data = await r.json().catch(() => null);
+  const created = Array.isArray(data) ? data[0] : data;
+  return {
+    status: 'created',
+    deal_id: created?.id || null,
+    brand_name: row.brand_name,
+    stage: 'outreach',
+    message: `Added ${row.brand_name} to your pipeline as an Outreach deal.`,
+  };
+}
+
+const createOutreachDealTool = tool({
+  name: 'create_outreach_deal',
+  description: "Add a brand to the creator's pipeline as an Outreach deal. Call this when the creator wants to track a brand they've decided to pitch — e.g. after seeing brand matches, after drafting/sending a pitch, or when they say 'add X to my pipeline'. Don't ask permission; the creator is in their own pipeline tool.",
+  parameters: z.object({
+    brand_name: z.string().describe('Brand name (required).'),
+    brand_domain: z.string().nullable().optional().describe('Brand website domain like "gymshark.com" — no protocol.'),
+    platform: z.enum(['Instagram', 'TikTok', 'YouTube', 'Other']).nullable().optional(),
+    deliverable: z.string().nullable().optional().describe("e.g. 'Reel', 'Static', 'Carousel', 'Story set', 'TikTok video', 'Full bundle'"),
+    amount_usd: z.number().nullable().optional().describe('Expected deal value in USD if known.'),
+    notes: z.string().nullable().optional(),
+  }),
+  async execute(args, runContext) {
+    return createOutreachDealRemote(args, runContext.context);
+  },
+});
+
 const TOOL_REGISTRY = {
-  get_rate_estimate:       { tool: rateEstimateTool,         agents: ['main', 'create', 'pitch'] },
-  compare_offer:           { tool: compareOfferTool,         agents: ['main', 'create', 'pitch'] },
+  get_rate_estimate:       { tool: rateEstimateTool,         agents: ['main', 'create', 'pitch', 'pipeline'] },
+  compare_offer:           { tool: compareOfferTool,         agents: ['main', 'create', 'pitch', 'pipeline'] },
   generate_content_ideas:  { tool: generateContentIdeasTool, agents: ['main', 'create'] },
   find_brand_matches:      { tool: findBrandMatchesTool,     agents: ['main', 'pitch'] },
   send_pitch_email:        { tool: sendPitchEmailTool,       agents: ['main', 'pitch'] },
+  create_outreach_deal:    { tool: createOutreachDealTool,   agents: ['pipeline'] },
 };
 
-function buildAgent(toolName, instructions) {
-  // Pick tools whose registry entry says they belong to this agent.
-  const agentTools = Object.values(TOOL_REGISTRY)
-    .filter(reg => reg.agents.includes(toolName))
-    .map(reg => reg.tool);
-  return new Agent({
-    name: toolName === 'main' ? 'CreatorClaw' : `CreatorClaw-${toolName}`,
-    model: 'gpt-4o-mini',
-    instructions: instructions || 'You are CreatorClaw, a helpful creator-OS assistant.',
-    tools: agentTools,
-  });
+// Static instructions for the pipeline specialist. Used when handed off from
+// another agent. The instructions tell it to act fast — one tool call, one
+// short confirmation — so handoffs don't drag the conversation off-topic.
+const PIPELINE_AGENT_INSTRUCTIONS = `You are CreatorClaw's Pipeline specialist. You manage the creator's deal flow (creator_deals table). You are invoked via handoff from other agents — typically when the creator wants to track a brand they're pitching.
+
+When called:
+1. Look at the most recent brand context in the conversation (cards rendered, brand mentioned, pitch drafted).
+2. Call create_outreach_deal with the brand_name and any other fields you can infer.
+3. Reply in ONE short sentence confirming what you did (e.g. "Added Faherty to your Outreach column.").
+
+Do not ask clarifying questions if the brand is obvious from context. Do not list the deal details — the kanban view shows them.`;
+
+const AGENT_INSTRUCTION_FALLBACKS = {
+  main: 'You are CreatorClaw, a helpful creator-OS assistant.',
+  create: 'You are CreatorClaw\'s Create agent. Focus on content ideation.',
+  pitch: 'You are CreatorClaw\'s Pitch agent. Focus on brand discovery and outreach.',
+  pipeline: PIPELINE_AGENT_INSTRUCTIONS,
+};
+
+const AGENT_HANDOFF_DESCRIPTIONS = {
+  pipeline: 'Adds a brand to the creator\'s pipeline / deal-tracker. Hand off when the creator wants to start tracking a brand or save a pitch as a deal.',
+  pitch: 'Finds brand matches, drafts cold-outreach emails, sends pitches via Gmail. Hand off when the creator wants to find new brands or write/send pitches.',
+  create: 'Generates fresh content ideas and ideation. Hand off when the creator wants ideas, brainstorming, or content planning.',
+  main: 'General CreatorClaw assistant for anything else.',
+};
+
+// Build all four agents and wire handoffs between them. Cheap (no LLM calls);
+// done per request so the active agent's instructions can come from the
+// frontend's tool-specific system prompt.
+function buildAgentSet(activeName, frontendInstructions) {
+  const make = (name) => {
+    const tools = Object.values(TOOL_REGISTRY)
+      .filter(reg => reg.agents.includes(name))
+      .map(reg => reg.tool);
+    const instructions = name === activeName && frontendInstructions
+      ? frontendInstructions
+      : AGENT_INSTRUCTION_FALLBACKS[name];
+    return new Agent({
+      name: name === 'main' ? 'CreatorClaw' : `CreatorClaw-${name}`,
+      model: 'gpt-4o-mini',
+      instructions,
+      handoffDescription: AGENT_HANDOFF_DESCRIPTIONS[name],
+      tools,
+    });
+  };
+  const agents = {
+    main: make('main'),
+    create: make('create'),
+    pitch: make('pitch'),
+    pipeline: make('pipeline'),
+  };
+  // Handoff topology: every agent can reach pipeline; main can route into
+  // any specialist; create/pitch can hand back to each other for cross-tool
+  // questions. Pipeline doesn't hand off — it's a one-shot specialist.
+  agents.main.handoffs    = [agents.create, agents.pitch, agents.pipeline];
+  agents.create.handoffs  = [agents.pitch, agents.pipeline];
+  agents.pitch.handoffs   = [agents.create, agents.pipeline];
+  agents.pipeline.handoffs = [];
+  return agents;
 }
 
 // Convert OpenAI-shape messages from the frontend into the SDK's input shape.
@@ -189,15 +304,20 @@ export async function handleAgentChat(request, env, body, cors, deps) {
     return errorJSON('config', new Error('handleAgentChat requires deps.executeToolByName'), cors, 500);
   }
 
-  const agent = buildAgent(activeTool, instructions);
+  const cc = body.creatorContext || {};
+  const agents = buildAgentSet(activeTool, instructions);
+  const startAgent = agents[activeTool] || agents.main;
   const runCtx = {
-    creatorContext: body.creatorContext || {},
+    creatorContext: cc,
     env,
     executeToolByName: deps.executeToolByName,
+    // Surfaced so pipeline tools can hit Supabase REST under RLS.
+    accessToken: cc.accessToken || null,
+    userId: cc.userId || null,
   };
 
   try {
-    const result = await run(agent, convo, { stream: true, maxTurns: 4, context: runCtx });
+    const result = await run(startAgent, convo, { stream: true, maxTurns: 6, context: runCtx });
     return sseWrapAgentRun(result, cors);
   } catch (err) {
     console.error('[agents] run failed', err);
