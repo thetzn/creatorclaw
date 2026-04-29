@@ -114,11 +114,25 @@ const generateContentIdeasTool = tool({
   },
 });
 
+const findBrandMatchesTool = tool({
+  name: 'find_brand_matches',
+  description: "Generate fresh brand match recommendations tailored to the creator's persona and niche. Call when the user asks for brand matches, who to pitch, brand recommendations, or refines a previous list (e.g. 'show me 4 more', 'try a different angle'). The UI renders the result as inline brand cards in the chat with Draft Pitch action.",
+  parameters: z.object({
+    theme: z.string().nullable().optional().describe('Optional category/angle filter, e.g. "luxury beauty" or "sustainable fashion".'),
+    count: z.number().int().nullable().optional().describe('Number of brand matches. Default 4. Max 6.'),
+    exclude: z.array(z.string()).nullable().optional().describe('Brand names to exclude (already shown). Pass when the user wants more matches different from a prior list.'),
+  }),
+  async execute(args, runContext) {
+    return runContext.context.executeToolByName('find_brand_matches', args);
+  },
+});
+
 const TOOL_REGISTRY = {
-  get_rate_estimate:       { tool: rateEstimateTool,        agents: ['main', 'create', 'pitch'] },
-  compare_offer:           { tool: compareOfferTool,        agents: ['main', 'create', 'pitch'] },
+  get_rate_estimate:       { tool: rateEstimateTool,         agents: ['main', 'create', 'pitch'] },
+  compare_offer:           { tool: compareOfferTool,         agents: ['main', 'create', 'pitch'] },
   generate_content_ideas:  { tool: generateContentIdeasTool, agents: ['main', 'create'] },
-  // Commits D-E append: find_brand_matches, send_pitch_email
+  find_brand_matches:      { tool: findBrandMatchesTool,     agents: ['main', 'pitch'] },
+  // Commit E appends: send_pitch_email
 };
 
 function buildAgent(toolName, instructions) {
