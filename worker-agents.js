@@ -102,10 +102,23 @@ const compareOfferTool = tool({
   },
 });
 
+const generateContentIdeasTool = tool({
+  name: 'generate_content_ideas',
+  description: "Generate a fresh batch of content ideas tailored to the creator's persona, pillars, and engagement profile. Call this whenever the user asks for ideas, brainstorming, what to post, refining a previous batch, or explores a content theme. The UI renders the result as mini cards inline in the chat with Schedule and Draft Script actions.",
+  parameters: z.object({
+    theme: z.string().nullable().optional().describe('Optional topic or angle to focus the batch on, e.g. "western fashion" or "morning routines".'),
+    count: z.number().int().nullable().optional().describe('Number of ideas to return. Default 4. Max 6.'),
+  }),
+  async execute(args, runContext) {
+    return runContext.context.executeToolByName('generate_content_ideas', args);
+  },
+});
+
 const TOOL_REGISTRY = {
-  get_rate_estimate: { tool: rateEstimateTool, agents: ['main', 'create', 'pitch'] },
-  compare_offer:     { tool: compareOfferTool, agents: ['main', 'create', 'pitch'] },
-  // Commits C-E append: generate_content_ideas, find_brand_matches, send_pitch_email
+  get_rate_estimate:       { tool: rateEstimateTool,        agents: ['main', 'create', 'pitch'] },
+  compare_offer:           { tool: compareOfferTool,        agents: ['main', 'create', 'pitch'] },
+  generate_content_ideas:  { tool: generateContentIdeasTool, agents: ['main', 'create'] },
+  // Commits D-E append: find_brand_matches, send_pitch_email
 };
 
 function buildAgent(toolName, instructions) {
