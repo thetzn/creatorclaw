@@ -3,7 +3,10 @@
  * - Regular mode: Chat Completions API with gpt-4o-mini
  * - Web search mode: Responses API with gpt-4o + web_search_preview
  * - IG scrape mode: Apify Instagram Profile Scraper → OpenAI interpretation
+ * - Agents SDK spike: POST /v1/agents/test (validation only — see worker-agents.js)
  */
+
+import { handleAgentsSpike } from './worker-agents.js';
 
 const CHAT_URL = 'https://api.openai.com/v1/chat/completions';
 const RESPONSES_URL = 'https://api.openai.com/v1/responses';
@@ -1346,6 +1349,13 @@ export default {
     }
     if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
     if (!allowed) return new Response('Forbidden', { status: 403 });
+
+    // ── Agents SDK spike: validates @openai/agents on Workers ──────────────
+    // Isolated route — does NOT use the existing tool-call loop. Remove once
+    // Phase 1 of the migration replaces that loop with SDK-driven agents.
+    if (path === '/v1/agents/test') {
+      return handleAgentsSpike(request, env, cors(origin, allowed));
+    }
 
     let body;
     try { body = await request.json(); }

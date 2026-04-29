@@ -1,0 +1,11 @@
+{
+  "name": "creatorclaw-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CreatorClaw Cloudflare Worker — proxy + tool registry. Agents-SDK migration in progress.",
+  "dependencies": {
+    "@openai/agents": "^0.8.5",
+    "zod": "^4.0.0"
+  }
+}
