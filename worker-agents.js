@@ -393,6 +393,15 @@ function sseWrapAgentRun(result, corsHeaders) {
     let lastToolOutput = null;
     try {
       for await (const event of result) {
+        // Diagnostic: log every event type + name so we can see whether
+        // hostedMcpTool calls fire as tool_called events or something else.
+        try {
+          if (event.type === 'run_item_stream_event') {
+            const itemType = event.item?.type || event.item?.constructor?.name || 'unknown';
+            const toolName = event.item?.rawItem?.name || event.item?.name || '';
+            console.log('[agents-evt]', event.name, itemType, toolName);
+          }
+        } catch {}
         // Text deltas from the model
         if (event.type === 'raw_model_stream_event') {
           const d = event.data;
