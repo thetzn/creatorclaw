@@ -1385,6 +1385,10 @@ async function streamAgentAcknowledgement(){
             try { renderToolMetadata(bodyEl, deltaObj.metadata); }
             catch(e){ console.warn('renderToolMetadata failed', e); }
           }
+          if(deltaObj?.agent_step){
+            try { renderAgentThinking(bodyEl, deltaObj.agent_step); }
+            catch(e){ console.warn('renderAgentThinking failed', e); }
+          }
         } catch {}
       }
     }
@@ -1793,7 +1797,7 @@ const TOOL_CONFIG = {
     placeholder: 'Ask anything…',
     greeting: null,
     chips: [],
-    promptExt: '\nGOOGLE WORKSPACE TOOLS (HARD RULES):\n\n1. You CANNOT send email or create calendar events through prose alone. The ONLY way to send is send_gmail_message. The ONLY way to create/update/delete a calendar event is manage_event. Writing "I sent the email" or "I added it to your calendar" without first emitting that tool call is LYING.\n\n2. When the creator says "send it" / "send the email" / "send the pitch" / "fire it off", IMMEDIATELY call send_gmail_message with the most recent subject/body/recipient in conversation. Do not ask for confirmation, do not ask for recipient again, do not save as draft.\n\n3. Available tools (EXACT names from the google_workspace MCP server):\n   - Gmail: search_gmail_messages, get_gmail_message_content, get_gmail_thread_content, send_gmail_message\n   - Calendar: list_calendars, get_events, manage_event, query_freebusy\n   manage_event handles create/update/delete/RSVP via its action parameter — use action="create" to add an event.\n\n4. The creator granted gmail.send + gmail.readonly + calendar scopes only. NEVER call draft_gmail_message — it 403s on insufficient scope.\n\n5. After every tool call, write a 1-3 sentence summary. Never end a turn with just a tool call. If a tool errors, surface the error in plain language.\n\n6. Do NOT call the same tool with the same arguments more than once per turn.',
+    promptExt: '\nSPECIALIST DELEGATION (in-thread, never redirect the user):\n- delegate_pitch — call when the creator wants to draft a cold-outreach email, pitch a brand, or send a pitch via Gmail. Pass the user\'s exact request as `brief` plus any brand/context already in the conversation. When the tool returns a `response` field that begins with "Subject:", output the ENTIRE response verbatim with NO preamble. Do not say "I\'ve handed this off" or "head over to" — the specialist runs inline and the UI shows its progress.\n- delegate_create — call when the creator wants content ideas, brainstorming, or pillar-grounded ideation that goes beyond a quick suggestion.\n- delegate_pipeline — call when the creator wants to add a brand to their pipeline / deal tracker, or save a pitch as an outreach deal.\nNEVER tell the user to switch tools, tabs, or "head over". Specialists run in this thread.\n\nGOOGLE WORKSPACE TOOLS (HARD RULES):\n\n1. You CANNOT send email or create calendar events through prose alone. The ONLY way to send is send_gmail_message. The ONLY way to create/update/delete a calendar event is manage_event. Writing "I sent the email" or "I added it to your calendar" without first emitting that tool call is LYING.\n\n2. When the creator says "send it" / "send the email" / "send the pitch" / "fire it off", IMMEDIATELY call send_gmail_message with the most recent subject/body/recipient in conversation. Do not ask for confirmation, do not ask for recipient again, do not save as draft.\n\n3. Available tools (EXACT names from the google_workspace MCP server):\n   - Gmail: search_gmail_messages, get_gmail_message_content, get_gmail_thread_content, send_gmail_message\n   - Calendar: list_calendars, get_events, manage_event, query_freebusy\n   manage_event handles create/update/delete/RSVP via its action parameter — use action="create" to add an event.\n\n4. The creator granted gmail.send + gmail.readonly + calendar scopes only. NEVER call draft_gmail_message — it 403s on insufficient scope.\n\n5. After every tool call, write a 1-3 sentence summary. Never end a turn with just a tool call. If a tool errors, surface the error in plain language.\n\n6. Do NOT call the same tool with the same arguments more than once per turn.',
   },
   create: {
     label: 'Create',
@@ -2843,6 +2847,10 @@ async function sendChatMessage(){
           if(deltaObj?.metadata){
             try { renderToolMetadata(bodyEl, deltaObj.metadata); }
             catch(e){ console.warn('renderToolMetadata failed', e); }
+          }
+          if(deltaObj?.agent_step){
+            try { renderAgentThinking(bodyEl, deltaObj.agent_step); }
+            catch(e){ console.warn('renderAgentThinking failed', e); }
           }
         } catch {}
       }
@@ -4099,6 +4107,49 @@ function renderToolMetadata(bodyEl, metadata){
   }
   if(cards.type === 'brand_matches' && Array.isArray(cards.items) && cards.items.length){
     renderInlineBrandsIntoBody(bodyEl, cards.items);
+  }
+}
+
+// Render an inline "agent working" status row when a specialist agent is
+// invoked via delegate_<name>. Pairs of agent_step events (started → finished)
+// are correlated by `id`. A started row shows a spinner + agent label; the
+// finished pair turns the spinner into a solid dot and stamps the elapsed
+// time, leaving the row visible so the user can audit what happened.
+function renderAgentThinking(bodyEl, step){
+  if(!bodyEl || !step || !step.id) return;
+  const rowId = 'agent-step-' + step.id;
+  if(step.type === 'started'){
+    if(document.getElementById(rowId)) return;  // duplicate-guard
+    const row = document.createElement('div');
+    row.className = 'agent-step-row';
+    row.id = rowId;
+    row.dataset.startedAt = String(Date.now());
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 12px;margin:8px 0;background:var(--card2);border:1px solid var(--border2);border-radius:8px;font-size:12px;color:var(--muted)';
+    row.innerHTML =
+      '<span class="agent-step-icon" style="display:inline-block;width:10px;height:10px;border:2px solid var(--gold-border);border-top-color:var(--gold);border-radius:50%;animation:spin 1.2s linear infinite;flex-shrink:0"></span>' +
+      '<span class="agent-step-label" style="color:var(--text);font-weight:500">' + escapeHtml(step.label || ((step.agent || 'Agent') + ' · working')) + '</span>';
+    bodyEl.appendChild(row);
+  } else if(step.type === 'finished'){
+    const row = document.getElementById(rowId);
+    if(!row) return;
+    const start = Number(row.dataset.startedAt || 0);
+    const dur = start ? ((Date.now() - start) / 1000).toFixed(1) + 's' : '';
+    const icon = row.querySelector('.agent-step-icon');
+    if(icon){
+      icon.style.animation = 'none';
+      icon.style.border = 'none';
+      icon.style.background = 'var(--gold)';
+      icon.style.width = '8px';
+      icon.style.height = '8px';
+      icon.style.margin = '0 1px';
+    }
+    if(dur && !row.querySelector('.agent-step-time')){
+      const t = document.createElement('span');
+      t.className = 'agent-step-time';
+      t.style.cssText = 'margin-left:auto;color:var(--muted);font-size:11px';
+      t.textContent = dur;
+      row.appendChild(t);
+    }
   }
 }
 

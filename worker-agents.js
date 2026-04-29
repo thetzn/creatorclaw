@@ -255,10 +255,66 @@ const TOOL_REGISTRY = {
   create_outreach_deal:    { tool: createOutreachDealTool,   agents: ['pipeline'] },
 };
 
-// Static instructions for the pipeline specialist. Used when handed off from
-// another agent. The instructions tell it to act fast — one tool call, one
-// short confirmation — so handoffs don't drag the conversation off-topic.
-const PIPELINE_AGENT_INSTRUCTIONS = `You are CreatorClaw's Pipeline specialist. You manage the creator's deal flow (creator_deals table). You are invoked via handoff from other agents — typically when the creator wants to track a brand they're pitching.
+// ── Specialist delegation (agents-as-tools) ─────────────────────────────────
+// Replaces the SDK's handoff primitive. Specialists are exposed as
+// `delegate_<name>` tools the calling agent invokes inline; the specialist
+// runs non-streaming inside the calling agent's turn and its final text +
+// any card-bearing tool outputs come back as the tool result. The outer
+// SSE wrapper detects `delegate_*` events and emits `agent_step` events to
+// the frontend so users see a "Pitch agent · working…" thinking row instead
+// of being yanked into a separate thread.
+const DELEGATE_LABELS = {
+  pitch:    'Pitch agent · working with creator voice',
+  create:   'Create agent · brainstorming',
+  pipeline: 'Pipeline agent · saving to your deals',
+};
+
+function makeDelegateTool(agentName, agents) {
+  return tool({
+    name: `delegate_${agentName}`,
+    description: AGENT_HANDOFF_DESCRIPTIONS[agentName],
+    parameters: z.object({
+      brief: z.string().describe(`What the ${agentName} specialist should do — quote the user's request verbatim plus any context already gathered (brand names, deliverables, prior pitch drafts, etc).`),
+    }),
+    async execute({ brief }, runContext) {
+      const specialist = agents[agentName];
+      if (!specialist) return { response: `(${agentName} specialist unavailable)` };
+      try {
+        const subResult = await run(
+          specialist,
+          [{ role: 'user', content: brief }],
+          { stream: false, maxTurns: 3, context: runContext.context }
+        );
+        // Aggregate any card-producing outputs from the sub-run so the
+        // parent SSE wrapper can render brand/idea cards inline. Without
+        // this, specialists lose their card UI when called as tools.
+        let brands = [], ideas = [];
+        for (const item of (subResult.newItems || [])) {
+          const out = item?.output ?? item?.rawItem?.output;
+          let parsed = out;
+          if (typeof parsed === 'string') {
+            try { parsed = JSON.parse(parsed); } catch {}
+          }
+          if (parsed && typeof parsed === 'object') {
+            if (Array.isArray(parsed.brands) && parsed.brands.length) brands = parsed.brands;
+            if (Array.isArray(parsed.ideas) && parsed.ideas.length) ideas = parsed.ideas;
+          }
+        }
+        const text = String(subResult.finalOutput || '').trim();
+        return { response: text, brands, ideas };
+      } catch (err) {
+        console.error(`[agents] delegate_${agentName} failed`, err);
+        return { response: `(${agentName} specialist hit an error: ${String(err && err.message || err)})` };
+      }
+    },
+  });
+}
+
+// Static instructions for the pipeline specialist. Used when invoked as a
+// tool by another agent. The instructions tell it to act fast — one tool
+// call, one short confirmation — so delegations don't drag the conversation
+// off-topic.
+const PIPELINE_AGENT_INSTRUCTIONS = `You are CreatorClaw's Pipeline specialist. You manage the creator's deal flow (creator_deals table). You are invoked as a tool by other agents — typically when the creator wants to track a brand they're pitching.
 
 When called:
 1. Look at the most recent brand context in the conversation (cards rendered, brand mentioned, pitch drafted).
@@ -274,11 +330,14 @@ const AGENT_INSTRUCTION_FALLBACKS = {
   pipeline: PIPELINE_AGENT_INSTRUCTIONS,
 };
 
+// Tool descriptions shown to a calling agent when it considers invoking a
+// specialist via delegate_<name>. Keep these directive — the calling agent
+// uses these to decide *when* to delegate.
 const AGENT_HANDOFF_DESCRIPTIONS = {
-  pipeline: 'Adds a brand to the creator\'s pipeline / deal-tracker. Hand off when the creator wants to start tracking a brand or save a pitch as a deal.',
-  pitch: 'Finds brand matches, drafts cold-outreach emails, sends pitches via Gmail. Hand off when the creator wants to find new brands or write/send pitches.',
-  create: 'Generates fresh content ideas and ideation. Hand off when the creator wants ideas, brainstorming, or content planning.',
-  main: 'General CreatorClaw assistant for anything else.',
+  pipeline: "Add a brand to the creator's pipeline / deal-tracker. Use when the creator wants to start tracking a brand or save a pitch as a deal.",
+  pitch: "Find brand matches, draft cold-outreach emails, or send pitches via Gmail. Use when the creator wants to discover new brands or write/send a pitch. Returns a `response` field — if it begins with 'Subject:', output the entire response verbatim to the user with no preamble.",
+  create: "Generate fresh content ideas and ideation. Use when the creator wants ideas, brainstorming, or content planning.",
+  main: "General CreatorClaw assistant for anything else.",
 };
 
 // Build all four agents and wire handoffs between them. Cheap (no LLM calls);
@@ -296,12 +355,13 @@ function buildAgentSet(activeName, frontendInstructions, googleMcp) {
   // tool). Upgrade to gpt-4o only for agents that actually have the
   // hosted MCP attached. Disconnected users + Create-only flows stay on
   // mini (~10x cheaper).
-  const make = (name, attachGoogleMcp) => {
+  const make = (name, attachGoogleMcp, extraTools) => {
     const tools = Object.values(TOOL_REGISTRY)
       .filter(reg => reg.agents.includes(name))
       .map(reg => reg.tool);
     const willAttachMcp = attachGoogleMcp && !!googleMcp;
     if (willAttachMcp) tools.push(googleMcp);
+    if (Array.isArray(extraTools)) for (const t of extraTools) if (t) tools.push(t);
     const instructions = name === activeName && frontendInstructions
       ? frontendInstructions
       : AGENT_INSTRUCTION_FALLBACKS[name];
@@ -313,16 +373,19 @@ function buildAgentSet(activeName, frontendInstructions, googleMcp) {
       tools,
     });
   };
-  const agents = {
-    main: make('main', true),
-    create: make('create', false),
-    pitch: make('pitch', true),
-    pipeline: make('pipeline', true),
-  };
-  agents.main.handoffs    = [agents.create, agents.pitch, agents.pipeline];
-  agents.create.handoffs  = [agents.pitch, agents.pipeline];
-  agents.pitch.handoffs   = [agents.create, agents.pipeline];
-  agents.pipeline.handoffs = [];
+  // Specialist delegations are wired as tools rather than SDK handoffs so the
+  // calling agent stays in the conversation thread. The delegate tools close
+  // over the `agents` map and resolve the specialist at call time, so we can
+  // declare them before the specialists themselves are constructed.
+  const agents = {};
+  const delegatePitch    = makeDelegateTool('pitch',    agents);
+  const delegateCreate   = makeDelegateTool('create',   agents);
+  const delegatePipeline = makeDelegateTool('pipeline', agents);
+
+  agents.main     = make('main',     true,  [delegatePitch, delegateCreate, delegatePipeline]);
+  agents.create   = make('create',   false, [delegatePitch, delegatePipeline]);
+  agents.pitch    = make('pitch',    true,  [delegateCreate, delegatePipeline]);
+  agents.pipeline = make('pipeline', true);  // leaf — no further delegations
   return agents;
 }
 
@@ -434,6 +497,11 @@ function sseWrapAgentRun(result, corsHeaders) {
     let finalMessageText = '';           // assembled from message_output_created events — fallback if deltas don't fire (e.g. post-handoff)
     let toolFired = false;
     let lastToolOutput = null;
+    // Specialist delegation tracking. tool_called and tool_output pair up
+    // sequentially so we can match started/finished by stashing the active
+    // step on the next call and clearing it on the next output.
+    let stepCounter = 0;
+    let activeDelegateStep = null;
     try {
       for await (const event of result) {
         // Diagnostic: log every event type + name so we can see whether
@@ -460,6 +528,20 @@ function sseWrapAgentRun(result, corsHeaders) {
         else if (event.type === 'run_item_stream_event' && event.name === 'tool_called') {
           bufferingPostTool = true;
           toolFired = true;
+          // Texture for delegate_* tools: emit a started agent_step event
+          // so the UI can render an inline "Pitch agent · …" thinking row.
+          const toolName = event.item?.rawItem?.name || event.item?.name || '';
+          if (toolName.startsWith('delegate_')) {
+            const agentName = toolName.replace(/^delegate_/, '');
+            const stepId = `step-${++stepCounter}`;
+            activeDelegateStep = { stepId, agentName };
+            await writeEvent({ choices: [{ delta: { agent_step: {
+              type: 'started',
+              id: stepId,
+              agent: agentName,
+              label: DELEGATE_LABELS[agentName] || `${agentName} agent · working`,
+            } } }] });
+          }
         }
         else if (event.type === 'run_item_stream_event' && event.name === 'tool_output' && event.item) {
           const output = event.item?.output ?? event.item?.rawItem?.output;
@@ -476,6 +558,15 @@ function sseWrapAgentRun(result, corsHeaders) {
               renderMetadata = renderMetadata || {};
               renderMetadata.cards = { type: 'pulse_ideas', items: parsed.ideas };
             }
+          }
+          // Pair the most recent delegate_* tool_called with this tool_output.
+          if (activeDelegateStep) {
+            await writeEvent({ choices: [{ delta: { agent_step: {
+              type: 'finished',
+              id: activeDelegateStep.stepId,
+              agent: activeDelegateStep.agentName,
+            } } }] });
+            activeDelegateStep = null;
           }
         }
         // Final assistant message — captures full text. Used as fallback
@@ -510,10 +601,15 @@ function sseWrapAgentRun(result, corsHeaders) {
       } else if (!liveStreamed && finalMessageText) {
         await writeContent(finalMessageText);
       } else if (!liveStreamed && toolFired) {
-        // Last-ditch fallback — pull a useful message from the tool output if available.
-        const msg = (lastToolOutput && typeof lastToolOutput === 'object' && lastToolOutput.message)
-          ? String(lastToolOutput.message)
-          : '(action complete)';
+        // Last-ditch fallback — pull a useful message from the tool output.
+        // delegate_<name> tools return { response, brands, ideas }; surface
+        // the response field so specialist output reaches the user even if
+        // the calling agent didn't narrate after the tool call.
+        let msg = '(action complete)';
+        if (lastToolOutput && typeof lastToolOutput === 'object') {
+          if (lastToolOutput.response) msg = String(lastToolOutput.response);
+          else if (lastToolOutput.message) msg = String(lastToolOutput.message);
+        }
         await writeContent(msg);
       }
 
