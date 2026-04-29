@@ -343,8 +343,12 @@ function sseWrapAgentRun(result, corsHeaders) {
 
   (async () => {
     let renderMetadata = null;
-    let bufferingPostTool = false;     // flipped on by tool_called
-    let postToolBuffer = '';           // text deltas after a tool call (held back, not dropped)
+    let bufferingPostTool = false;       // flipped on by tool_called
+    let postToolBuffer = '';             // text deltas after a tool call
+    let liveStreamed = '';               // text we already wrote to the wire (pre-tool)
+    let finalMessageText = '';           // assembled from message_output_created events — fallback if deltas don't fire (e.g. post-handoff)
+    let toolFired = false;
+    let lastToolOutput = null;
     try {
       for await (const event of result) {
         // Text deltas from the model
@@ -352,26 +356,24 @@ function sseWrapAgentRun(result, corsHeaders) {
           const d = event.data;
           if (d && d.type === 'output_text_delta' && d.delta) {
             if (bufferingPostTool) {
-              postToolBuffer += d.delta;  // hold — flush or replace at end
+              postToolBuffer += d.delta;
             } else {
+              liveStreamed += d.delta;
               await writeContent(d.delta);
             }
           }
         }
-        // Tool was invoked — start buffering subsequent text. We can't know
-        // yet whether the tool will produce cards (and thus whether to drop
-        // the post-tool prose) until the tool_output arrives, so we buffer
-        // and decide at the end of the run.
         else if (event.type === 'run_item_stream_event' && event.name === 'tool_called') {
           bufferingPostTool = true;
+          toolFired = true;
         }
-        // Tool outputs — capture card-shaped results for the metadata channel
         else if (event.type === 'run_item_stream_event' && event.name === 'tool_output' && event.item) {
           const output = event.item?.output ?? event.item?.rawItem?.output;
           let parsed = output;
           if (typeof parsed === 'string') {
             try { parsed = JSON.parse(parsed); } catch {}
           }
+          lastToolOutput = parsed;
           if (parsed && typeof parsed === 'object') {
             if (Array.isArray(parsed.brands) && parsed.brands.length) {
               renderMetadata = renderMetadata || {};
@@ -382,14 +384,27 @@ function sseWrapAgentRun(result, corsHeaders) {
             }
           }
         }
+        // Final assistant message — captures full text. Used as fallback
+        // when post-handoff agents don't fire output_text_delta deltas.
+        else if (event.type === 'run_item_stream_event' && event.name === 'message_output_created' && event.item) {
+          const content = event.item?.rawItem?.content;
+          if (Array.isArray(content)) {
+            for (const part of content) {
+              if (part?.type === 'output_text' && part.text) {
+                finalMessageText += part.text;
+              }
+            }
+          }
+        }
       }
       await result.completed;
 
-      // Three cases at end of run:
-      // 1. Cards rendered → drop the buffered prose, emit deterministic line.
-      // 2. Tool fired but no cards (rate estimate, Gmail send, tool error)
-      //    → flush the buffer so the user sees the model's reply.
-      // 3. No tool fired → buffer is empty, nothing extra to do.
+      // Decide what to emit at the end. Priorities:
+      //  1. Cards rendered → deterministic acknowledgement (replaces post-tool prose).
+      //  2. Buffered post-tool text → flush it.
+      //  3. Nothing live-streamed but message_output_created has text → emit it
+      //     (covers the post-handoff case where deltas don't fire).
+      //  4. Tool fired but produced no usable text anywhere → minimal ack.
       if (renderMetadata?.cards?.type === 'brand_matches') {
         const n = renderMetadata.cards.items?.length || 0;
         await writeContent(`Here ${n === 1 ? 'is 1 brand' : `are ${n} brands`} that fit your audience — tap **Draft Pitch** on any of them.`);
@@ -398,12 +413,27 @@ function sseWrapAgentRun(result, corsHeaders) {
         await writeContent(`Here ${n === 1 ? 'is 1 idea' : `are ${n} ideas`} tuned to your pillars — tap **Schedule** or **Script** on any card.`);
       } else if (postToolBuffer) {
         await writeContent(postToolBuffer);
+      } else if (!liveStreamed && finalMessageText) {
+        await writeContent(finalMessageText);
+      } else if (!liveStreamed && toolFired) {
+        // Last-ditch fallback — pull a useful message from the tool output if available.
+        const msg = (lastToolOutput && typeof lastToolOutput === 'object' && lastToolOutput.message)
+          ? String(lastToolOutput.message)
+          : '(action complete)';
+        await writeContent(msg);
       }
 
       if (renderMetadata) {
         await writeEvent({ choices: [{ delta: { metadata: renderMetadata } }] });
       }
       await writer.write(encoder.encode('data: [DONE]\n\n'));
+      console.log('[agents] done', JSON.stringify({
+        liveStreamedLen: liveStreamed.length,
+        bufferLen: postToolBuffer.length,
+        finalMsgLen: finalMessageText.length,
+        toolFired,
+        cards: renderMetadata?.cards?.type || null,
+      }));
     } catch (err) {
       console.error('[agents] stream error', err);
       try {
