@@ -316,11 +316,6 @@ export async function handleAgentChat(request, env, body, cors, deps) {
   }
 
   const cc = body.creatorContext || {};
-  console.log('[agents]', activeTool, 'context', JSON.stringify({
-    hasAccessToken: !!cc.accessToken,
-    hasUserId: !!cc.userId,
-    accessTokenLen: cc.accessToken ? cc.accessToken.length : 0,
-  }));
   const agents = buildAgentSet(activeTool, instructions);
   const startAgent = agents[activeTool] || agents.main;
   const runCtx = {
@@ -443,13 +438,6 @@ function sseWrapAgentRun(result, corsHeaders) {
         await writeEvent({ choices: [{ delta: { metadata: renderMetadata } }] });
       }
       await writer.write(encoder.encode('data: [DONE]\n\n'));
-      console.log('[agents] done', JSON.stringify({
-        liveStreamedLen: liveStreamed.length,
-        bufferLen: postToolBuffer.length,
-        finalMsgLen: finalMessageText.length,
-        toolFired,
-        cards: renderMetadata?.cards?.type || null,
-      }));
     } catch (err) {
       console.error('[agents] stream error', err);
       try {
