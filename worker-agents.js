@@ -376,15 +376,20 @@ export async function handleAgentChat(request, env, body, cors, deps) {
   const googleMcp = buildGoogleMcpTool(deps.googleAccessToken);
 
   // Append runtime context the frontend can't easily bake into the prompt:
-  // user's IANA timezone (Calendar API rejects events without it) and
-  // today's date (so "tomorrow at 9am" can be resolved).
+  // user's IANA timezone (Calendar API rejects events without it, and lands
+  // in UTC if the LLM omits the right param) and today's date (so "tomorrow
+  // at 9am" can be resolved).
   const tz = cc.timezone || 'UTC';
   const today = new Date().toISOString().slice(0, 10);
   const runtimeCtx =
     `\n\nRUNTIME CONTEXT (current as of this turn):\n` +
     `- Today's date (UTC): ${today}\n` +
     `- User's IANA timezone: ${tz}\n` +
-    `- When calling manage_event for calendar events, the start/end objects MUST include "timeZone": "${tz}" alongside "dateTime": "<YYYY-MM-DDTHH:MM:SS>" (no offset on the dateTime — Google composes the offset from the timeZone field). Without timeZone, the API rejects with HTTP 400.`;
+    `\nCALENDAR EVENT TIMEZONE RULES (manage_event with action="create" or "update"):\n` +
+    `- Pass timezone as a TOP-LEVEL parameter: timezone="${tz}". Do NOT nest it inside start_time or end_time.\n` +
+    `- Pass start_time and end_time as naive ISO strings WITHOUT offset, e.g. start_time="2026-04-30T09:00:00", end_time="2026-04-30T10:00:00".\n` +
+    `- DO NOT append "Z" or any "+HH:MM" offset to start_time/end_time when you also pass timezone — that double-encodes and causes UTC drift.\n` +
+    `- All three (timezone, start_time, end_time) MUST be supplied for create/update actions or events land in UTC and appear at the wrong wall-clock time.`;
 
   const agents = buildAgentSet(activeTool, (instructions || '') + runtimeCtx, googleMcp);
   const startAgent = agents[activeTool] || agents.main;
