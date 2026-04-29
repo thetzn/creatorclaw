@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'worker.js'
+      - 'worker-agents.js'
+      - 'rate-benchmarks.js'
       - 'wrangler.toml'
       - '.github/workflows/deploy-worker.yml'
   workflow_dispatch:
