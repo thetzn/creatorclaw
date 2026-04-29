@@ -1468,7 +1468,14 @@ export default {
       // by the frontend during Phase 1 migration. Once stable, this becomes
       // the default and the hand-rolled loop below is removed.
       if (body.useAgentsSdk) {
-        return handleAgentChat(request, env, body, cors(origin, allowed));
+        // Delegate tool execution to the existing implementation so the
+        // SDK doesn't need to know about Apify, Arcade, peer-aggregate
+        // fetches, etc. — it's just orchestration.
+        const executeToolByName = async (name, args) => {
+          const fakeToolCall = { function: { name, arguments: JSON.stringify(args || {}) } };
+          return await executeRateToolCall(fakeToolCall, body.creatorContext || {}, env);
+        };
+        return handleAgentChat(request, env, body, cors(origin, allowed), { executeToolByName });
       }
       const creatorContext = body.creatorContext || null;
       const activeTool = (body.tool && ['main', 'create', 'pitch'].includes(body.tool)) ? body.tool : 'main';

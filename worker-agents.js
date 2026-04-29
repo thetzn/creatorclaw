@@ -65,10 +65,47 @@ export async function handleAgentsSpike(req, env, cors) {
 }
 
 // ── Production chat handler ─────────────────────────────────────────────────
-// Phase 1 starting point: main agent has no tools yet. Subsequent commits
-// add rate tools, generate_content_ideas, find_brand_matches, send_pitch_email.
+// Tool definitions delegate to the existing hand-rolled executor in worker.js
+// via runContext.context.executeToolByName. Avoids duplicating the rate
+// math, peer-aggregate fetching, sub-LLM JSON generation, and Arcade Gmail
+// plumbing — the SDK is just the orchestration layer.
+
+const rateEstimateTool = tool({
+  name: 'get_rate_estimate',
+  description: "Compute the industry benchmark rate range for a specific deliverable on a platform, adjusted for the creator's followers, engagement, and niche. Call this whenever the user asks about rates, pricing, what to charge, quote ranges, or pitches that involve a specific deliverable.",
+  parameters: z.object({
+    platform: z.enum(['instagram', 'tiktok', 'youtube']),
+    deliverable: z.string().describe("e.g. 'reel', 'static', 'carousel', 'story-series', 'video', 'ugc', 'youtube-short', 'youtube-integration', 'full-bundle', 'crosspost-ig-tt'"),
+    rights_months: z.number().int().nullable().optional().describe('Months of paid-ad usage rights the brand wants. 0 if none.'),
+    exclusivity_days: z.number().int().nullable().optional().describe('Days of category exclusivity. 0 if none.'),
+    whitelisting: z.boolean().nullable().optional().describe('True if brand wants to whitelist (run ads under creator handle).'),
+    rush: z.boolean().nullable().optional().describe('True if <7 day turnaround.'),
+  }),
+  async execute(args, runContext) {
+    return runContext.context.executeToolByName('get_rate_estimate', args);
+  },
+});
+
+const compareOfferTool = tool({
+  name: 'compare_offer',
+  description: "A brand offered a specific dollar amount. Compute the benchmark range and tell whether the offer is below, within, or above benchmark. Call this whenever the user mentions a specific offer amount.",
+  parameters: z.object({
+    platform: z.enum(['instagram', 'tiktok', 'youtube']),
+    deliverable: z.string(),
+    amount_offered: z.number().describe('The $ the brand offered.'),
+    rights_months: z.number().int().nullable().optional(),
+    exclusivity_days: z.number().int().nullable().optional(),
+    whitelisting: z.boolean().nullable().optional(),
+  }),
+  async execute(args, runContext) {
+    return runContext.context.executeToolByName('compare_offer', args);
+  },
+});
+
 const TOOL_REGISTRY = {
-  // Filled in by Commits B-E. Each entry: tool name → { tool, agents: ['main'|'create'|'pitch'] }
+  get_rate_estimate: { tool: rateEstimateTool, agents: ['main', 'create', 'pitch'] },
+  compare_offer:     { tool: compareOfferTool, agents: ['main', 'create', 'pitch'] },
+  // Commits C-E append: generate_content_ideas, find_brand_matches, send_pitch_email
 };
 
 function buildAgent(toolName, instructions) {
@@ -99,7 +136,7 @@ function shapeMessages(messages) {
   return { instructions: systemMsg?.content || null, convo };
 }
 
-export async function handleAgentChat(request, env, body, cors) {
+export async function handleAgentChat(request, env, body, cors, deps) {
   setupOpenAIEnv(env);
   const activeTool = (body.tool && ['main', 'create', 'pitch'].includes(body.tool)) ? body.tool : 'main';
   console.log('[agents]', activeTool, 'turn');
@@ -108,11 +145,19 @@ export async function handleAgentChat(request, env, body, cors) {
   if (!convo.length) {
     return errorJSON('no_input', new Error('messages must include at least one user/assistant message'), cors, 400);
   }
+  if (!deps || typeof deps.executeToolByName !== 'function') {
+    return errorJSON('config', new Error('handleAgentChat requires deps.executeToolByName'), cors, 500);
+  }
 
   const agent = buildAgent(activeTool, instructions);
+  const runCtx = {
+    creatorContext: body.creatorContext || {},
+    env,
+    executeToolByName: deps.executeToolByName,
+  };
 
   try {
-    const result = await run(agent, convo, { stream: true, maxTurns: 4 });
+    const result = await run(agent, convo, { stream: true, maxTurns: 4, context: runCtx });
     return sseWrapAgentRun(result, cors);
   } catch (err) {
     console.error('[agents] run failed', err);
