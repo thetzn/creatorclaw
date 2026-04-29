@@ -286,8 +286,19 @@ function shapeMessages(messages) {
   const systemMsg = list.find(m => m && m.role === 'system');
   const convo = list
     .filter(m => m && (m.role === 'user' || m.role === 'assistant'))
-    .map(m => ({ role: m.role, content: String(m.content || '') }))
-    .filter(m => m.content);
+    .map(m => {
+      const text = String(m.content || '');
+      if (!text) return null;
+      // Assistant messages MUST use the array-of-content-parts shape.
+      // SDK's input validator rejects strings on assistant role and the
+      // failure mode is opaque ("item.content.map is not a function") on
+      // multi-agent runs where the history gets replayed.
+      if (m.role === 'assistant') {
+        return { role: 'assistant', status: 'completed', content: [{ type: 'output_text', text }] };
+      }
+      return { role: 'user', content: text };
+    })
+    .filter(Boolean);
   return { instructions: systemMsg?.content || null, convo };
 }
 
