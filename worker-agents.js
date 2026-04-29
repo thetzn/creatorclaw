@@ -327,11 +327,26 @@ export async function handleAgentChat(request, env, body, cors, deps) {
 
   const cc = body.creatorContext || {};
 
-  // If the user has connected Google Workspace, build an MCP server with
-  // their bearer token so agents can call gmail/calendar tools. Per-request
-  // construction — token is per-user and refreshed on the Worker side.
-  const googleMcp = buildGoogleMcpServer(deps.googleAccessToken);
-  const mcpServers = googleMcp ? [googleMcp] : [];
+  // If the user has connected Google Workspace, build + connect an MCP
+  // server with their bearer token so agents can call gmail/calendar
+  // tools. Per-request construction — token is per-user and refreshed on
+  // the Worker side. The SDK does NOT auto-connect; explicit connect()
+  // must complete before the run starts.
+  let googleMcp = buildGoogleMcpServer(deps.googleAccessToken);
+  const mcpServers = [];
+  if (googleMcp) {
+    try {
+      await googleMcp.connect();
+      mcpServers.push(googleMcp);
+    } catch (e) {
+      console.warn('[agents] google mcp connect failed', e?.message || e);
+      // Don't abort — let the agent run without Google tools rather than
+      // returning silence. The user just won't be able to use gmail/calendar
+      // this turn.
+      try { await googleMcp.close(); } catch {}
+      googleMcp = null;
+    }
+  }
 
   const agents = buildAgentSet(activeTool, instructions, mcpServers);
   const startAgent = agents[activeTool] || agents.main;
