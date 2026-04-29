@@ -207,22 +207,38 @@ export async function handleAgentChat(request, env, body, cors, deps) {
 
 // Wrap a streaming agent run as OpenAI-shaped SSE so the existing frontend
 // parser (`data: {choices:[{delta:{content:'...'}}]}`) just works.
+//
+// Tool-card duplication guard: when the model calls a card-producing tool,
+// we suppress further text deltas (so the model can't list the same items
+// in prose) and emit a deterministic acknowledgement at the end. Pre-tool
+// text streams normally — gives a natural "Looking for brand matches…"
+// lead-in before cards render.
 function sseWrapAgentRun(result, corsHeaders) {
   const encoder = new TextEncoder();
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
 
+  const writeEvent = (obj) => writer.write(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+  const writeContent = (text) => writeEvent({ choices: [{ delta: { content: text } }] });
+
   (async () => {
     let renderMetadata = null;
+    let suppressText = false;
     try {
       for await (const event of result) {
         // Text deltas from the model
         if (event.type === 'raw_model_stream_event') {
           const d = event.data;
           if (d && d.type === 'output_text_delta' && d.delta) {
-            const ev = `data: ${JSON.stringify({ choices: [{ delta: { content: d.delta } }] })}\n\n`;
-            await writer.write(encoder.encode(ev));
+            if (suppressText) continue;  // a tool fired — cards carry the data, prose would dupe
+            await writeContent(d.delta);
           }
+        }
+        // Tool was invoked — flip suppression on so the post-tool LLM prose
+        // (which the model often uses to enumerate the result it just got)
+        // is dropped. Replaced at the end with a deterministic one-liner.
+        else if (event.type === 'run_item_stream_event' && event.name === 'tool_called') {
+          suppressText = true;
         }
         // Tool outputs — capture card-shaped results for the metadata channel
         else if (event.type === 'run_item_stream_event' && event.name === 'tool_output' && event.item) {
@@ -243,16 +259,25 @@ function sseWrapAgentRun(result, corsHeaders) {
         }
       }
       await result.completed;
+
+      // Deterministic acknowledgement when cards rendered (replaces the
+      // suppressed post-tool prose).
+      if (renderMetadata?.cards?.type === 'brand_matches') {
+        const n = renderMetadata.cards.items?.length || 0;
+        await writeContent(`Here ${n === 1 ? 'is 1 brand' : `are ${n} brands`} that fit your audience — tap **Draft Pitch** on any of them.`);
+      } else if (renderMetadata?.cards?.type === 'pulse_ideas') {
+        const n = renderMetadata.cards.items?.length || 0;
+        await writeContent(`Here ${n === 1 ? 'is 1 idea' : `are ${n} ideas`} tuned to your pillars — tap **Schedule** or **Script** on any card.`);
+      }
+
       if (renderMetadata) {
-        const metaEv = `data: ${JSON.stringify({ choices: [{ delta: { metadata: renderMetadata } }] })}\n\n`;
-        await writer.write(encoder.encode(metaEv));
+        await writeEvent({ choices: [{ delta: { metadata: renderMetadata } }] });
       }
       await writer.write(encoder.encode('data: [DONE]\n\n'));
     } catch (err) {
       console.error('[agents] stream error', err);
       try {
-        const errEv = `data: ${JSON.stringify({ error: { message: String((err && err.message) || err) } })}\n\n`;
-        await writer.write(encoder.encode(errEv));
+        await writeEvent({ error: { message: String((err && err.message) || err) } });
         await writer.write(encoder.encode('data: [DONE]\n\n'));
       } catch {}
     } finally {
