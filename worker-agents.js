@@ -223,22 +223,27 @@ function sseWrapAgentRun(result, corsHeaders) {
 
   (async () => {
     let renderMetadata = null;
-    let suppressText = false;
+    let bufferingPostTool = false;     // flipped on by tool_called
+    let postToolBuffer = '';           // text deltas after a tool call (held back, not dropped)
     try {
       for await (const event of result) {
         // Text deltas from the model
         if (event.type === 'raw_model_stream_event') {
           const d = event.data;
           if (d && d.type === 'output_text_delta' && d.delta) {
-            if (suppressText) continue;  // a tool fired — cards carry the data, prose would dupe
-            await writeContent(d.delta);
+            if (bufferingPostTool) {
+              postToolBuffer += d.delta;  // hold — flush or replace at end
+            } else {
+              await writeContent(d.delta);
+            }
           }
         }
-        // Tool was invoked — flip suppression on so the post-tool LLM prose
-        // (which the model often uses to enumerate the result it just got)
-        // is dropped. Replaced at the end with a deterministic one-liner.
+        // Tool was invoked — start buffering subsequent text. We can't know
+        // yet whether the tool will produce cards (and thus whether to drop
+        // the post-tool prose) until the tool_output arrives, so we buffer
+        // and decide at the end of the run.
         else if (event.type === 'run_item_stream_event' && event.name === 'tool_called') {
-          suppressText = true;
+          bufferingPostTool = true;
         }
         // Tool outputs — capture card-shaped results for the metadata channel
         else if (event.type === 'run_item_stream_event' && event.name === 'tool_output' && event.item) {
@@ -260,14 +265,19 @@ function sseWrapAgentRun(result, corsHeaders) {
       }
       await result.completed;
 
-      // Deterministic acknowledgement when cards rendered (replaces the
-      // suppressed post-tool prose).
+      // Three cases at end of run:
+      // 1. Cards rendered → drop the buffered prose, emit deterministic line.
+      // 2. Tool fired but no cards (rate estimate, Gmail send, tool error)
+      //    → flush the buffer so the user sees the model's reply.
+      // 3. No tool fired → buffer is empty, nothing extra to do.
       if (renderMetadata?.cards?.type === 'brand_matches') {
         const n = renderMetadata.cards.items?.length || 0;
         await writeContent(`Here ${n === 1 ? 'is 1 brand' : `are ${n} brands`} that fit your audience — tap **Draft Pitch** on any of them.`);
       } else if (renderMetadata?.cards?.type === 'pulse_ideas') {
         const n = renderMetadata.cards.items?.length || 0;
         await writeContent(`Here ${n === 1 ? 'is 1 idea' : `are ${n} ideas`} tuned to your pillars — tap **Schedule** or **Script** on any card.`);
+      } else if (postToolBuffer) {
+        await writeContent(postToolBuffer);
       }
 
       if (renderMetadata) {
