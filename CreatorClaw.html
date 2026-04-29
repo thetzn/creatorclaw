@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CreatorClaw</title>
+<link rel="icon" type="image/png" href="/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -1087,15 +1088,6 @@ function crabSVG(){
 // Populate header logo + spinner placeholders
 document.querySelectorAll('[data-crab-img]').forEach(el=>{ el.src=LOGO_DATA_URI; });
 document.querySelectorAll('[data-crab]').forEach(el=>{ el.innerHTML=crabSVG(); });
-// Also point the browser-tab favicon at the same crab so the tab icon
-// matches the in-app brand mark (replaces Chrome's default grey globe).
-(function setFavicon(){
-  let link = document.querySelector("link[rel='icon']") || document.createElement('link');
-  link.rel = 'icon';
-  link.type = 'image/png';
-  link.href = LOGO_DATA_URI;
-  if(!link.parentNode) document.head.appendChild(link);
-})();
 
 // ── Progress loading (rotating messages + growing bar) ───────────────────────
 const LOADING_MESSAGES={
