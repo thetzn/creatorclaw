@@ -40,27 +40,21 @@ function ensureResponsesApi() {
   _responsesApiActive = true;
 }
 
-// Whitelist the specific MCP tools we want exposed. The Google Workspace
-// MCP server publishes 100+ tools across gmail/calendar; we restrict to
-// what our granted scopes (gmail.send, gmail.readonly, calendar) actually
-// support. Without this, the LLM keeps calling draft_gmail_message which
-// needs gmail.compose and 403s.
-const GOOGLE_MCP_ALLOWED_TOOLS = [
-  'search_gmail_messages',
-  'read_gmail_message',
-  'send_gmail_message',
-  'list_calendar_events',
-  'create_calendar_event',
-  'get_gmail_thread',
-];
-
+// TODO: re-enable allowlist once we know the actual MCP tool names for
+// calendar. Initial guess (list_calendar_events / create_calendar_event)
+// was wrong — the LLM was firing many mcp_call retries presumably because
+// those names don't exist. Open the gates so it can pick the real ones,
+// then we'll lock down again.
+//
+// Drafting tools (gmail.compose scope) are still going to 403, but the
+// new prompt rule "do NOT call draft_gmail_message" should keep the LLM
+// away from them.
 function buildGoogleMcpTool(accessToken) {
   if (!accessToken) return null;
   return hostedMcpTool({
     serverLabel: 'google_workspace',
     serverUrl: GOOGLE_MCP_URL,
     headers: { Authorization: 'Bearer ' + accessToken },
-    allowedTools: GOOGLE_MCP_ALLOWED_TOOLS,
     requireApproval: 'never',  // creator pre-authorized via the Connect Google flow
   });
 }
