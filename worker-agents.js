@@ -280,7 +280,10 @@ function buildAgentSet(activeName, frontendInstructions, googleMcp) {
       : AGENT_INSTRUCTION_FALLBACKS[name];
     return new Agent({
       name: name === 'main' ? 'CreatorClaw' : `CreatorClaw-${name}`,
-      model: 'gpt-4o-mini',
+      // gpt-4o (not mini) — mini was hallucinating tool calls under
+      // hostedMcpTool, claiming "email sent" without ever firing
+      // gmail_send_message. gpt-4o is more reliable for tool use.
+      model: 'gpt-4o',
       instructions,
       handoffDescription: AGENT_HANDOFF_DESCRIPTIONS[name],
       tools,
