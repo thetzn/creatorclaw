@@ -14,25 +14,39 @@
 // our inline-card side-channel (brand_matches, pulse_ideas).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Agent, run, tool, MCPServerStreamableHttp } from '@openai/agents';
+import { Agent, run, tool, hostedMcpTool } from '@openai/agents';
+import { setOpenAIAPI } from '@openai/agents-openai';
 import { z } from 'zod';
 
 // Google Workspace MCP server (Gmail + Calendar). Self-hosted on Fly.io;
 // see google_workspace_mcp/. Bearer token comes from the user's stored
 // Google OAuth access token (refreshed by the Worker's getGoogleAccessToken
-// helper). One server instance per request so each creator hits Google with
-// their own credentials.
+// helper).
+//
+// We use hostedMcpTool (OpenAI handles the MCP client server-side via the
+// Responses API) rather than MCPServerStreamableHttp (which would run the
+// MCP client locally). The local client uses Ajv schema validation, and
+// Ajv compiles validators at runtime via `new Function()` — blocked on
+// Cloudflare Workers ("Code generation from strings disallowed"). Hosted
+// MCP does the round-trip between OpenAI and Fly directly, so we never
+// run into the eval restriction.
 const GOOGLE_MCP_URL = 'https://creatorclaw-google-mcp.fly.dev/mcp';
 
-function buildGoogleMcpServer(accessToken) {
+// One-time switch the SDK to Responses API. hostedMcpTool requires it.
+let _responsesApiActive = false;
+function ensureResponsesApi() {
+  if (_responsesApiActive) return;
+  setOpenAIAPI('responses');
+  _responsesApiActive = true;
+}
+
+function buildGoogleMcpTool(accessToken) {
   if (!accessToken) return null;
-  return new MCPServerStreamableHttp({
-    url: GOOGLE_MCP_URL,
-    name: 'google_workspace',
-    cacheToolsList: false,  // tools shouldn't change per user, but keep fresh while we're learning the server
-    requestInit: {
-      headers: { Authorization: 'Bearer ' + accessToken },
-    },
+  return hostedMcpTool({
+    serverLabel: 'google_workspace',
+    serverUrl: GOOGLE_MCP_URL,
+    headers: { Authorization: 'Bearer ' + accessToken },
+    requireApproval: 'never',  // creator pre-authorized via the Connect Google flow
   });
 }
 
@@ -251,27 +265,26 @@ const AGENT_HANDOFF_DESCRIPTIONS = {
 // done per request so the active agent's instructions can come from the
 // frontend's tool-specific system prompt.
 //
-// `mcpServers` is a list of MCPServer instances to attach to agents that
-// can use Google Workspace (gmail + calendar). Currently main, pitch, and
-// pipeline all get it — Create stays focused on ideation.
-function buildAgentSet(activeName, frontendInstructions, mcpServers) {
-  const mcp = Array.isArray(mcpServers) ? mcpServers.filter(Boolean) : [];
-  const make = (name, attachMcp) => {
+// `googleMcp` is an optional hostedMcpTool instance. When the creator has
+// connected Google Workspace, it's added to main / pitch / pipeline tool
+// lists alongside the regular function tools. Create stays focused on
+// ideation.
+function buildAgentSet(activeName, frontendInstructions, googleMcp) {
+  const make = (name, attachGoogleMcp) => {
     const tools = Object.values(TOOL_REGISTRY)
       .filter(reg => reg.agents.includes(name))
       .map(reg => reg.tool);
+    if (attachGoogleMcp && googleMcp) tools.push(googleMcp);
     const instructions = name === activeName && frontendInstructions
       ? frontendInstructions
       : AGENT_INSTRUCTION_FALLBACKS[name];
-    const cfg = {
+    return new Agent({
       name: name === 'main' ? 'CreatorClaw' : `CreatorClaw-${name}`,
       model: 'gpt-4o-mini',
       instructions,
       handoffDescription: AGENT_HANDOFF_DESCRIPTIONS[name],
       tools,
-    };
-    if (attachMcp && mcp.length) cfg.mcpServers = mcp;
-    return new Agent(cfg);
+    });
   };
   const agents = {
     main: make('main', true),
@@ -327,50 +340,29 @@ export async function handleAgentChat(request, env, body, cors, deps) {
 
   const cc = body.creatorContext || {};
 
-  // If the user has connected Google Workspace, build + connect an MCP
-  // server with their bearer token so agents can call gmail/calendar
-  // tools. Per-request construction — token is per-user and refreshed on
-  // the Worker side. The SDK does NOT auto-connect; explicit connect()
-  // must complete before the run starts.
-  let googleMcp = buildGoogleMcpServer(deps.googleAccessToken);
-  const mcpServers = [];
-  if (googleMcp) {
-    try {
-      await googleMcp.connect();
-      mcpServers.push(googleMcp);
-    } catch (e) {
-      console.warn('[agents] google mcp connect failed', e?.message || e);
-      // Don't abort — let the agent run without Google tools rather than
-      // returning silence. The user just won't be able to use gmail/calendar
-      // this turn.
-      try { await googleMcp.close(); } catch {}
-      googleMcp = null;
-    }
-  }
+  // hostedMcpTool requires the Responses API. Switch the SDK once.
+  ensureResponsesApi();
 
-  const agents = buildAgentSet(activeTool, instructions, mcpServers);
+  // If the creator has connected Google Workspace, build a hostedMcpTool
+  // that pushes the MCP round-trip to OpenAI's servers. No local connection
+  // lifecycle to manage — it's just a tool definition.
+  const googleMcp = buildGoogleMcpTool(deps.googleAccessToken);
+
+  const agents = buildAgentSet(activeTool, instructions, googleMcp);
   const startAgent = agents[activeTool] || agents.main;
   const runCtx = {
     creatorContext: cc,
     env,
     executeToolByName: deps.executeToolByName,
-    // Surfaced so pipeline tools can hit Supabase REST under RLS.
     accessToken: cc.accessToken || null,
     userId: cc.userId || null,
   };
 
   try {
     const result = await run(startAgent, convo, { stream: true, maxTurns: 6, context: runCtx });
-    // Defer MCP cleanup until the stream finishes — sseWrapAgentRun returns
-    // a Response immediately and consumes the stream asynchronously inside
-    // its TransformStream pipe. Closing in a finally here would tear down
-    // the MCP connection before the agent ever uses it.
-    return sseWrapAgentRun(result, cors, { onFinish: () => {
-      if (googleMcp) { googleMcp.close().catch(() => {}); }
-    }});
+    return sseWrapAgentRun(result, cors);
   } catch (err) {
     console.error('[agents] run failed', err);
-    if (googleMcp) { try { await googleMcp.close(); } catch {} }
     return errorJSON('agent_run_failed', err, cors);
   }
 }
@@ -383,7 +375,7 @@ export async function handleAgentChat(request, env, body, cors, deps) {
 // in prose) and emit a deterministic acknowledgement at the end. Pre-tool
 // text streams normally — gives a natural "Looking for brand matches…"
 // lead-in before cards render.
-function sseWrapAgentRun(result, corsHeaders, hooks = {}) {
+function sseWrapAgentRun(result, corsHeaders) {
   const encoder = new TextEncoder();
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
@@ -492,7 +484,6 @@ function sseWrapAgentRun(result, corsHeaders, hooks = {}) {
       } catch {}
     } finally {
       try { await writer.close(); } catch {}
-      try { hooks.onFinish && hooks.onFinish(); } catch {}
     }
   })();
 
