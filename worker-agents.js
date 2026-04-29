@@ -316,6 +316,11 @@ export async function handleAgentChat(request, env, body, cors, deps) {
   }
 
   const cc = body.creatorContext || {};
+  console.log('[agents]', activeTool, 'context', JSON.stringify({
+    hasAccessToken: !!cc.accessToken,
+    hasUserId: !!cc.userId,
+    accessTokenLen: cc.accessToken ? cc.accessToken.length : 0,
+  }));
   const agents = buildAgentSet(activeTool, instructions);
   const startAgent = agents[activeTool] || agents.main;
   const runCtx = {
