@@ -6,7 +6,7 @@
  * - Agents SDK spike: POST /v1/agents/test (validation only — see worker-agents.js)
  */
 
-import { handleAgentsSpike } from './worker-agents.js';
+import { handleAgentsSpike, handleAgentChat } from './worker-agents.js';
 
 const CHAT_URL = 'https://api.openai.com/v1/chat/completions';
 const RESPONSES_URL = 'https://api.openai.com/v1/responses';
@@ -1464,6 +1464,12 @@ export default {
     // so we can handle rate-estimator tool calls cleanly, then fake an SSE
     // stream back to the client so its existing streaming reader works.
     if (body.stream) {
+      // Feature flag: route through the Agents SDK path. Enabled per-request
+      // by the frontend during Phase 1 migration. Once stable, this becomes
+      // the default and the hand-rolled loop below is removed.
+      if (body.useAgentsSdk) {
+        return handleAgentChat(request, env, body, cors(origin, allowed));
+      }
       const creatorContext = body.creatorContext || null;
       const activeTool = (body.tool && ['main', 'create', 'pitch'].includes(body.tool)) ? body.tool : 'main';
       console.log('[chat]', activeTool, 'turn');
