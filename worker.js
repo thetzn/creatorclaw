@@ -2610,12 +2610,7 @@ async function consumeTelegramLinkCode(env, code, userId, userJwt) {
 // ── Update dispatcher ────────────────────────────────────────────────────────
 async function handleTelegramUpdate(update, env) {
   if (update.message) return handleTelegramMessage(update.message, env);
-  if (update.callback_query) {
-    // Phase 2: brand-card / email-send button handling. Phase 1 acknowledges.
-    const cb = update.callback_query;
-    await tg(env, 'answerCallbackQuery', { callback_query_id: cb.id, text: 'Coming soon.' });
-    return;
-  }
+  if (update.callback_query) return handleTelegramCallback(update.callback_query, env);
 }
 
 async function handleTelegramMessage(msg, env) {
@@ -2643,15 +2638,22 @@ async function handleTelegramMessage(msg, env) {
 
   // Slash command parsing.
   if (text.startsWith('/')) {
-    const m = text.match(/^\/([a-z_]+)(?:@\w+)?(?:\s+(.*))?$/i);
+    const m = text.match(/^\/([a-z_]+)(?:@\w+)?(?:\s+([\s\S]*))?$/i);
     const cmd = (m?.[1] || '').toLowerCase();
+    const arg = (m?.[2] || '').trim();
     if (cmd === 'start') return handleStart(msg, link, env);
     if (cmd === 'help')  return handleHelp(chat.id, !!link, env);
     if (cmd === 'unlink') return handleUnlink(msg, link, env);
-    // Phase 2 commands — stub politely.
+    // Phase 2 commands — require a link.
     if (['refresh','pipeline','connect_google','bug'].includes(cmd)) {
-      await tgSendMessage(env, chat.id, `\`/${cmd}\` is coming soon. For now, do that in the web app at creatorclaw.co.`);
-      return;
+      if (!link) {
+        await tgSendMessage(env, chat.id, "Tap /start to link your CreatorClaw account first.");
+        return;
+      }
+      if (cmd === 'refresh') return handleRefreshCommand(msg, link, env);
+      if (cmd === 'pipeline') return handlePipelineCommand(msg, link, env);
+      if (cmd === 'connect_google') return handleConnectGoogleCommand(msg, link, env);
+      if (cmd === 'bug') return handleBugCommand(msg, link, env, arg);
     }
     await tgSendMessage(env, chat.id, "I don't know that command. Try /help.");
     return;
@@ -2844,6 +2846,27 @@ async function handleAgentMessage(msg, link, env) {
     body: JSON.stringify({ updated_at: new Date().toISOString() }),
   }).catch(() => {});
 
+  // Phase 2 routing: cards become inline-keyboard messages; pitch drafts
+  // (Subject:/body) get an [Send] [Open in Gmail] button row.
+  if (Array.isArray(result.cards) && result.cards.length) {
+    if (result.text) {
+      const chunks = tgChunkText(result.text);
+      for (const chunk of chunks) await tgSendMessage(env, chatId, chunk);
+    }
+    for (const card of result.cards) {
+      if (card.type === 'brand_matches') {
+        await renderBrandCardsTelegram(env, chatId, link.user_id, jwt, card.items);
+      } else if (card.type === 'pulse_ideas') {
+        await renderIdeaCardsTelegram(env, chatId, link.user_id, jwt, card.items);
+      }
+    }
+    return;
+  }
+  const pitch = detectPitchInTextServer(result.text);
+  if (pitch) {
+    await renderEmailCardTelegram(env, chatId, link.user_id, jwt, pitch, history);
+    return;
+  }
   const chunks = tgChunkText(result.text || '(no response)');
   for (const chunk of chunks) {
     await tgSendMessage(env, chatId, chunk);
@@ -2915,4 +2938,495 @@ function parseEngStr(raw) {
   if (typeof raw === 'number') return raw;
   if (typeof raw === 'string') { const m = raw.match(/([\d.]+)/); if (m) return parseFloat(m[1]); }
   return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Telegram Phase 2 — inline keyboards, send-confirm flow, slash commands
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TG_BOT_USERNAME = 'creatorclawagent_bot';
+
+// ── Pitch (Subject:/body) detection — port of frontend detectPitchInText ────
+function detectPitchInTextServer(text) {
+  if (!text) return null;
+  const m = String(text).match(/^\s*(?:\*\*)?Subject:(?:\*\*)?\s*(.+?)\s*\n\s*\n([\s\S]+?)\s*$/i);
+  if (!m) return null;
+  const subject = m[1].trim().replace(/^["']|["']$/g, '').replace(/\*\*/g, '');
+  const body = m[2].trim();
+  if (!subject || body.length < 40) return null;
+  return { subject, body };
+}
+
+// Find a likely email recipient from the recent conversation history. Used
+// when we render the [Send] button for a drafted pitch — we want to know
+// who the pitch is going to without asking.
+function guessRecipientFromHistory(history) {
+  const re = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
+  // Walk newest-first so the most recent mention wins.
+  for (let i = history.length - 1; i >= 0; i--) {
+    const m = String(history[i]?.content || '').match(re);
+    if (m && m.length) return m[0];
+  }
+  return null;
+}
+
+// ── Pending action helpers (backed by telegram_pending_actions) ─────────────
+async function pendingActionCreate(jwt, userId, kind, payload) {
+  const res = await sbUserFetch(jwt, '/telegram_pending_actions', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ user_id: userId, kind, payload }),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    console.warn('[telegram] pending action create failed', t.slice(0, 200));
+    return null;
+  }
+  const rows = await res.json();
+  return Array.isArray(rows) ? rows[0]?.id : rows?.id;
+}
+
+async function pendingActionGet(jwt, id) {
+  const res = await sbUserFetch(jwt,
+    `/telegram_pending_actions?id=eq.${encodeURIComponent(id)}&select=*`);
+  if (!res.ok) return null;
+  const rows = await res.json();
+  const row = rows[0];
+  if (!row) return null;
+  if (new Date(row.expires_at).getTime() < Date.now()) return null;
+  return row;
+}
+
+async function pendingActionDelete(jwt, id) {
+  return sbUserFetch(jwt,
+    `/telegram_pending_actions?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+// ── Telegram helpers (Phase 2 additions) ─────────────────────────────────────
+async function tgEditMessageText(env, chatId, messageId, text, opts = {}) {
+  return tg(env, 'editMessageText', {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+    parse_mode: opts.parseMode || 'HTML',
+    disable_web_page_preview: true,
+    reply_markup: opts.reply_markup,
+  });
+}
+async function tgAnswerCallback(env, callbackQueryId, opts = {}) {
+  return tg(env, 'answerCallbackQuery', {
+    callback_query_id: callbackQueryId,
+    text: opts.text || '',
+    show_alert: !!opts.showAlert,
+  });
+}
+
+function tgEscapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ── Card renderers — one Telegram message per item, with inline keyboard ────
+async function renderBrandCardsTelegram(env, chatId, userId, jwt, brands) {
+  const intro = brands.length === 1
+    ? `Found 1 brand that fits your audience:`
+    : `Found ${brands.length} brands that fit your audience:`;
+  await tgSendMessage(env, chatId, intro);
+
+  for (const b of brands.slice(0, 6)) {
+    const actionId = await pendingActionCreate(jwt, userId, 'pitch_draft', {
+      brand: { name: b.name, cat: b.cat, domain: b.domain, deal: b.deal, reasons: b.reasons || [] },
+    });
+    const reasons = (b.reasons || []).slice(0, 3).map(r => `✓ ${tgEscapeHtml(r)}`).join('\n');
+    const lines = [
+      `<b>${tgEscapeHtml(b.name || '?')}</b>${b.cat ? '  ·  <i>' + tgEscapeHtml(b.cat) + '</i>' : ''}`,
+      b.match ? `<b>${b.match}%</b> match` : '',
+      reasons,
+      b.deal ? `\n<b>${tgEscapeHtml(b.deal)}</b>` : '',
+    ].filter(Boolean);
+    const keyboard = actionId ? {
+      inline_keyboard: [[
+        { text: '✏️ Draft Pitch', callback_data: `pitch_draft:${actionId}` },
+      ]],
+    } : undefined;
+    await tg(env, 'sendMessage', {
+      chat_id: chatId,
+      text: lines.join('\n'),
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+      reply_markup: keyboard,
+    });
+  }
+}
+
+async function renderIdeaCardsTelegram(env, chatId, userId, jwt, ideas) {
+  const intro = ideas.length === 1
+    ? `1 idea tuned to your pillars:`
+    : `${ideas.length} ideas tuned to your pillars:`;
+  await tgSendMessage(env, chatId, intro);
+
+  for (const i of ideas.slice(0, 6)) {
+    const title = i.title || i.t || 'Idea';
+    const desc = i.desc || i.d || '';
+    const actionId = await pendingActionCreate(jwt, userId, 'idea_script', {
+      idea: { title, desc },
+    });
+    const text = `<b>${tgEscapeHtml(title)}</b>${desc ? '\n' + tgEscapeHtml(desc) : ''}`;
+    const keyboard = actionId ? {
+      inline_keyboard: [[
+        { text: '🎬 Script this', callback_data: `idea_script:${actionId}` },
+      ]],
+    } : undefined;
+    await tg(env, 'sendMessage', {
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+      reply_markup: keyboard,
+    });
+  }
+}
+
+async function renderEmailCardTelegram(env, chatId, userId, jwt, pitch, history) {
+  // Try to extract a recipient from recent user messages so the [Send] flow
+  // doesn't have to ask. Fallback: confirmation prompts for one.
+  const recipient = guessRecipientFromHistory(history || []);
+  const actionId = await pendingActionCreate(jwt, userId, 'pitch_send', {
+    subject: pitch.subject,
+    body: pitch.body,
+    recipient: recipient || null,
+  });
+  const text = [
+    `<b>Subject:</b> ${tgEscapeHtml(pitch.subject)}`,
+    '',
+    tgEscapeHtml(pitch.body),
+  ].join('\n');
+  const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1' +
+    (recipient ? '&to=' + encodeURIComponent(recipient) : '') +
+    '&su=' + encodeURIComponent(pitch.subject) +
+    '&body=' + encodeURIComponent(pitch.body);
+  const buttons = [];
+  if (actionId) buttons.push([{ text: '📤 Send', callback_data: `pitch_send:${actionId}` }]);
+  buttons.push([{ text: '✉️ Open in Gmail', url: gmailUrl }]);
+  // sendMessage caps at 4096 chars; if the body is long we split, sending
+  // the buttons only with the final chunk.
+  const chunks = tgChunkText(text);
+  for (let idx = 0; idx < chunks.length; idx++) {
+    const isLast = idx === chunks.length - 1;
+    await tg(env, 'sendMessage', {
+      chat_id: chatId,
+      text: chunks[idx],
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+      reply_markup: isLast ? { inline_keyboard: buttons } : undefined,
+    });
+  }
+}
+
+// ── Callback query dispatcher ────────────────────────────────────────────────
+async function handleTelegramCallback(cb, env) {
+  const fromId = cb.from?.id;
+  const data = String(cb.data || '');
+  const chatId = cb.message?.chat?.id;
+  if (!fromId || !chatId) {
+    await tgAnswerCallback(env, cb.id, { text: 'Bad request.' });
+    return;
+  }
+
+  // Resolve the linked user.
+  const linkRes = await sbServiceFetch(env,
+    `/user_telegram_links?telegram_id=eq.${fromId}&select=user_id`);
+  const linkRows = linkRes.ok ? await linkRes.json() : [];
+  const link = linkRows[0];
+  if (!link) {
+    await tgAnswerCallback(env, cb.id, { text: 'Not linked. Tap /start first.', showAlert: true });
+    return;
+  }
+  let jwt;
+  try { jwt = await mintSupabaseJwt(link.user_id, env); }
+  catch (e) {
+    console.error('[telegram] cb jwt mint failed', e);
+    await tgAnswerCallback(env, cb.id, { text: 'Auth hiccup.', showAlert: true });
+    return;
+  }
+
+  const [kind, actionId] = data.split(':');
+  switch (kind) {
+    case 'pitch_draft':   return handlePitchDraftCb(cb, link, jwt, actionId, env);
+    case 'idea_script':   return handleIdeaScriptCb(cb, link, jwt, actionId, env);
+    case 'pitch_send':    return handlePitchSendCb(cb, link, jwt, actionId, env);
+    case 'pitch_confirm': return handlePitchConfirmCb(cb, link, jwt, actionId, env);
+    case 'pitch_cancel':  return handlePitchCancelCb(cb, link, jwt, actionId, env);
+    default:
+      await tgAnswerCallback(env, cb.id, { text: 'Unknown action.' });
+  }
+}
+
+async function handlePitchDraftCb(cb, link, jwt, actionId, env) {
+  const action = await pendingActionGet(jwt, actionId);
+  if (!action) {
+    await tgAnswerCallback(env, cb.id, { text: 'Card expired. Ask again.', showAlert: true });
+    return;
+  }
+  await tgAnswerCallback(env, cb.id, { text: 'Drafting...' });
+  // Trigger an agent turn to draft the pitch. The brand info is in the
+  // pending action payload.
+  const brand = action.payload?.brand || {};
+  const brandName = brand.name || 'this brand';
+  const text = `Draft a pitch to ${brandName}${brand.domain ? ' (' + brand.domain + ')' : ''}.`;
+  await dispatchAgentTurnFromCallback(cb, link, jwt, text, env);
+}
+
+async function handleIdeaScriptCb(cb, link, jwt, actionId, env) {
+  const action = await pendingActionGet(jwt, actionId);
+  if (!action) {
+    await tgAnswerCallback(env, cb.id, { text: 'Card expired. Ask again.', showAlert: true });
+    return;
+  }
+  await tgAnswerCallback(env, cb.id, { text: 'Writing script...' });
+  const idea = action.payload?.idea || {};
+  const title = idea.title || 'this idea';
+  const text = `Write me a video script for: "${title}"${idea.desc ? '. ' + idea.desc : ''}`;
+  await dispatchAgentTurnFromCallback(cb, link, jwt, text, env);
+}
+
+async function handlePitchSendCb(cb, link, jwt, actionId, env) {
+  const action = await pendingActionGet(jwt, actionId);
+  if (!action) {
+    await tgAnswerCallback(env, cb.id, { text: 'Draft expired. Ask again.', showAlert: true });
+    return;
+  }
+  await tgAnswerCallback(env, cb.id);
+  const { recipient, subject } = action.payload;
+  const chatId = cb.message.chat.id;
+  if (!recipient) {
+    // No recipient inferred. Phase 2.5 could prompt for one; for now bail.
+    await tgSendMessage(env, chatId,
+      "Couldn't tell who to send this to. Tell me the email address (e.g. _founders@brand.com_), then I'll re-draft and you can send.");
+    return;
+  }
+  const confirmText = `Send to <b>${tgEscapeHtml(recipient)}</b>?\n<i>${tgEscapeHtml(subject)}</i>\n\nThere's no undo.`;
+  await tg(env, 'sendMessage', {
+    chat_id: chatId,
+    text: confirmText,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [[
+        { text: '✅ Confirm send', callback_data: `pitch_confirm:${actionId}` },
+        { text: '✕ Cancel', callback_data: `pitch_cancel:${actionId}` },
+      ]],
+    },
+  });
+}
+
+async function handlePitchCancelCb(cb, link, jwt, actionId, env) {
+  await tgAnswerCallback(env, cb.id, { text: 'Cancelled' });
+  await pendingActionDelete(jwt, actionId);
+  // Edit the prompt message to show the cancel state instead of dangling buttons.
+  if (cb.message?.message_id) {
+    await tgEditMessageText(env, cb.message.chat.id, cb.message.message_id,
+      '<i>Cancelled. The draft is still above if you want to edit + resend.</i>');
+  }
+}
+
+async function handlePitchConfirmCb(cb, link, jwt, actionId, env) {
+  const action = await pendingActionGet(jwt, actionId);
+  if (!action) {
+    await tgAnswerCallback(env, cb.id, { text: 'Draft expired.', showAlert: true });
+    return;
+  }
+  await tgAnswerCallback(env, cb.id, { text: 'Sending...' });
+  const { subject, body, recipient } = action.payload;
+  if (cb.message?.message_id) {
+    await tgEditMessageText(env, cb.message.chat.id, cb.message.message_id,
+      `<i>Sending to ${tgEscapeHtml(recipient)}...</i>`);
+  }
+  // Synthesize the trusted-handshake directive that the agent's Gmail
+  // guardrail recognizes. The agent will fire send_gmail_message.
+  const directive = `Send this email NOW via send_gmail_message. To: ${recipient}. Subject: ${subject}. Body: ${body}`;
+  // Manufacture a fake message envelope so we can reuse handleAgentMessage's
+  // full path (persona load, conversation persist, run, response).
+  const fakeMsg = {
+    chat: cb.message.chat,
+    from: cb.from,
+    text: directive,
+  };
+  await pendingActionDelete(jwt, actionId).catch(() => {});
+  await handleAgentMessage(fakeMsg, link, env);
+}
+
+// Re-fires the agent for a callback (used by [Draft Pitch] / [Script this]).
+// We synthesize a user message from the callback context and route through
+// the same handleAgentMessage path so persona + history + persistence all work.
+async function dispatchAgentTurnFromCallback(cb, link, jwt, text, env) {
+  const fakeMsg = {
+    chat: cb.message.chat,
+    from: cb.from,
+    text,
+  };
+  await handleAgentMessage(fakeMsg, link, env);
+}
+
+// ── Slash commands: /refresh, /pipeline, /bug, /connect_google ───────────────
+async function handleRefreshCommand(msg, link, env) {
+  const chatId = msg.chat.id;
+  await tgSendChatAction(env, chatId, 'typing');
+  let jwt;
+  try { jwt = await mintSupabaseJwt(link.user_id, env); }
+  catch (e) {
+    console.error('[telegram] /refresh jwt mint failed', e);
+    await tgSendMessage(env, chatId, "Auth hiccup — try /refresh again in a sec.");
+    return;
+  }
+  // Pull the saved persona to get the handle.
+  const personaRes = await sbUserFetch(jwt,
+    `/personas?user_id=eq.${link.user_id}&order=updated_at.desc&limit=1&select=*`);
+  const personas = personaRes.ok ? await personaRes.json() : [];
+  const persona = personas[0];
+  const handle = persona?.ig_handle;
+  if (!handle) {
+    await tgSendMessage(env, chatId, "No Instagram handle linked yet. Set up your persona on the web app first: creatorclaw.co");
+    return;
+  }
+  // Call the existing scrape endpoint internally (proper Origin so the
+  // ALLOWED_ORIGINS gate passes).
+  let scraped;
+  try {
+    const res = await fetch('https://creatorclaw-proxy.creatorclaw.workers.dev/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'https://creatorclaw.co' },
+      body: JSON.stringify({ igScrape: true, handle }),
+    });
+    if (!res.ok) throw new Error('scrape ' + res.status);
+    const data = await res.json();
+    scraped = JSON.parse(data.choices?.[0]?.message?.content || '{}');
+  } catch (e) {
+    console.error('[telegram] /refresh scrape failed', e);
+    await tgSendMessage(env, chatId, "Couldn't refresh — Instagram scrape failed. Try again in a few minutes.");
+    return;
+  }
+  if (!scraped?.username || !scraped?.followers) {
+    await tgSendMessage(env, chatId, "Refresh returned empty (account may be private or banned). Keeping cached data.");
+    return;
+  }
+  // Update persona row. Sync recentThemes from new scrape; keep voice/pillars.
+  const ai = persona.ai_analysis || {};
+  if (Array.isArray(scraped.recentThemes)) ai.recentThemes = scraped.recentThemes;
+  await sbUserFetch(jwt,
+    `/personas?user_id=eq.${link.user_id}&ig_handle=eq.${encodeURIComponent(handle)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        scraped_data: scraped,
+        ai_analysis: ai,
+        updated_at: new Date().toISOString(),
+      }),
+    });
+  await tgSendMessage(env, chatId,
+    `✓ Refreshed *@${handle}*\n\n• Followers: *${scraped.followers}*\n• Engagement: *${scraped.engagementRate || '—'}*\n• Recent themes: ${scraped.recentThemes?.slice(0, 3).join(', ') || '—'}`);
+}
+
+async function handlePipelineCommand(msg, link, env) {
+  const chatId = msg.chat.id;
+  let jwt;
+  try { jwt = await mintSupabaseJwt(link.user_id, env); }
+  catch { await tgSendMessage(env, chatId, "Auth hiccup."); return; }
+  const res = await sbUserFetch(jwt,
+    `/creator_deals?user_id=eq.${link.user_id}&select=brand_name,status,amount_usd,updated_at&order=updated_at.desc&limit=200`);
+  if (!res.ok) {
+    await tgSendMessage(env, chatId, "Couldn't load pipeline.");
+    return;
+  }
+  const deals = await res.json();
+  if (!deals.length) {
+    await tgSendMessage(env, chatId,
+      "Pipeline is empty. Pitch a brand and I'll start tracking the deal — try _draft a pitch to Gymshark_.");
+    return;
+  }
+  const stages = ['inbound','outreach','in_progress','negotiating','producing','awaiting_payment','closed'];
+  const labels = {
+    inbound: 'Inbound', outreach: 'Outreach', in_progress: 'In Progress',
+    negotiating: 'Negotiating', producing: 'Producing',
+    awaiting_payment: 'Awaiting Payment', closed: 'Closed',
+  };
+  const byStage = {};
+  for (const s of stages) byStage[s] = [];
+  for (const d of deals) (byStage[d.status] || byStage.outreach).push(d);
+  let earned = 0, pipelineVal = 0;
+  for (const d of deals) {
+    const amt = Number(d.amount_usd) || 0;
+    if (d.status === 'closed') earned += amt;
+    else pipelineVal += amt;
+  }
+  const fmt = n => '$' + Math.round(n).toLocaleString('en-US');
+  const lines = [
+    `*Pipeline summary*`,
+    `Earned: *${fmt(earned)}*  ·  Active: *${fmt(pipelineVal)}*  ·  Deals: *${deals.length}*`,
+    '',
+  ];
+  for (const s of stages) {
+    const list = byStage[s];
+    if (!list.length) continue;
+    const total = list.reduce((sum, d) => sum + (Number(d.amount_usd) || 0), 0);
+    lines.push(`*${labels[s]}* — ${list.length}${total ? '  ·  ' + fmt(total) : ''}`);
+    for (const d of list.slice(0, 3)) {
+      const amt = Number(d.amount_usd) || 0;
+      lines.push(`  • ${d.brand_name}${amt ? '  ·  ' + fmt(amt) : ''}`);
+    }
+    if (list.length > 3) lines.push(`  _+${list.length - 3} more_`);
+  }
+  await tgSendMessage(env, chatId, lines.join('\n'));
+}
+
+async function handleBugCommand(msg, link, env, bugText) {
+  const chatId = msg.chat.id;
+  if (!bugText || bugText.length < 4) {
+    await tgSendMessage(env, chatId,
+      "Tell me what's broken. Example: `/bug pipeline doesn't show closed deals on mobile`");
+    return;
+  }
+  let jwt;
+  try { jwt = await mintSupabaseJwt(link.user_id, env); }
+  catch { await tgSendMessage(env, chatId, "Auth hiccup."); return; }
+  const context = {
+    channel: 'telegram',
+    chatId, fromId: msg.from?.id,
+    telegram_username: msg.from?.username || null,
+    ts: new Date().toISOString(),
+  };
+  const res = await sbUserFetch(jwt, '/bug_reports', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      user_id: link.user_id,
+      description: bugText,
+      category: 'other',
+      context,
+    }),
+  });
+  if (!res.ok) {
+    await tgSendMessage(env, chatId, "Couldn't log that — try again in a sec.");
+    return;
+  }
+  await tgSendMessage(env, chatId, "Thanks — bug logged. We see it.");
+}
+
+async function handleConnectGoogleCommand(msg, link, env) {
+  const chatId = msg.chat.id;
+  let jwt;
+  try { jwt = await mintSupabaseJwt(link.user_id, env, 600); }  // 10 min for the OAuth roundtrip
+  catch { await tgSendMessage(env, chatId, "Auth hiccup."); return; }
+  // Check if already connected.
+  const connRes = await sbUserFetch(jwt,
+    `/google_workspace_connections?user_id=eq.${link.user_id}&select=email,expires_at`);
+  if (connRes.ok) {
+    const rows = await connRes.json();
+    if (rows.length) {
+      await tgSendMessage(env, chatId,
+        `Google Workspace already connected as *${rows[0].email}*.\n\nGmail and Calendar tools are available — just ask me to draft or send.`);
+      return;
+    }
+  }
+  const returnTo = encodeURIComponent('https://creatorclaw.co/?from_telegram=1');
+  const authUrl = `https://creatorclaw-proxy.creatorclaw.workers.dev/google/auth?t=${encodeURIComponent(jwt)}&return_to=${returnTo}`;
+  await tgSendMessage(env, chatId,
+    `Connect your Gmail + Calendar so I can send pitches and book calls on your behalf:\n\n[Tap here to connect Google](${authUrl})\n\nAfter you authorize, you'll land back on creatorclaw.co — then come back here and ask me to draft an email.`);
 }

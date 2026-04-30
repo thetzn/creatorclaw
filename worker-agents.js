@@ -660,39 +660,15 @@ export async function handleTelegramAgentTurn(env, body, deps) {
   await result.completed;
 
   // Resolve the text we send back. Priority mirrors the SSE wrapper:
-  //   1. Cards rendered → for Phase 1 we don't have inline keyboards, so
-  //      surface the post-tool buffered prose if present, else a generic
-  //      acknowledgement that lists items in plain text.
+  //   1. Cards rendered → return just the post-tool prose (or empty); the
+  //      caller renders each card as its own message with inline keyboards.
   //   2. Buffered post-tool text after no cards → flush it.
   //   3. Live-streamed text → use it.
   //   4. Fallback to message_output_created assembly.
   //   5. Last-resort: tool output's response/message field.
   let text;
   if (cards.length) {
-    // Phase 1: list card items in text form so the user sees them in
-    // Telegram even without inline keyboards.
-    const lines = [];
-    if (postToolBuffer) lines.push(postToolBuffer.trim());
-    for (const c of cards) {
-      if (c.type === 'brand_matches') {
-        lines.push('Brand matches:');
-        for (const b of c.items.slice(0, 6)) {
-          const name = b.name || '?';
-          const cat = b.cat ? ` · ${b.cat}` : '';
-          const match = b.match ? ` (${b.match}% match)` : '';
-          const deal = b.deal ? ` — ${b.deal}` : '';
-          lines.push(`• ${name}${cat}${match}${deal}`);
-        }
-      } else if (c.type === 'pulse_ideas') {
-        lines.push('Content ideas:');
-        for (const i of c.items.slice(0, 6)) {
-          const title = i.title || i.t || '?';
-          const desc = i.desc || i.d || '';
-          lines.push(`• ${title}${desc ? ' — ' + desc : ''}`);
-        }
-      }
-    }
-    text = lines.join('\n');
+    text = (postToolBuffer || '').trim();
   } else if (postToolBuffer) {
     text = postToolBuffer.trim();
   } else if (liveText) {
