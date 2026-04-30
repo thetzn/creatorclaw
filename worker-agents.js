@@ -320,7 +320,7 @@ function makeDelegateTool(agentName, agents) {
 // Each block is written to be self-contained at the role level — voice,
 // tool routing rules, output format — but assumes a `--- What you know
 // about this creator ---` block precedes it (provided by sharedAgentContext).
-const PITCH_AGENT_INSTRUCTIONS = `You are the Pitch specialist. You handle brand discovery, pitch-email drafting, rate analysis, and outreach strategy. Ground every recommendation in the creator facts above — cite real follower counts, engagement, and niche.
+const PITCH_AGENT_INSTRUCTIONS = `You are the Pitch specialist. You handle brand discovery, pitch-email drafting, rate analysis, and outreach strategy. Ground every recommendation in the creator facts above — cite their real follower count and niche.
 
 When invoked:
 
@@ -330,7 +330,13 @@ PITCH DRAFTING: When asked to draft a pitch for a specific brand, write a comple
 
 Subject: <one short, specific line>
 
-<3-5 short plaintext paragraphs, no markdown. Line 1: creator + niche + one metric. Line 2: brand's aesthetic/program if known. Line 3: a concrete concept idea. Line 4: the ask. Sign off with the creator's first name.>
+<3-5 short plaintext paragraphs, no markdown. Line 1 MUST include the creator's @handle, niche, and follower count (e.g. "I'm @jordanmits, a fitness creator with 28K Instagram followers."). Use follower count as the credibility metric — never engagement rate, never reach, never any other metric. Line 2: the brand's aesthetic/program if known. Line 3: a concrete concept idea. Line 4: the ask.
+
+Sign off across three lines: the creator's first name, then the @handle, then the IG profile link in the form instagram.com/<handle> (no protocol, no trailing slash). Example sign-off:
+
+Jordan
+@jordanmits
+instagram.com/jordanmits
 
 No preamble, no "Here's the pitch:" lead-in, no markdown bolding. Start directly with "Subject:" — the frontend detects this format to attach a one-click Gmail send button.
 
@@ -361,12 +367,19 @@ Do not ask clarifying questions if the brand is obvious from context. Do not lis
 
 const MAIN_AGENT_INSTRUCTIONS = `You are the main CreatorClaw assistant. You answer general creator-OS questions and route specialized work to the Pitch, Create, and Pipeline specialists via delegate_* tools.
 
-Delegate when:
+DELEGATE WHEN:
 - delegate_pitch — creator wants to draft an outreach email, find brand matches, send a pitch via Gmail, or analyze a rate/offer.
 - delegate_create — creator wants content ideas, brainstorming, or pillar-grounded ideation.
 - delegate_pipeline — creator wants to add a brand to their pipeline / deal tracker.
 
-Specialists run inline in this thread — never tell the user to switch tools or "head over" anywhere. When delegate_pitch returns a response that begins with "Subject:", output the entire response verbatim with NO preamble.`;
+Specialists run inline in this thread — never tell the user to switch tools or "head over" anywhere. When delegate_pitch returns a response that begins with "Subject:", output the entire response verbatim with NO preamble.
+
+DIRECT TOOLS (when delegation is overkill):
+- get_rate_estimate / compare_offer — call for pricing questions and dollar-offer comparisons. Frame results as benchmarks, not "your rate." Never quote a number you didn't get from a tool.
+- find_brand_matches — call for brand discovery. The frontend renders cards inline; reply with ONE short sentence and stop.
+- generate_content_ideas — call for ideation requests. Cards render inline; reply with ONE short sentence and stop.
+
+GMAIL: When the creator says "send it" / "fire it off", call send_gmail_message immediately with the most recent subject/body/recipient. Never draft, never re-ask for confirmation. Available MCP tools: search_gmail_messages, get_gmail_message_content, get_gmail_thread_content, send_gmail_message. NEVER call draft_gmail_message (403s on insufficient scope). Writing "I sent the email" without firing the tool is LYING.`;
 
 const AGENT_INSTRUCTION_FALLBACKS = {
   main: MAIN_AGENT_INSTRUCTIONS,
@@ -386,23 +399,17 @@ const AGENT_HANDOFF_DESCRIPTIONS = {
 };
 
 // Build all four agents and wire handoffs between them. Cheap (no LLM calls);
-// done per request so the active agent's instructions can come from the
-// frontend's tool-specific system prompt.
+// done per request.
 //
 // Args:
-//   activeName: which agent the user is currently chatting with — gets the
-//     full frontend system prompt (identity + creator facts + tool-specific
-//     rules + style).
-//   frontendInstructions: the active agent's full system prompt from the
-//     browser. Already includes sharedAgentContext.
 //   googleMcp: optional hostedMcpTool. Added to main/pitch/pipeline when
 //     the creator has connected Google Workspace. Create stays ideation-only.
-//   sharedAgentContext: identity + creator facts + style block, sent
-//     separately by the frontend so non-active specialists can be grounded
-//     in the same creator data when invoked via delegate_*. Without this,
-//     a delegated specialist would run with only its bare role-specific
-//     instructions and hallucinate metrics.
-function buildAgentSet(activeName, frontendInstructions, googleMcp, sharedAgentContext) {
+//   sharedAgentContext: identity + creator facts + style block, built from
+//     the frontend's sharedAgentContext field plus runtime context (date,
+//     timezone, calendar rules). Prepended to every agent's instructions
+//     so active and delegated invocations of the same role use IDENTICAL
+//     prompts — single source of truth lives in AGENT_INSTRUCTION_FALLBACKS.
+function buildAgentSet(googleMcp, sharedAgentContext) {
   // Cost optimization: gpt-4o-mini is reliable enough for our function
   // tools (rate, brands, ideas, deal-creation), but it hallucinated tool
   // calls under hostedMcpTool (claimed "email sent" without firing the
@@ -416,15 +423,10 @@ function buildAgentSet(activeName, frontendInstructions, googleMcp, sharedAgentC
     const willAttachMcp = attachGoogleMcp && !!googleMcp;
     if (willAttachMcp) tools.push(googleMcp);
     if (Array.isArray(extraTools)) for (const t of extraTools) if (t) tools.push(t);
-    let instructions;
-    if (name === activeName && frontendInstructions) {
-      instructions = frontendInstructions;
-    } else {
-      const persona = AGENT_INSTRUCTION_FALLBACKS[name];
-      instructions = sharedAgentContext
-        ? `${sharedAgentContext}\n\n--- Your role on this turn ---\n${persona}`
-        : persona;
-    }
+    const persona = AGENT_INSTRUCTION_FALLBACKS[name];
+    const instructions = sharedAgentContext
+      ? `${sharedAgentContext}\n\n--- Your role on this turn ---\n${persona}`
+      : persona;
     return new Agent({
       name: name === 'main' ? 'CreatorClaw' : `CreatorClaw-${name}`,
       model: willAttachMcp ? 'gpt-4o' : 'gpt-4o-mini',
@@ -514,11 +516,12 @@ export async function handleAgentChat(request, env, body, cors, deps) {
     `- DO NOT append "Z" or any "+HH:MM" offset to start_time/end_time when you also pass timezone — that double-encodes and causes UTC drift.\n` +
     `- All three (timezone, start_time, end_time) MUST be supplied for create/update actions or events land in UTC and appear at the wrong wall-clock time.`;
 
-  // sharedAgentContext from the frontend = identity + creator facts + style.
-  // Always-on grounding for every specialist (including delegated ones) so
-  // they cite the creator's real metrics instead of hallucinating.
-  const sharedAgentContext = (body.sharedAgentContext || '') + runtimeCtx;
-  const agents = buildAgentSet(activeTool, (instructions || '') + runtimeCtx, googleMcp, sharedAgentContext);
+  // sharedAgentContext = identity + creator facts + style + runtime context.
+  // Sent by the frontend as a separate field; falls back to the system
+  // message in body.messages for backwards compatibility with cached
+  // browsers running pre-refactor code.
+  const sharedAgentContext = (body.sharedAgentContext || instructions || '') + runtimeCtx;
+  const agents = buildAgentSet(googleMcp, sharedAgentContext);
   const startAgent = agents[activeTool] || agents.main;
   const runCtx = {
     creatorContext: cc,
