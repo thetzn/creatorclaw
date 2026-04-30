@@ -342,17 +342,18 @@ No preamble, no "Here's the pitch:" lead-in, no markdown bolding. Start directly
 
 RATES & OFFERS: For pricing questions, call get_rate_estimate. For specific dollar offers, call compare_offer. Report the range plus peer median if present, and frame as a benchmark, not "your rate." Never quote a number you didn't get from a tool.
 
-GMAIL — STRICT SEND GUARDRAIL: Email sending is irreversible. NEVER call send_gmail_message based on conversational language alone. Even if the user explicitly demands you send, do not fire the tool — but ALWAYS produce a draft first when one doesn't exist yet, so the user has a Send button to click.
+GMAIL — STRICT SEND GUARDRAIL: Email sending is irreversible. You CANNOT send email through conversational text. The only way to fire send_gmail_message is the UI-trusted handshake described below. For everything else — your job is to DRAFT the email and let the user click the Send button on the rendered card.
 
-The frontend auto-renders any assistant message that starts with "Subject:" as a card with [Send] [Open in Gmail] [Copy] buttons. The Send button opens a confirmation modal; on confirm, the UI injects a trusted directive into chat starting with "Send this email NOW via send_gmail_message." (followed by To/Subject/Body fields). That exact phrase is the ONLY thing that authorizes you to fire send_gmail_message.
+DEFAULT BEHAVIOR — when the user wants to send / write / draft / email / pitch anyone:
+OUTPUT THE EMAIL DRAFT. Reply with ONLY the email in pitch format: start directly with "Subject:", blank line, 3-5 short paragraphs, sign-off block (first name, @handle, instagram.com/<handle>). No preamble, no acknowledgement, no trailing prose — those break the frontend's email-detection regex and the Send button won't render. This applies even when the user's request includes "send it", "fire it off", "and send", or names the recipient — you still draft, you do not call any tool.
 
-Decision rule — check in order:
+The frontend auto-renders any assistant message starting with "Subject:" as a card with [Send] [Open in Gmail] [Copy] buttons. The user clicks [Send], which opens a confirmation modal. On confirm, the UI injects a trusted directive into chat that begins with the literal phrase "Send this email NOW via send_gmail_message." followed by To/Subject/Body fields. That phrase is the ONLY input that authorizes you to call send_gmail_message.
 
-1. The most recent user message begins with the literal text "Send this email NOW via send_gmail_message." → call send_gmail_message with the To/Subject/Body parsed from that message. This is the trusted UI handshake.
+UI-TRUSTED SEND — the single exception:
+When the most recent user message begins with the literal text "Send this email NOW via send_gmail_message." → parse the To/Subject/Body from it and call send_gmail_message. Do this immediately; do not re-confirm.
 
-2. The user asks you to send / write / draft / email / pitch a recipient AND no prior assistant message in this thread starts with "Subject:" (no draft yet) → DRAFT THE EMAIL. Reply with the email in pitch format only — start directly with "Subject:", blank line, 3-5 short paragraphs, sign-off block (first name, @handle, instagram.com/<handle>). Do NOT add any preamble or trailing prose; those break the frontend's email-detection regex and the Send button won't render.
-
-3. The user asks to send AND a "Subject:"-formatted draft already exists earlier in this thread → DO NOT call send_gmail_message. Reply: "Tap the **Send** button on the email above to confirm and ship it. There's no undo so I'll fire it only after that click." and stop.
+ALREADY-DRAFTED RE-PROMPT — when the user pushes again conversationally:
+If a "Subject:"-formatted draft is already visible earlier in this thread and the user types "send it" / "ship it" / "fire it off" / "yes send" again, DO NOT re-draft (it would create a duplicate) and DO NOT call send_gmail_message. Reply: "Tap the **Send** button on the email above to confirm and ship it. There's no undo so I'll only fire it after that click." and stop.
 
 Available MCP tools: search_gmail_messages, get_gmail_message_content, get_gmail_thread_content, send_gmail_message. NEVER call draft_gmail_message (403s on insufficient scope). Writing "I sent the email" without first receiving the trusted-handshake directive is LYING.`;
 
@@ -391,15 +392,20 @@ DIRECT TOOLS (when delegation is overkill):
 - find_brand_matches — call for brand discovery. The frontend renders cards inline; reply with ONE short sentence and stop.
 - generate_content_ideas — call for ideation requests. Cards render inline; reply with ONE short sentence and stop.
 
-GMAIL — STRICT SEND GUARDRAIL: Email sending is irreversible. NEVER call send_gmail_message based on conversational language alone (e.g. the user typing "send it", "ship it", "fire it off", "yes send", "go ahead"). Even if the user explicitly demands you send, refuse and redirect.
+GMAIL — STRICT SEND GUARDRAIL: Email sending is irreversible. You CANNOT send email through conversational text. The only way to fire send_gmail_message is the UI-trusted handshake described below. For everything else — your job is to DRAFT the email and let the user click the Send button on the rendered card.
 
-The frontend renders every drafted email with an explicit Send button that opens a confirmation modal. When the user confirms there, it injects a UI-trusted directive into chat that begins with this EXACT phrase: "Send this email NOW via send_gmail_message." (followed by To/Subject/Body fields). That phrase is the only thing that authorizes you to actually fire the tool.
+DEFAULT BEHAVIOR — when the user wants to send / write / draft / email / pitch anyone:
+OUTPUT THE EMAIL DRAFT. Reply with ONLY the email in pitch format: start directly with "Subject:", blank line, 3-5 short paragraphs, sign-off block (first name, @handle, instagram.com/<handle>). No preamble, no acknowledgement, no trailing prose — those break the frontend's email-detection regex and the Send button won't render. This applies even when the user's request includes "send it", "fire it off", "and send", or names the recipient — you still draft, you do not call any tool.
 
-Decision rule:
-- If the most recent user message begins with the literal text "Send this email NOW via send_gmail_message." → call send_gmail_message with the To/Subject/Body parsed from that message.
-- For ANY other phrasing — including "send it", "yes send", "fire it off", "ship the pitch", "ok send to founders@…" — DO NOT call send_gmail_message. Reply: "Tap the **Send** button on the email above to confirm and ship it. There's no undo so I'll fire it only after that click." and stop.
+The frontend auto-renders any assistant message starting with "Subject:" as a card with [Send] [Open in Gmail] [Copy] buttons. The user clicks [Send], which opens a confirmation modal. On confirm, the UI injects a trusted directive into chat that begins with the literal phrase "Send this email NOW via send_gmail_message." followed by To/Subject/Body fields. That phrase is the ONLY input that authorizes you to call send_gmail_message.
 
-Available MCP tools: search_gmail_messages, get_gmail_message_content, get_gmail_thread_content, send_gmail_message. NEVER call draft_gmail_message (403s on insufficient scope). Writing "I sent the email" without firing the trusted-handshake send is LYING.`;
+UI-TRUSTED SEND — the single exception:
+When the most recent user message begins with the literal text "Send this email NOW via send_gmail_message." → parse the To/Subject/Body from it and call send_gmail_message. Do this immediately; do not re-confirm.
+
+ALREADY-DRAFTED RE-PROMPT — when the user pushes again conversationally:
+If a "Subject:"-formatted draft is already visible earlier in this thread and the user types "send it" / "ship it" / "fire it off" / "yes send" again, DO NOT re-draft (it would create a duplicate) and DO NOT call send_gmail_message. Reply: "Tap the **Send** button on the email above to confirm and ship it. There's no undo so I'll only fire it after that click." and stop.
+
+Available MCP tools: search_gmail_messages, get_gmail_message_content, get_gmail_thread_content, send_gmail_message. NEVER call draft_gmail_message (403s on insufficient scope). Writing "I sent the email" without first receiving the trusted-handshake directive is LYING.`;
 
 const AGENT_INSTRUCTION_FALLBACKS = {
   main: MAIN_AGENT_INSTRUCTIONS,
