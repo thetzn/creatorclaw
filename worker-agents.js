@@ -310,23 +310,68 @@ function makeDelegateTool(agentName, agents) {
   });
 }
 
-// Static instructions for the pipeline specialist. Used when invoked as a
-// tool by another agent. The instructions tell it to act fast — one tool
-// call, one short confirmation — so delegations don't drag the conversation
-// off-topic.
-const PIPELINE_AGENT_INSTRUCTIONS = `You are CreatorClaw's Pipeline specialist. You manage the creator's deal flow (creator_deals table). You are invoked as a tool by other agents — typically when the creator wants to track a brand they're pitching.
+// Specialist instruction blocks. Used in two paths:
+//   1. As fallback when an agent runs as the active tool but the frontend
+//      didn't send a tool-specific instructions string.
+//   2. Always when an agent is invoked via delegate_<name> from another
+//      agent — concatenated with sharedAgentContext (creator facts +
+//      identity) so the specialist isn't a bare LLM with a tool list.
+//
+// Each block is written to be self-contained at the role level — voice,
+// tool routing rules, output format — but assumes a `--- What you know
+// about this creator ---` block precedes it (provided by sharedAgentContext).
+const PITCH_AGENT_INSTRUCTIONS = `You are the Pitch specialist. You handle brand discovery, pitch-email drafting, rate analysis, and outreach strategy. Ground every recommendation in the creator facts above — cite real follower counts, engagement, and niche.
+
+When invoked:
+
+BRAND DISCOVERY: If asked for brand matches or "more brands like X", call find_brand_matches with theme + count + exclude. After it returns, reply with ONE short sentence — the frontend renders cards inline. Do not list brand names in prose.
+
+PITCH DRAFTING: When asked to draft a pitch for a specific brand, write a complete cold-outreach email in the creator's authentic voice, formatted EXACTLY:
+
+Subject: <one short, specific line>
+
+<3-5 short plaintext paragraphs, no markdown. Line 1: creator + niche + one metric. Line 2: brand's aesthetic/program if known. Line 3: a concrete concept idea. Line 4: the ask. Sign off with the creator's first name.>
+
+No preamble, no "Here's the pitch:" lead-in, no markdown bolding. Start directly with "Subject:" — the frontend detects this format to attach a one-click Gmail send button.
+
+RATES & OFFERS: For pricing questions, call get_rate_estimate. For specific dollar offers, call compare_offer. Report the range plus peer median if present, and frame as a benchmark, not "your rate." Never quote a number you didn't get from a tool.
+
+GMAIL: When the creator says "send it" / "fire it off", call send_gmail_message immediately with the most recent subject/body/recipient — never draft, never re-ask for confirmation. Available MCP tools: search_gmail_messages, get_gmail_message_content, get_gmail_thread_content, send_gmail_message. NEVER call draft_gmail_message (403s on insufficient scope). Writing "I sent the email" without firing the tool is LYING.`;
+
+const CREATE_AGENT_INSTRUCTIONS = `You are the Create specialist. You handle content ideation, format experimentation, and pillar-aligned brainstorming. Ground every suggestion in the creator's pillars, vibes, and recent themes above.
+
+When invoked:
+
+IDEATION: If asked for ideas / brainstorming / what to post, call generate_content_ideas with theme + count. Reply with ONE short sentence — the frontend renders cards inline. Do not list ideas in prose.
+
+REFINEMENT: If asked to riff on a previous batch ("more like #2", "different angle"), call generate_content_ideas again with a refined theme. Build on the prior batch, don't restart from scratch.
+
+QUICK QUESTIONS: For single-shot questions ("what hook should I open with?"), answer directly without tools, grounded in their pillars and recent themes.
+
+Specifics over generics — concrete formats the creator can ship today, not abstract advice. Match their voice (vibes + bio).`;
+
+const PIPELINE_AGENT_INSTRUCTIONS = `You are the Pipeline specialist. You manage the creator's deal flow (creator_deals table). You're invoked as a tool by other agents — typically when the creator wants to track a brand they're pitching.
 
 When called:
 1. Look at the most recent brand context in the conversation (cards rendered, brand mentioned, pitch drafted).
-2. Call create_outreach_deal with the brand_name and any other fields you can infer.
+2. Call create_outreach_deal with brand_name and any other fields you can infer.
 3. Reply in ONE short sentence confirming what you did (e.g. "Added Faherty to your Outreach column.").
 
 Do not ask clarifying questions if the brand is obvious from context. Do not list the deal details — the kanban view shows them.`;
 
+const MAIN_AGENT_INSTRUCTIONS = `You are the main CreatorClaw assistant. You answer general creator-OS questions and route specialized work to the Pitch, Create, and Pipeline specialists via delegate_* tools.
+
+Delegate when:
+- delegate_pitch — creator wants to draft an outreach email, find brand matches, send a pitch via Gmail, or analyze a rate/offer.
+- delegate_create — creator wants content ideas, brainstorming, or pillar-grounded ideation.
+- delegate_pipeline — creator wants to add a brand to their pipeline / deal tracker.
+
+Specialists run inline in this thread — never tell the user to switch tools or "head over" anywhere. When delegate_pitch returns a response that begins with "Subject:", output the entire response verbatim with NO preamble.`;
+
 const AGENT_INSTRUCTION_FALLBACKS = {
-  main: 'You are CreatorClaw, a helpful creator-OS assistant.',
-  create: 'You are CreatorClaw\'s Create agent. Focus on content ideation.',
-  pitch: 'You are CreatorClaw\'s Pitch agent. Focus on brand discovery and outreach.',
+  main: MAIN_AGENT_INSTRUCTIONS,
+  create: CREATE_AGENT_INSTRUCTIONS,
+  pitch: PITCH_AGENT_INSTRUCTIONS,
   pipeline: PIPELINE_AGENT_INSTRUCTIONS,
 };
 
@@ -344,11 +389,20 @@ const AGENT_HANDOFF_DESCRIPTIONS = {
 // done per request so the active agent's instructions can come from the
 // frontend's tool-specific system prompt.
 //
-// `googleMcp` is an optional hostedMcpTool instance. When the creator has
-// connected Google Workspace, it's added to main / pitch / pipeline tool
-// lists alongside the regular function tools. Create stays focused on
-// ideation.
-function buildAgentSet(activeName, frontendInstructions, googleMcp) {
+// Args:
+//   activeName: which agent the user is currently chatting with — gets the
+//     full frontend system prompt (identity + creator facts + tool-specific
+//     rules + style).
+//   frontendInstructions: the active agent's full system prompt from the
+//     browser. Already includes sharedAgentContext.
+//   googleMcp: optional hostedMcpTool. Added to main/pitch/pipeline when
+//     the creator has connected Google Workspace. Create stays ideation-only.
+//   sharedAgentContext: identity + creator facts + style block, sent
+//     separately by the frontend so non-active specialists can be grounded
+//     in the same creator data when invoked via delegate_*. Without this,
+//     a delegated specialist would run with only its bare role-specific
+//     instructions and hallucinate metrics.
+function buildAgentSet(activeName, frontendInstructions, googleMcp, sharedAgentContext) {
   // Cost optimization: gpt-4o-mini is reliable enough for our function
   // tools (rate, brands, ideas, deal-creation), but it hallucinated tool
   // calls under hostedMcpTool (claimed "email sent" without firing the
@@ -362,9 +416,15 @@ function buildAgentSet(activeName, frontendInstructions, googleMcp) {
     const willAttachMcp = attachGoogleMcp && !!googleMcp;
     if (willAttachMcp) tools.push(googleMcp);
     if (Array.isArray(extraTools)) for (const t of extraTools) if (t) tools.push(t);
-    const instructions = name === activeName && frontendInstructions
-      ? frontendInstructions
-      : AGENT_INSTRUCTION_FALLBACKS[name];
+    let instructions;
+    if (name === activeName && frontendInstructions) {
+      instructions = frontendInstructions;
+    } else {
+      const persona = AGENT_INSTRUCTION_FALLBACKS[name];
+      instructions = sharedAgentContext
+        ? `${sharedAgentContext}\n\n--- Your role on this turn ---\n${persona}`
+        : persona;
+    }
     return new Agent({
       name: name === 'main' ? 'CreatorClaw' : `CreatorClaw-${name}`,
       model: willAttachMcp ? 'gpt-4o' : 'gpt-4o-mini',
@@ -454,7 +514,11 @@ export async function handleAgentChat(request, env, body, cors, deps) {
     `- DO NOT append "Z" or any "+HH:MM" offset to start_time/end_time when you also pass timezone — that double-encodes and causes UTC drift.\n` +
     `- All three (timezone, start_time, end_time) MUST be supplied for create/update actions or events land in UTC and appear at the wrong wall-clock time.`;
 
-  const agents = buildAgentSet(activeTool, (instructions || '') + runtimeCtx, googleMcp);
+  // sharedAgentContext from the frontend = identity + creator facts + style.
+  // Always-on grounding for every specialist (including delegated ones) so
+  // they cite the creator's real metrics instead of hallucinating.
+  const sharedAgentContext = (body.sharedAgentContext || '') + runtimeCtx;
+  const agents = buildAgentSet(activeTool, (instructions || '') + runtimeCtx, googleMcp, sharedAgentContext);
   const startAgent = agents[activeTool] || agents.main;
   const runCtx = {
     creatorContext: cc,

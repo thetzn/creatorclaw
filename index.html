@@ -2623,7 +2623,11 @@ function pushInlineSignin(){
   `);
 }
 
-function buildSystemPrompt(){
+// Identity + custom persona + creator facts + style. Sent separately to the
+// Worker so every specialist agent (active or delegated-as-tool) gets the
+// same grounding — without it, delegated specialists fall back to bare
+// one-liner instructions and lose the creator context entirely.
+function buildSharedAgentContext(){
   const p = state.persona || {};
   const d = state.igData || {};
   const name = p.name || d.displayName || d.username || 'the creator';
@@ -2666,6 +2670,11 @@ function buildSystemPrompt(){
 
   parts.push(`\n--- Style ---`);
   parts.push(`Use the data above freely when answering questions about their audience, performance, or strategy. Cite specific numbers and themes rather than speaking generically. When drafting content, match their voice (vibes + content pillars). Keep responses concise unless the user asks for detail. Only say you don't have certain data if the specific metric they asked about isn't listed above.`);
+  return parts.join('\n');
+}
+
+function buildSystemPrompt(){
+  const parts = [buildSharedAgentContext()];
   parts.push(`\n--- Pitch format (important) ---`);
   parts.push(`When drafting ANY pitch, cold email, outreach, brand introduction, or sponsor DM, you MUST format the response exactly as:\n\nSubject: <short specific subject line>\n\n<email body in 3-5 short paragraphs, plaintext, no markdown, signed with creator's first name>\n\nThe UI detects this format to offer a one-click "Open in Gmail" button, so do not wrap it in quotes, code fences, or explanatory prose. If the user asks a question ABOUT a pitch (critique, tweak, compare), answer naturally and don't use the Subject: format.`);
   parts.push(`\n--- Rate tools (use for any pricing question) ---`);
@@ -2812,7 +2821,7 @@ async function sendChatMessage(){
     const res = await fetch(PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stream: true, messages: apiMessages, temperature: 0.7, creatorContext, tool: chatState.activeTool || 'main' }),
+      body: JSON.stringify({ stream: true, messages: apiMessages, temperature: 0.7, creatorContext, sharedAgentContext: buildSharedAgentContext(), tool: chatState.activeTool || 'main' }),
       signal: chatState.abortController.signal
     });
     if(!res.ok){
