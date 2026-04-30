@@ -354,6 +354,10 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 .persona-desc{color:var(--muted);font-size:13px;line-height:1.7;margin-bottom:16px;max-width:480px}
 .vibe-tags{display:flex;gap:6px;flex-wrap:wrap}
 .persona-refresh{margin-top:14px;font-size:11px;color:var(--muted);letter-spacing:0.04em}
+.media-kit-btn{position:absolute;top:18px;right:18px;display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--gold-border);border-radius:8px;padding:8px 12px;color:var(--gold);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-family:inherit;transition:all 0.18s ease}
+.media-kit-btn:hover{background:var(--gold);color:var(--bg);border-color:var(--gold)}
+.media-kit-btn svg{width:13px;height:13px;flex-shrink:0}
+@media(max-width:640px){.media-kit-btn{position:static;margin-top:14px;width:100%;justify-content:center;padding:11px 12px}}
 .vibe-tag{background:transparent;color:var(--muted);border-radius:4px;padding:4px 12px;font-size:10px;font-weight:500;border:1px solid var(--border2);letter-spacing:0.08em;text-transform:uppercase}
 
 .stat-card{background:var(--card);border-radius:10px;padding:20px;border:1px solid var(--border);position:relative;overflow:hidden;transition:transform 0.3s,border-color 0.3s}
@@ -806,7 +810,15 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <span style="color:var(--green)">✓</span> <span id="saved-banner-text">Persona saved to your account</span>
       <button onclick="signOut()" style="float:right;background:transparent;border:none;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline">Sign out</button>
     </div>
-    <div class="card persona-header" style="margin-bottom:20px">
+    <div class="card persona-header" style="margin-bottom:20px;position:relative">
+      <button class="media-kit-btn" id="media-kit-btn" onclick="downloadMediaKit()" title="Download media kit (PDF)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>Media Kit</span>
+      </button>
       <div class="persona-avatar">JM</div>
       <div class="persona-bio">
         <div class="persona-name"><h2>Jordan Mitchell</h2><svg class="verified-badge hidden" viewBox="0 0 40 40" aria-label="Verified"><path fill="#0095F6" d="M19.998 3.094 14.638 0l-2.972 5.15H5.432v6.354L0 14.64 3.096 20 0 25.359l5.432 3.137v5.905h5.975L14.638 40l5.36-3.094L25.358 40l3.232-5.6h6.162v-6.01L40 25.359 36.04 20 40 14.641l-5.248-3.03v-6.46h-6.419L25.358 0z"/><path fill="#fff" d="M16.49 27.456 8.823 19.79l2.69-2.69 4.978 4.978 11.713-11.713 2.69 2.69z"/></svg></div>
@@ -3086,6 +3098,198 @@ async function chatLLM(systemPrompt, userPrompt){
   return data.choices[0].message.content;
 }
 
+// ── Media kit PDF export ─────────────────────────────────────────────────────
+// Builds a single-page PDF from state.persona + state.igData using jsPDF
+// (loaded as <script>). Used by:
+//   - Analytics tab "Download Media Kit" button
+//   - Pitch email draft "Attach media kit" button (downloads locally so the
+//     creator can attach it from their Gmail compose / mail client)
+async function downloadMediaKit(opts = {}){
+  const p = state.persona || {};
+  const d = state.igData || {};
+  if(!p.name && !d.username){
+    showError('Generate your persona first, then export the media kit.');
+    return;
+  }
+  const lib = window.jspdf;
+  if(!lib || !lib.jsPDF){
+    showError('PDF library still loading — try again in a sec.');
+    return;
+  }
+  const doc = new lib.jsPDF({ unit: 'mm', format: 'letter' });
+  const W = 215.9, H = 279.4;
+  const M = 20;  // margin
+  const GOLD = [201, 169, 110];
+  const TEXT = [25, 25, 25];
+  const MUTED = [120, 120, 120];
+
+  // Top accent bar
+  doc.setFillColor(...GOLD);
+  doc.rect(0, 0, W, 4, 'F');
+
+  // Avatar (top-right) — embed if we have a data URL from the IG scrape.
+  const avatar = d.profilePicData || null;
+  if(avatar){
+    try {
+      const fmt = avatar.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+      doc.addImage(avatar, fmt, W - M - 28, 22, 28, 28);
+    } catch(e){ console.warn('media-kit avatar embed failed', e); }
+  }
+
+  // Header
+  let y = 32;
+  const name = p.name || d.displayName || d.username || 'Creator';
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(28);
+  doc.setTextColor(...TEXT);
+  doc.text(name, M, y);
+  y += 7;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  doc.setTextColor(...MUTED);
+  const handle = d.username ? '@' + String(d.username).replace(/^@/, '') : '';
+  const tier = p.tier ? '  ·  ' + p.tier : '';
+  doc.text(handle + tier, M, y);
+  y += 14;
+
+  // Bio
+  const bio = p.bio || d.bio || '';
+  if(bio){
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(60, 60, 60);
+    const lines = doc.splitTextToSize(bio, W - 2*M);
+    doc.text(lines, M, y);
+    y += lines.length * 5 + 6;
+  }
+
+  // Vibes
+  const vibes = (p.vibes || []).slice(0, 8);
+  if(vibes.length){
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text('VOICE', M, y);
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(...TEXT);
+    doc.text(vibes.join('  ·  '), M, y);
+    y += 10;
+  }
+
+  // Divider
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.2);
+  doc.line(M, y, W - M, y);
+  y += 8;
+
+  // Stats grid (2 cols × 2 rows)
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...MUTED);
+  doc.text('STATS', M, y);
+  y += 5;
+  const stats = [
+    { label: 'FOLLOWERS', val: p.totalReach || d.followers || '—' },
+    { label: 'ENGAGEMENT', val: p.avgEngagement || d.engagementRate || '—' },
+    { label: 'POSTS', val: d.totalPosts || '—' },
+    { label: 'GROWTH', val: p.growthRate || '—' },
+  ];
+  const colW = (W - 2*M) / 2;
+  for(let i = 0; i < stats.length; i++){
+    const col = i % 2, row = Math.floor(i / 2);
+    const x = M + col * colW;
+    const ry = y + row * 16;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(...TEXT);
+    doc.text(String(stats[i].val), x, ry + 5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...MUTED);
+    doc.text(stats[i].label, x, ry + 10);
+  }
+  y += 36;
+
+  // Content Pillars
+  const pillars = p.pillars || [];
+  if(pillars.length){
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text('CONTENT PILLARS', M, y);
+    y += 6;
+    for(const item of pillars){
+      const label = (typeof item === 'string') ? item : (item.l || item.label || '');
+      const pct = (typeof item === 'object') ? Number(item.p) : null;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.setTextColor(...TEXT);
+      doc.text(label, M, y);
+      if(pct != null && !isNaN(pct)){
+        doc.setTextColor(...MUTED);
+        doc.text(pct + '%', W - M, y, { align: 'right' });
+        // Progress bar
+        const barW = W - 2*M;
+        doc.setFillColor(235, 235, 235);
+        doc.rect(M, y + 2, barW, 1.5, 'F');
+        doc.setFillColor(...GOLD);
+        doc.rect(M, y + 2, barW * Math.max(0, Math.min(100, pct)) / 100, 1.5, 'F');
+      }
+      y += 8;
+    }
+    y += 4;
+  }
+
+  // Audience snapshot
+  const topAge = (p.age || []).slice().sort((a,b)=>(b.pct||0)-(a.pct||0))[0]?.age;
+  const topCity = (p.locations || [])[0]?.city;
+  if(topAge || topCity){
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text('AUDIENCE', M, y);
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(...TEXT);
+    const audBits = [];
+    if(topAge) audBits.push('Top age ' + topAge);
+    if(topCity) audBits.push('Top city ' + topCity);
+    doc.text(audBits.join('  ·  '), M, y);
+    y += 10;
+  }
+
+  // Recent themes
+  const themes = (d.recentThemes || []).slice(0, 8);
+  if(themes.length){
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text('RECENT THEMES', M, y);
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(...TEXT);
+    const themeLines = doc.splitTextToSize(themes.join(' · '), W - 2*M);
+    doc.text(themeLines, M, y);
+    y += themeLines.length * 4.5 + 4;
+  }
+
+  // Footer
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(160, 160, 160);
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  doc.text('Generated by CreatorClaw  ·  creatorclaw.co  ·  ' + today, M, H - 12);
+
+  const slug = String(name || 'creator').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const filename = (slug || 'creator') + '-media-kit.pdf';
+  doc.save(filename);
+  if(opts.toast){ showIntroToast('Media kit downloaded — attach it from your email compose window.'); }
+}
+
 function showError(msg){
   let t=document.querySelector('.error-toast');
   if(t) t.remove();
@@ -4210,6 +4414,15 @@ function maybeAttachGmailCta(bodyEl, fullText){
   gmailBtn.innerHTML = GMAIL_ICON_SVG + '<span>Open in Gmail</span>';
   gmailBtn.onclick = () => openGmailCompose({ subject: pitch.subject, body: pitch.body, to: '' });
 
+  // Attach media kit — generates the PDF locally and toasts the user to
+  // attach it from their Gmail compose window. send_gmail_message via MCP
+  // doesn't currently support attachments; this is the pragmatic path.
+  const attachBtn = document.createElement('button');
+  attachBtn.className = 'modal-cancel-btn';
+  attachBtn.style.cssText = 'padding:10px 14px;font-size:11px;display:inline-flex;align-items:center;gap:6px';
+  attachBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg><span>Attach media kit</span>';
+  attachBtn.onclick = () => downloadMediaKit({ toast: true });
+
   const copyBtn = document.createElement('button');
   copyBtn.className = 'modal-cancel-btn';
   copyBtn.style.cssText = 'padding:10px 14px;font-size:11px';
@@ -4221,6 +4434,7 @@ function maybeAttachGmailCta(bodyEl, fullText){
   };
   row.appendChild(sendBtn);
   row.appendChild(gmailBtn);
+  row.appendChild(attachBtn);
   row.appendChild(copyBtn);
   frame.appendChild(row);
 
