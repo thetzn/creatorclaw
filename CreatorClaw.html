@@ -353,6 +353,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 .verified-badge{width:18px;height:18px;flex-shrink:0;display:inline-block;vertical-align:middle}
 .persona-desc{color:var(--muted);font-size:13px;line-height:1.7;margin-bottom:16px;max-width:480px}
 .vibe-tags{display:flex;gap:6px;flex-wrap:wrap}
+.persona-refresh{margin-top:14px;font-size:11px;color:var(--muted);letter-spacing:0.04em}
 .vibe-tag{background:transparent;color:var(--muted);border-radius:4px;padding:4px 12px;font-size:10px;font-weight:500;border:1px solid var(--border2);letter-spacing:0.08em;text-transform:uppercase}
 
 .stat-card{background:var(--card);border-radius:10px;padding:20px;border:1px solid var(--border);position:relative;overflow:hidden;transition:transform 0.3s,border-color 0.3s}
@@ -802,6 +803,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
         <div class="persona-name"><h2>Jordan Mitchell</h2><svg class="verified-badge hidden" viewBox="0 0 40 40" aria-label="Verified"><path fill="#0095F6" d="M19.998 3.094 14.638 0l-2.972 5.15H5.432v6.354L0 14.64 3.096 20 0 25.359l5.432 3.137v5.905h5.975L14.638 40l5.36-3.094L25.358 40l3.232-5.6h6.162v-6.01L40 25.359 36.04 20 40 14.641l-5.248-3.03v-6.46h-6.419L25.358 0z"/><path fill="#fff" d="M16.49 27.456 8.823 19.79l2.69-2.69 4.978 4.978 11.713-11.713 2.69 2.69z"/></svg></div>
         <p class="persona-desc">Fitness enthusiast &amp; lifestyle creator sharing workouts, wellness tips, and daily inspo. Building a community around balanced, real living.</p>
         <div class="vibe-tags"><span class="vibe-tag">Aspirational</span><span class="vibe-tag">Warm Tones</span><span class="vibe-tag">High Energy</span><span class="vibe-tag">Relatable</span><span class="vibe-tag">Polished Casual</span><span class="vibe-tag">Motivational</span></div>
+        <div class="persona-refresh hidden" id="persona-refresh-label"></div>
       </div>
     </div>
     <div class="grid-4">
@@ -1471,6 +1473,71 @@ async function savePersona(igHandle, scrapedData, aiAnalysis){
   if(error) console.error('Save persona failed', error);
 }
 
+// ── Weekly IG refresh ────────────────────────────────────────────────────────
+// The persona "soul" (vibes/pillars/voice) is semi-stable, but raw IG data
+// (recent posts, follower count, themes) goes stale fast. Re-scrape on app
+// open if the saved row is older than a week. Persona analysis stays put;
+// we only sync recentThemes so the agent knows what's new. Fire-and-forget
+// so it never blocks the UI — failures fall back to the cached data and
+// retry next session.
+const PERSONA_REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+let _refreshIgInFlight = false;
+
+function refreshIgDataIfStale(saved){
+  if(!saved?.ig_handle) return;
+  const lastUpdate = saved.updated_at ? new Date(saved.updated_at).getTime() : 0;
+  if(Date.now() - lastUpdate < PERSONA_REFRESH_INTERVAL_MS) return;
+  refreshIgData(saved.ig_handle).catch(e => console.warn('[refresh] failed', e));
+}
+
+async function refreshIgData(handle){
+  if(_refreshIgInFlight) return;
+  _refreshIgInFlight = true;
+  try {
+    console.log('[refresh] scraping @' + handle);
+    const res = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ igScrape: true, handle })
+    });
+    if(!res.ok) throw new Error('scrape ' + res.status);
+    const data = await res.json();
+    const profile = parseJSON(data.choices[0].message.content);
+    // Sanity guard — don't overwrite with empty data (private / banned / 404).
+    if(!profile?.username || !profile?.followers) {
+      console.warn('[refresh] empty profile, keeping stale data');
+      return;
+    }
+    state.igData = profile;
+    // Persona stays — only sync recentThemes so the agent's system prompt
+    // picks up new content themes without losing the locked-in voice.
+    if(state.persona && Array.isArray(profile.recentThemes)){
+      state.persona = { ...state.persona, recentThemes: profile.recentThemes };
+    }
+    state.lastRefreshAt = new Date().toISOString();
+    await savePersona(handle, profile, state.persona);
+    // Re-render Analytics tab if it happens to be visible.
+    if(!document.getElementById('tab-persona')?.classList.contains('hidden')){
+      renderPersona(state.persona);
+    }
+    updateLastRefreshLabel();
+    console.log('[refresh] done');
+  } finally {
+    _refreshIgInFlight = false;
+  }
+}
+
+function updateLastRefreshLabel(){
+  const el = document.getElementById('persona-refresh-label');
+  if(!el) return;
+  if(state.lastRefreshAt){
+    el.textContent = `Updated ${timeAgo(state.lastRefreshAt)}`;
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
 async function loadLatestPersona(){
   const user = await getCurrentUser();
   if(!user) return null;
@@ -1596,15 +1663,20 @@ async function initAuth(){
       state.igData = saved.scraped_data;
       state.persona = saved.ai_analysis;
       state.personaGen = true;
+      state.lastRefreshAt = saved.updated_at || null;
       refreshUserAvatars();
       refreshAgentUI();
       // Pre-render persona tab (so tool link works without re-fetching)
       document.getElementById('persona-cta').classList.add('hidden');
       renderPersona(saved.ai_analysis);
+      updateLastRefreshLabel();
       const connectTab = document.querySelector('#nav .nav-btn[data-tab="connect"]');
       if(connectTab) connectTab.style.display = 'none';
       const savedText = document.getElementById('saved-banner-text');
       if(savedText) savedText.textContent = 'Loaded saved persona for @' + saved.ig_handle;
+      // Kick off a background re-scrape if the cached data is over a week
+      // old. Non-blocking — UI uses cached data until fresh data lands.
+      refreshIgDataIfStale(saved);
     } else {
       // Signed in but no persona — save pending if exists
       const pending = sessionStorage.getItem('pendingPersona');
