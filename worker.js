@@ -2904,9 +2904,15 @@ function buildSharedAgentContextServer(personaRow) {
   const ai = personaRow?.ai_analysis || {};
   const ig = personaRow?.scraped_data || {};
   const name = ai.name || ig.displayName || ig.username || 'the creator';
+  const agentName = personaRow?.agent_name || 'CreatorClaw';
+  const agentPersona = personaRow?.agent_persona || '';
   const parts = [
-    `You are CreatorClaw, a personal AI assistant for ${name}, an Instagram content creator. Be warm, direct, and actionable.`
+    `You are ${agentName}, a personal AI assistant for ${name}, an Instagram content creator. Be warm, direct, and actionable.`
   ];
+  if (agentPersona) {
+    parts.push(`\n--- Your persona (defined by ${name}; follow strictly) ---`);
+    parts.push(agentPersona);
+  }
   parts.push(`\n--- What you know about this creator ---`);
   if (ig.username) parts.push(`Instagram handle: @${String(ig.username).replace(/^@/, '')}`);
   if (ig.followers) parts.push(`Followers: ${ig.followers}`);
