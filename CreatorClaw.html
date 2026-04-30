@@ -726,6 +726,15 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <button class="nav-btn hidden" id="nav-accounts" data-tab="accounts" onclick="switchTab('accounts')">Connect</button>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
+      <button class="theme-toggle" id="bug-report-btn" onclick="openBugReport()" aria-label="Report a bug" title="Report a bug">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 2l1.5 1.5"/><path d="M16 2l-1.5 1.5"/>
+          <rect x="6" y="7" width="12" height="13" rx="6"/>
+          <path d="M12 7v13"/>
+          <path d="M3 13h3"/><path d="M3 9l3 1"/><path d="M3 17l3-1"/>
+          <path d="M21 13h-3"/><path d="M21 9l-3 1"/><path d="M21 17l-3-1"/>
+        </svg>
+      </button>
       <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>
       <div class="avatar" id="avatar-initials">CC</div>
     </div>
@@ -948,6 +957,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <div class="chat-context-badge" id="chat-context-badge" style="display:none"></div>
       <div class="chat-title" id="chat-active-title">New chat</div>
       <button class="chat-theme-toggle" onclick="openAgentSettings()" aria-label="Agent settings" title="Agent settings" style="margin-right:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      <button class="chat-theme-toggle" onclick="openBugReport()" aria-label="Report a bug" title="Report a bug" style="margin-right:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2l1.5 1.5"/><path d="M16 2l-1.5 1.5"/><rect x="6" y="7" width="12" height="13" rx="6"/><path d="M12 7v13"/><path d="M3 13h3"/><path d="M3 9l3 1"/><path d="M3 17l3-1"/><path d="M21 13h-3"/><path d="M21 9l-3 1"/><path d="M21 17l-3-1"/></svg></button>
       <button class="chat-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><svg id="chat-theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>
     </div>
     <div class="chat-messages" id="chat-messages">
@@ -1163,6 +1173,80 @@ function showModal(innerHTML){
 }
 function closeModal(){ const m=document.getElementById('active-modal'); if(m) m.remove(); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+// ── Bug reporter ─────────────────────────────────────────────────────────────
+// Opens a small modal with description + optional category. Captures runtime
+// context (URL, viewport, UA, current tool, IG handle, theme, signed-in user)
+// alongside the report so we can debug without a back-and-forth. RLS lets
+// signed-in or anon users insert; only the reporter can read their own row.
+function openBugReport(){
+  showModal(`
+    <div class="modal-title">Report a bug</div>
+    <div class="modal-sub">Quick note about what broke or felt off — we'll see what page you were on, your viewport, and current tool automatically.</div>
+    <div class="modal-label">Category</div>
+    <select id="bug-category" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;margin-bottom:18px;appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat">
+      <option value="ui">UI / layout glitch</option>
+      <option value="content">Wrong or hallucinated content</option>
+      <option value="data">Data / numbers look off</option>
+      <option value="feature">Missing feature / request</option>
+      <option value="other">Other</option>
+    </select>
+    <div class="modal-label">What happened?</div>
+    <textarea id="bug-description" rows="5" maxlength="4000" placeholder="The Pitch agent's brand cards overlap on mobile when I swipe…" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;line-height:1.55;outline:none;resize:vertical;margin-bottom:6px" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:18px">Up to 4000 characters. Sensitive content goes into the report — don't paste anything you wouldn't want us to see.</div>
+    <div class="modal-row">
+      <button class="modal-cancel-btn" type="button" onclick="closeModal()">Cancel</button>
+      <button class="modal-save-btn" type="button" id="bug-submit-btn" onclick="submitBugReport()">Send</button>
+    </div>
+  `);
+  setTimeout(()=>document.getElementById('bug-description')?.focus(), 50);
+}
+
+async function submitBugReport(){
+  const descEl = document.getElementById('bug-description');
+  const catEl = document.getElementById('bug-category');
+  const btn = document.getElementById('bug-submit-btn');
+  const description = (descEl?.value || '').trim();
+  if(!description){ descEl.style.borderColor='var(--red)'; return; }
+  if(btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
+
+  // Pull context that's hard to reconstruct from a free-text report.
+  let userId = null, email = null;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    userId = session?.user?.id || null;
+    email = session?.user?.email || null;
+  } catch {}
+  const context = {
+    url: location.href,
+    referrer: document.referrer || null,
+    viewport: { w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio || 1 },
+    userAgent: navigator.userAgent,
+    tool: chatState?.activeTool || null,
+    conversationId: chatState?.conversationId || null,
+    igHandle: state.igData?.username ? '@' + String(state.igData.username).replace(/^@/,'') : null,
+    theme: document.documentElement.getAttribute('data-theme') || 'dark',
+    ts: new Date().toISOString(),
+  };
+
+  const { error } = await sb.from('bug_reports').insert({
+    user_id: userId,
+    email,
+    description,
+    category: catEl?.value || 'other',
+    context,
+  });
+
+  if(error){
+    console.error('Bug submit failed', error);
+    if(btn){ btn.disabled = false; btn.textContent = 'Send'; }
+    descEl.style.borderColor = 'var(--red)';
+    showIntroToast("Couldn't send — " + (error.message || 'try again'));
+    return;
+  }
+  closeModal();
+  showIntroToast('Thanks — bug logged. We see it.');
+}
 
 function agentPersonaSuggestion(){
   const p = state.persona || {};
