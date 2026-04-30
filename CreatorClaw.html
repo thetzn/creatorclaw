@@ -607,7 +607,6 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 .intro-inner{max-width:500px;padding:0 32px;width:100%}
 .intro-splash{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:36px;opacity:0;transform:scale(0.96);transition:opacity 0.35s ease,transform 0.35s ease}
 .intro-splash.visible{opacity:1;transform:scale(1)}
-.intro-splash.faded{opacity:0;transform:scale(0.98)}
 .intro-splash .logo-mark{width:42px;height:26px}
 .intro-splash .logo-text{font-size:28px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
@@ -631,7 +630,6 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 @media(max-width:768px){.intro-splash .logo-text{font-size:22px}.intro-splash .logo-mark{width:34px;height:21px}.intro-form{flex-direction:column}.intro-form button{padding:16px 24px}.intro-by-vault{font-size:11px;bottom:24px}}
 .intro-by-vault{position:absolute;bottom:32px;left:50%;transform:translateX(-50%) scale(0.96);font-family:'Inter',sans-serif;font-size:12px;font-weight:500;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);opacity:0;transition:opacity 0.35s ease,transform 0.35s ease;pointer-events:none}
 .intro-by-vault.visible{opacity:1;transform:translateX(-50%) scale(1)}
-.intro-by-vault.faded{opacity:0;transform:translateX(-50%) scale(0.98)}
 
 .hidden{display:none}
 
@@ -969,24 +967,18 @@ function runIntro(){
   if(!splash || !connect) return;
   const img = splash.querySelector('img[data-crab-img]');
   if(img && typeof LOGO_DATA_URI !== 'undefined') img.src = LOGO_DATA_URI;
-  // Phase 1: fade splash + byline in together
+  // Phase 1: fade splash + byline in
   requestAnimationFrame(()=>{
     splash.classList.add('visible');
     byVault?.classList.add('visible');
   });
-  // Phase 2: hold 1.5s, then fade them out together
-  setTimeout(()=>{
-    splash.classList.remove('visible');
-    splash.classList.add('faded');
-    byVault?.classList.remove('visible');
-    byVault?.classList.add('faded');
-  }, 1850);  // 350ms fade-in + 1500ms hold
-  // Phase 3: fade connect in (slight overlap with splash fade-out)
+  // Phase 2: hold 1.5s, then fade auth/handle controls in below the splash.
+  // Splash and byline stay visible — no replacement, just additive reveal.
   setTimeout(()=>{
     connect.classList.add('visible');
     const inp = document.getElementById('intro-ig-input');
     if(inp) inp.focus();
-  }, 2100);
+  }, 1850);  // 350ms fade-in + 1500ms hold
 }
 
 function introAnalyze(){
