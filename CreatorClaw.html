@@ -209,7 +209,8 @@ body.logged-out #chat-view #chat-input{cursor:not-allowed}
 .chat-msg-body .inline-preview .is-locked{filter:blur(6px);pointer-events:none;user-select:none}
 /* Tighter brand cards when rendered inline in chat — default 28px padding is too airy here */
 .chat-msg-body .inline-brand-grid{margin-top:8px}
-.chat-msg-body .inline-brand-grid .brand-card{padding:14px}
+.chat-msg-body .inline-brand-grid .brand-card{padding:14px;display:flex;flex-direction:column}
+.chat-msg-body .inline-brand-grid .brand-footer{margin-top:auto}
 .chat-msg-body .inline-brand-grid .brand-head{margin-bottom:10px}
 .chat-msg-body .inline-brand-grid .brand-logo{width:32px;height:32px;border-radius:8px}
 .chat-msg-body .inline-brand-grid .brand-info{gap:10px}
@@ -228,9 +229,9 @@ body.logged-out #chat-view #chat-input{cursor:not-allowed}
 .chat-msg-body .inline-brand-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
 /* Mobile: brand cards swipe horizontally instead of stacking */
 @media(max-width:560px){
-  .chat-msg-body .inline-brand-grid{display:flex;grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;gap:10px;padding:2px 4px 8px;scrollbar-width:none}
+  .chat-msg-body .inline-brand-grid{display:flex;grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;gap:10px;padding:2px 16px 8px;scrollbar-width:none;align-items:stretch}
   .chat-msg-body .inline-brand-grid::-webkit-scrollbar{display:none}
-  .chat-msg-body .inline-brand-grid .brand-card{flex:0 0 82%;scroll-snap-align:start;min-width:260px}
+  .chat-msg-body .inline-brand-grid .brand-card{flex:0 0 86%;scroll-snap-align:center;min-width:260px}
 }
 .chat-msg-body .inline-signin{background:var(--card2);border:1px solid var(--gold-border);border-radius:12px;padding:22px 20px;text-align:center;margin-top:6px}
 .chat-msg-body .inline-signin h4{font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text);letter-spacing:0.01em}
@@ -413,19 +414,35 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 .pipeline-stat-label{font-size:10px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px}
 .pipeline-stat-val{font-size:22px;font-weight:700;color:var(--text);letter-spacing:-0.01em}
 .pipeline-board{display:grid;grid-template-columns:repeat(7,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:8px}
-.pipeline-col{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:280px}
+.pipeline-col{position:relative;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:280px;overflow:hidden}
+/* Stage accent — top gradient line, color-coded per stage so the board
+   reads as a progression instead of seven identical grey boxes. */
+.pipeline-col::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold-dim)}
+.pipeline-col[data-stage="inbound"]::before{background:linear-gradient(90deg,transparent,rgba(139,169,250,0.55),transparent)}
+.pipeline-col[data-stage="outreach"]::before{background:linear-gradient(90deg,transparent,var(--gold-dim),transparent)}
+.pipeline-col[data-stage="in_progress"]::before{background:linear-gradient(90deg,transparent,rgba(201,169,110,0.45),transparent)}
+.pipeline-col[data-stage="negotiating"]::before{background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.pipeline-col[data-stage="producing"]::before{background:linear-gradient(90deg,transparent,var(--gold2),transparent)}
+.pipeline-col[data-stage="awaiting_payment"]::before{background:linear-gradient(90deg,transparent,rgba(201,169,110,0.85),transparent);animation:pipeline-pulse 2.4s ease-in-out infinite}
+.pipeline-col[data-stage="closed"]::before{background:linear-gradient(90deg,transparent,var(--green),transparent)}
+@keyframes pipeline-pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 .pipeline-col-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;color:var(--muted);letter-spacing:0.14em;text-transform:uppercase;font-weight:600;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.pipeline-col[data-stage="negotiating"] .pipeline-col-head{color:var(--gold)}
+.pipeline-col[data-stage="awaiting_payment"] .pipeline-col-head{color:var(--gold2)}
+.pipeline-col[data-stage="closed"] .pipeline-col-head{color:var(--green)}
 .pipeline-col-count{background:var(--card);border-radius:999px;padding:2px 8px;font-size:10px;color:var(--text);letter-spacing:0;text-transform:none;font-weight:600}
-.pipeline-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:border-color 0.15s}
-.pipeline-card:hover{border-color:var(--border2)}
+.pipeline-col[data-stage="awaiting_payment"] .pipeline-col-count{background:var(--gold-dim);color:var(--gold)}
+.pipeline-col[data-stage="closed"] .pipeline-col-count{background:var(--green-dim);color:var(--green)}
+.pipeline-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:border-color 0.18s ease,box-shadow 0.18s ease,transform 0.18s ease}
+.pipeline-card:hover{border-color:var(--gold-border);box-shadow:0 2px 14px -4px rgba(201,169,110,0.25),0 0 0 1px var(--gold-border) inset;transform:translateY(-1px)}
 .pipeline-card-head{display:flex;align-items:center;gap:8px}
 .pipeline-card-logo{width:24px;height:24px;border-radius:5px;background:var(--card2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
 .pipeline-card-logo img{width:100%;height:100%;object-fit:cover;display:block}
 .pipeline-card-brand{font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
 .pipeline-card-meta{font-size:10px;color:var(--muted);letter-spacing:0.04em;display:flex;flex-wrap:wrap;gap:6px;line-height:1.5}
 .pipeline-card-meta .sep{opacity:0.5}
-.pipeline-card-amount{font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:5px}
-.pipeline-card-amount.confirmed{color:var(--green)}
+.pipeline-card-amount{font-size:13px;font-weight:600;display:flex;align-items:center;gap:5px;background:linear-gradient(135deg,var(--gold3),var(--gold),var(--gold2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--gold)}
+.pipeline-card-amount.confirmed{background:none;-webkit-text-fill-color:var(--green);color:var(--green)}
 .pipeline-card-actions{display:flex;gap:6px;margin-top:4px}
 .pipeline-card-act{background:transparent;border:1px solid var(--border2);border-radius:5px;padding:4px 8px;color:var(--muted);font-size:10px;letter-spacing:0.04em;cursor:pointer;transition:all 0.15s;font-family:inherit}
 .pipeline-card-act:hover{color:var(--text);border-color:var(--text)}
@@ -561,7 +578,8 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
   .brand-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;padding:4px 0 12px;margin:0 -16px;padding-left:16px;padding-right:16px;-webkit-overflow-scrolling:touch}
   .brand-grid::-webkit-scrollbar{display:none}
   .brand-grid{scrollbar-width:none}
-  .brand-card{flex:0 0 85%;scroll-snap-align:start;min-width:280px}
+  .brand-card{flex:0 0 86%;scroll-snap-align:center;min-width:280px;display:flex;flex-direction:column}
+  .brand-card .brand-footer{margin-top:auto}
   .brand-card:last-child{margin-right:16px}
   .pulse-grid{grid-template-columns:1fr}
   .card,.login-card{padding:22px}
@@ -1878,8 +1896,9 @@ function useToolChip(text){
   const input = document.getElementById('chat-input');
   if(!input) return;
   input.value = text;
-  input.focus();
-  // Submit immediately — chips are designed as one-tap prompts
+  // Don't focus the input — on iOS that pops the on-screen keyboard
+  // and shifts the viewport, jumping the user to the bottom of the
+  // chat. Chips are one-tap prompts; the keyboard isn't needed.
   sendChatMessage();
 }
 
@@ -2873,7 +2892,12 @@ async function sendChatMessage(){
   } finally {
     wrap?.classList.remove('is-loading');
     resetChatSend();
-    input.focus();
+    // Skip auto-refocus on mobile — re-popping the iOS keyboard after
+    // every message turn fights the user when they want to read the
+    // response. Desktop users still get the convenience refocus.
+    if(!matchMedia('(max-width: 768px)').matches){
+      input.focus();
+    }
   }
 }
 
@@ -3711,7 +3735,13 @@ function buildCharts(d){
 
   const ab=document.getElementById('age-bars');
   const maxAge=Math.max(...ageData.map(x=>x.pct));
-  ab.innerHTML=ageData.map(x=>`<div class="vbar-item"><div class="vbar-bar" style="width:20px;height:0;background:var(--gold)" data-h="${x.pct/maxAge*100}"></div><div class="vbar-label">${x.age}</div></div>`).join('');
+  // Cap bar height to container's available space (minus top padding,
+  // gap, and label) so bars never overflow into the title area on
+  // narrow viewports. Falls back to CSS-defined heights when the tab
+  // is hidden (clientHeight returns 0).
+  const containerH = ab.clientHeight || (window.innerWidth <= 768 ? 90 : 120);
+  const maxBarPx = Math.max(40, containerH - 10 - 6 - 14);
+  ab.innerHTML=ageData.map(x=>`<div class="vbar-item"><div class="vbar-bar" style="width:20px;height:0;background:var(--gold)" data-h="${(x.pct/maxAge)*maxBarPx}"></div><div class="vbar-label">${x.age}</div></div>`).join('');
 
   const lb=document.getElementById('loc-bars');
   const maxLoc=Math.max(...locData.map(x=>x.pct));
