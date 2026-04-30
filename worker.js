@@ -1157,8 +1157,14 @@ export default {
       // session store.
       if (path === '/google/auth') {
         const t = url.searchParams.get('t') || '';
-        if (!t) return serveHTML(oauthErrorPage('missing_token', 'No session token provided. Please try connecting again from the app.'));
-        const state = base64UrlEncode(t);
+        const returnTo = url.searchParams.get('return_to') || '';
+        if (!t) return serveHTML(googleOauthErrorPage('missing_token', 'No session token provided. Please try connecting again from the app.'));
+        // State carries the JWT and (optionally) the return URL the
+        // frontend wants to come back to. Same-tab flow uses return_to to
+        // skip popups; legacy popup flow leaves it blank and the callback
+        // serves a postMessage HTML page instead.
+        const stateObj = returnTo ? { t, r: returnTo } : { t };
+        const state = base64UrlEncode(JSON.stringify(stateObj));
         const authUrl = new URL(GOOGLE_AUTH_URL);
         authUrl.searchParams.set('client_id', GOOGLE_OAUTH_CLIENT_ID);
         authUrl.searchParams.set('redirect_uri', GOOGLE_REDIRECT_URI);
@@ -1176,16 +1182,56 @@ export default {
         const code = url.searchParams.get('code');
         const state = url.searchParams.get('state');
         const error = url.searchParams.get('error');
-        if (error || !code || !state) {
-          return serveHTML(googleOauthErrorPage(error || 'unknown_error', url.searchParams.get('error_description') || 'Authorization was denied or cancelled.'));
-        }
 
-        // Recover the user's session JWT from state.
-        let sbAccessToken;
-        try { sbAccessToken = base64UrlDecode(state); }
-        catch { return serveHTML(googleOauthErrorPage('bad_state', 'State parameter could not be decoded.')); }
+        // State carries either the new {t,r} JSON (same-tab redirect flow)
+        // or a raw JWT (legacy popup flow). Decode both shapes.
+        let sbAccessToken = null, returnTo = null;
+        if (state) {
+          let decoded = '';
+          try { decoded = base64UrlDecode(state); } catch {}
+          if (decoded) {
+            try {
+              const parsed = JSON.parse(decoded);
+              sbAccessToken = parsed?.t || null;
+              returnTo = parsed?.r || null;
+            } catch {
+              // Legacy: raw JWT, no JSON wrapper
+              sbAccessToken = decoded;
+            }
+          }
+        }
+        // Open-redirect protection: only honor return_to if it points to
+        // a creatorclaw.co host. Anything else falls back to the HTML page.
+        if (returnTo) {
+          try {
+            const u = new URL(returnTo);
+            if (!/(^|\.)creatorclaw\.co$/.test(u.hostname)) returnTo = null;
+          } catch { returnTo = null; }
+        }
+        // Helpers — redirect to the app when return_to is set, otherwise
+        // serve the legacy HTML page that postMessages back to the opener.
+        const sendError = (errCode, errDesc) => {
+          if (returnTo) {
+            const u = new URL(returnTo);
+            u.searchParams.set('google_error', errCode);
+            return Response.redirect(u.toString(), 302);
+          }
+          return serveHTML(googleOauthErrorPage(errCode, errDesc));
+        };
+        const sendSuccess = (email) => {
+          if (returnTo) {
+            const u = new URL(returnTo);
+            u.searchParams.set('google_connected', email || '1');
+            return Response.redirect(u.toString(), 302);
+          }
+          return serveHTML(googleOauthSuccessPage(email));
+        };
+
+        if (error || !code || !state) {
+          return sendError(error || 'unknown_error', url.searchParams.get('error_description') || 'Authorization was denied or cancelled.');
+        }
         if (!sbAccessToken || sbAccessToken.length < 20) {
-          return serveHTML(googleOauthErrorPage('bad_state', 'State payload was empty.'));
+          return sendError('bad_state', 'State payload was empty or could not be decoded.');
         }
 
         // Exchange code → tokens.
@@ -1203,7 +1249,7 @@ export default {
         });
         if (!tokRes.ok) {
           const errText = await tokRes.text().catch(() => 'token exchange failed');
-          return serveHTML(googleOauthErrorPage('token_exchange_failed', errText.slice(0, 300)));
+          return sendError('token_exchange_failed', errText.slice(0, 300));
         }
         const tok = await tokRes.json();
         const accessToken = tok.access_token;
@@ -1211,7 +1257,7 @@ export default {
         const expiresIn = Number(tok.expires_in) || 3600;
         const grantedScopes = String(tok.scope || GOOGLE_SCOPES);
         if (!accessToken) {
-          return serveHTML(googleOauthErrorPage('no_token', 'Token response missing access_token.'));
+          return sendError('no_token', 'Token response missing access_token.');
         }
 
         // Look up the connected email from /userinfo so we can show it in the UI.
@@ -1232,7 +1278,7 @@ export default {
         let userId = null;
         try { userId = decodeJwtSub(sbAccessToken); } catch {}
         if (!userId) {
-          return serveHTML(googleOauthErrorPage('bad_jwt', 'Could not extract user id from session.'));
+          return sendError('bad_jwt', 'Could not extract user id from session.');
         }
 
         const upsertBody = {
@@ -1255,10 +1301,10 @@ export default {
         });
         if (!upsertRes.ok) {
           const errText = await upsertRes.text().catch(() => upsertRes.statusText);
-          return serveHTML(googleOauthErrorPage('persist_failed', errText.slice(0, 300)));
+          return sendError('persist_failed', errText.slice(0, 300));
         }
 
-        return serveHTML(googleOauthSuccessPage(email));
+        return sendSuccess(email);
       }
 
       // ── IG Graph API: fetch real insights for a connected account ─────

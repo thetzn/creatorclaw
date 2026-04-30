@@ -1287,17 +1287,17 @@ function openAgentSettings(){
 
 // Kick off the Arcade OAuth flow for the user's Gmail. The Worker calls
 // Arcade's authorize endpoint; if the account isn't connected yet, Arcade
-// returns a one-time URL we open in a new tab for the user to complete OAuth.
-// Google Workspace OAuth: open Worker /google/auth in a popup carrying the
-// user's Supabase JWT. The Worker forwards it through Google's `state` param
-// so the callback can write tokens to Supabase under the user's RLS context.
-// Popup posts back via window.postMessage when complete.
+// Google Workspace OAuth: same-tab redirect to the Worker, which bounces
+// to Google and back. Same-tab avoids popup blockers entirely (Chrome,
+// Brave, iOS Safari all block popups opened after an `await`). The
+// Worker callback redirects back to this page with ?google_connected=email
+// (or ?google_error=...), which handleGoogleOauthReturn picks up on load.
 async function connectGoogleWorkspace(){
   const btn = document.getElementById('connect-google-btn');
   const desc = document.getElementById('connect-google-desc');
   if(!btn) return;
   const setDesc = t => { if(desc) desc.textContent = t; };
-  btn.disabled = true; btn.textContent = 'Opening…';
+  btn.disabled = true; btn.textContent = 'Redirecting…';
   try {
     const { data: { session } } = await sb.auth.getSession();
     const accessToken = session?.access_token;
@@ -1306,26 +1306,30 @@ async function connectGoogleWorkspace(){
       btn.disabled = false; btn.textContent = 'Connect';
       return;
     }
-    const w = 540, h = 720;
-    const left = window.screenX + (window.outerWidth - w) / 2;
-    const top = window.screenY + (window.outerHeight - h) / 2;
-    const popup = window.open(
-      `${PROXY_URL}/google/auth?t=${encodeURIComponent(accessToken)}`,
-      'cc_google_auth',
-      `width=${w},height=${h},left=${left},top=${top}`
-    );
-    if(!popup){
-      setDesc('Popup blocked. Allow popups for creatorclaw.co and try again.');
-      btn.disabled = false; btn.textContent = 'Connect';
-      return;
-    }
-    btn.textContent = 'Waiting for Google…';
-    // The popup posts back to window when done; the listener below updates
-    // button state.
+    const returnTo = location.origin + location.pathname;
+    location.href = `${PROXY_URL}/google/auth?t=${encodeURIComponent(accessToken)}&return_to=${encodeURIComponent(returnTo)}`;
   } catch(e) {
     console.warn('connectGoogleWorkspace', e);
     setDesc('Error: ' + (e.message || 'unknown'));
     btn.disabled = false; btn.textContent = 'Retry';
+  }
+}
+
+// Picks up ?google_connected=<email> / ?google_error=<code> after the
+// OAuth round-trip and updates UI. Idempotent — clears the query
+// params via history.replaceState so a refresh doesn't re-fire.
+function handleGoogleOauthReturn(){
+  const params = new URLSearchParams(location.search);
+  const connectedEmail = params.get('google_connected');
+  const errorCode = params.get('google_error');
+  if(!connectedEmail && !errorCode) return;
+  history.replaceState({}, '', location.pathname + location.hash);
+  if(connectedEmail){
+    const label = (connectedEmail && connectedEmail !== '1') ? ' as ' + connectedEmail : '';
+    showIntroToast('Google Workspace connected' + label);
+    refreshGoogleConnectionState();
+  } else {
+    showIntroToast('Google connection failed: ' + errorCode);
   }
 }
 
@@ -1730,6 +1734,9 @@ function updateAuthUI(user){
 }
 
 async function initAuth(){
+  // Pick up the OAuth return params first so the toast fires before any
+  // tab/connection-state UI churn from the rest of the bootstrap.
+  handleGoogleOauthReturn();
   // Check auth state on load
   const user = await getCurrentUser();
   updateAuthUI(user);
