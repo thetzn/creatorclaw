@@ -605,17 +605,13 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 #intro-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center;transition:opacity 0.6s ease,visibility 0.6s ease}
 #intro-screen.done{opacity:0;visibility:hidden;pointer-events:none}
 .intro-inner{max-width:500px;padding:0 32px;width:100%}
-.intro-line{opacity:0;transform:translateY(8px);transition:opacity 0.4s ease,transform 0.4s ease;margin-bottom:16px}
-.intro-line.visible{opacity:1;transform:translateY(0)}
-.intro-cursor{display:inline-block;width:2px;height:1em;background:var(--gold);margin-left:2px;animation:blink 0.8s step-end infinite;vertical-align:text-bottom}
+.intro-splash{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:36px;opacity:0;transform:scale(0.96);transition:opacity 0.35s ease,transform 0.35s ease}
+.intro-splash.visible{opacity:1;transform:scale(1)}
+.intro-splash.faded{opacity:0;transform:scale(0.98)}
+.intro-splash .logo-mark{width:42px;height:26px}
+.intro-splash .logo-text{font-size:28px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-.intro-text{font-size:18px;font-weight:300;color:var(--text);line-height:1.6;letter-spacing:0.01em}
-.intro-text .gold{color:var(--gold);font-weight:500}
-.intro-cta{opacity:0;transform:translateY(8px);transition:opacity 0.4s ease,transform 0.4s ease}
-.intro-cta.visible{opacity:1;transform:translateY(0)}
-.intro-cta button{background:transparent;border:1px solid var(--gold);border-radius:8px;padding:14px 36px;color:var(--gold);font-size:12px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;transition:all 0.3s}
-.intro-cta button:hover{background:var(--gold);color:var(--bg)}
-.intro-connect{opacity:0;transform:translateY(8px);transition:opacity 0.5s ease,transform 0.5s ease;margin-top:36px;display:flex;flex-direction:column;gap:10px}
+.intro-connect{opacity:0;transform:translateY(8px);transition:opacity 0.5s ease,transform 0.5s ease;display:flex;flex-direction:column;gap:10px}
 .intro-connect.visible{opacity:1;transform:translateY(0)}
 .intro-auth-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;border-radius:10px;padding:14px 20px;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--card2);color:var(--text);transition:all 0.2s;position:relative}
 .intro-auth-btn:hover{border-color:var(--muted2);transform:translateY(-1px)}
@@ -632,7 +628,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 .intro-form input:focus{border-color:var(--gold)}
 .intro-form button{background:var(--gold);border:none;border-radius:8px;padding:14px 26px;color:var(--bg);font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;white-space:nowrap;transition:opacity 0.2s}
 .intro-form button:hover{opacity:0.88}
-@media(max-width:768px){.intro-text{font-size:16px}.intro-form{flex-direction:column}.intro-form button{padding:16px 24px}}
+@media(max-width:768px){.intro-splash .logo-text{font-size:22px}.intro-splash .logo-mark{width:34px;height:21px}.intro-form{flex-direction:column}.intro-form button{padding:16px 24px}}
 
 .hidden{display:none}
 
@@ -668,8 +664,10 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 
 <div id="intro-screen">
   <div class="intro-inner">
-    <div class="intro-line" id="intro-1"><span class="intro-text" id="intro-text-1"></span><span class="intro-cursor" id="cursor-1"></span></div>
-    <div class="intro-line" id="intro-2"><span class="intro-text" id="intro-text-2"></span><span class="intro-cursor" id="cursor-2" style="display:none"></span></div>
+    <div class="intro-splash" id="intro-splash">
+      <img class="logo-mark" data-crab-img alt="CreatorClaw">
+      <span class="logo-text gold-text">CreatorClaw</span>
+    </div>
     <div class="intro-connect" id="intro-connect">
       <button class="intro-auth-btn google" type="button" onclick="introSignInGoogle()">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>
@@ -957,52 +955,28 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 </div>
 
 <script>
-// Intro typewriter
-const introLines=[
-  {el:'intro-text-1',cursor:'cursor-1',line:'intro-1',text:'Welcome to CreatorClaw.'},
-  {el:'intro-text-2',cursor:'cursor-2',line:'intro-2',text:'The AI Agent for content creators.'}
-];
-
-function typeWriter(el,text,speed,cb){
-  let i=0;
-  function tick(){
-    if(i<text.length){
-      // Wrap "CreatorClaw" in gold span
-      const current=text.substring(0,i+1).replace('CreatorClaw','<span class="gold">CreatorClaw</span>');
-      el.innerHTML=current;
-      i++;
-      setTimeout(tick,speed);
-    } else if(cb) cb();
-  }
-  tick();
-}
-
+// Intro splash: static logo lockup (header style) holds for 1.5s, fades
+// out, then the auth + try-first form fades in. Hydrate the crab img
+// since the data URI loader may run after this element is in the DOM.
 function runIntro(){
-  let idx=0;
-  function nextLine(){
-    if(idx>=introLines.length){
-      // Hide last cursor, then reveal the IG connect form right here
-      document.getElementById(introLines[idx-1].cursor).style.display='none';
-      setTimeout(()=>{
-        document.getElementById('intro-connect').classList.add('visible');
-        const inp=document.getElementById('intro-ig-input');
-        if(inp) inp.focus();
-      },350);
-      return;
-    }
-    const l=introLines[idx];
-    // Show line
-    document.getElementById(l.line).classList.add('visible');
-    // Hide prev cursor, show current
-    if(idx>0) document.getElementById(introLines[idx-1].cursor).style.display='none';
-    document.getElementById(l.cursor).style.display='inline-block';
-    // Type
-    typeWriter(document.getElementById(l.el),l.text,22,()=>{
-      idx++;
-      setTimeout(nextLine,400);
-    });
-  }
-  setTimeout(nextLine,600);
+  const splash = document.getElementById('intro-splash');
+  const connect = document.getElementById('intro-connect');
+  if(!splash || !connect) return;
+  const img = splash.querySelector('img[data-crab-img]');
+  if(img && typeof LOGO_DATA_URI !== 'undefined') img.src = LOGO_DATA_URI;
+  // Phase 1: fade splash in
+  requestAnimationFrame(()=>splash.classList.add('visible'));
+  // Phase 2: hold 1.5s, then fade splash out
+  setTimeout(()=>{
+    splash.classList.remove('visible');
+    splash.classList.add('faded');
+  }, 1850);  // 350ms fade-in + 1500ms hold
+  // Phase 3: fade connect in (slight overlap with splash fade-out)
+  setTimeout(()=>{
+    connect.classList.add('visible');
+    const inp = document.getElementById('intro-ig-input');
+    if(inp) inp.focus();
+  }, 2100);
 }
 
 function introAnalyze(){
@@ -2122,6 +2096,23 @@ function revealBubble(bodyEl, offsetFromTop=20){
   container.scrollBy({ top: delta, behavior: 'smooth' });
 }
 
+// Onboarding/agent status bubble — assistant message with the crab avatar
+// spinning while a phase runs, then settled to its final text via finish().
+// The .is-loading class on .chat-msg drives the avatar spin animation.
+function appendStatusBubble(text){
+  const body = appendMessage('assistant', text);
+  const wrap = body.closest('.chat-msg');
+  wrap?.classList.add('is-loading');
+  return {
+    body,
+    update(newText){ body.textContent = newText; },
+    finish(finalText){
+      if(typeof finalText === 'string') body.textContent = finalText;
+      wrap?.classList.remove('is-loading');
+    },
+  };
+}
+
 function appendInlineCard(role, html){
   const body = appendMessage(role, '', false);
   body.textContent = '';
@@ -2233,17 +2224,24 @@ function submitOnboardingHandle(){
 async function startOnboardingChat(handle){
   document.getElementById('intro-screen')?.remove();
 
-  // Phase 1: show the original full-screen persona loading (crab spinner + progress bar)
-  // while we scrape + generate the persona. Hide the top nav during this phase so the
-  // crab spinner is the sole focal point. Chat view doesn't open until the persona is ready.
-  document.querySelector('.header')?.classList.add('hidden');
-  switchTab('persona');
-  document.getElementById('persona-cta')?.classList.add('hidden');
-  document.getElementById('persona-result')?.classList.add('hidden');
-  document.getElementById('persona-loading')?.classList.remove('hidden');
-  startLoading('persona', 25);
+  // Open chat view immediately and narrate the analysis as inline status
+  // bubbles. If we came from the public-handle intro screen, .main is
+  // showing — swap to chat. If we came from the post-signin inline handle
+  // prompt, chat is already visible (these branches are no-ops).
+  const chatView = document.getElementById('chat-view');
+  if(chatView?.classList.contains('hidden')){
+    document.querySelector('.header')?.classList.add('hidden');
+    document.querySelector('.main')?.classList.add('hidden');
+    chatView.classList.remove('hidden');
+    chatState.messages = [];
+    chatState.conversationId = null;
+    document.getElementById('chat-messages').innerHTML = '';
+  }
+  setComposerLock(true);
 
   const cleanHandle = String(handle||'').trim().replace(/^@/,'').replace(/^(https?:\/\/)?(www\.)?instagram\.com\//,'');
+
+  const status1 = appendStatusBubble(`Got it — looking up @${cleanHandle}…`);
 
   try {
     // 1. Scrape IG profile
@@ -2268,42 +2266,36 @@ async function startOnboardingChat(handle){
     setText('ig-val-posts', profile.totalPosts);
     setText('ig-val-category', profile.topCategory || profile.categories?.[0]?.name);
 
-    // 2. Generate persona — keeps the progress bar animating until done, then stops + renders.
-    await generatePersona();
+    const postsCount = Number(profile.totalPosts) || 0;
+    const postsLabel = postsCount ? `your ${Math.min(25, postsCount)} most-recent posts` : 'your recent posts';
+    const followersBit = profile.followers ? ` ${profile.followers} followers,` : '';
+    const engagementBit = profile.engagementRate ? ` ${profile.engagementRate} engagement` : '';
+    status1.finish(`Scanned ${postsLabel}.${followersBit}${engagementBit}`.trim().replace(/,$/,'.') || `Scanned ${postsLabel}.`);
+    await sleep(450);
 
-    // Phase 2: persona is ready — hide the loading screen and the persona tab output,
-    // then open the chat view with the persona card and welcome stream.
-    document.getElementById('persona-loading')?.classList.add('hidden');
-    document.getElementById('persona-result')?.classList.add('hidden');
-    document.getElementById('persona-cta')?.classList.add('hidden');
+    // 2. Generate persona inline (no full-screen panel)
+    const status2 = appendStatusBubble('Building your persona — voice, pillars, audience…');
+    await generatePersona({ inlineMode: true });
+    status2.finish('Persona ready.');
+    await sleep(500);
 
-    document.querySelector('.header')?.classList.add('hidden');
-    document.querySelector('.main')?.classList.add('hidden');
-    document.getElementById('chat-view').classList.remove('hidden');
-    chatState.messages = [];
-    chatState.conversationId = null;
-    document.getElementById('chat-messages').innerHTML = '';
-    setComposerLock(true);
-
-    // 3. Push persona summary card as the first chat bubble (no separate "analyzing" step).
+    // 3. Push persona summary card as the next bubble
     appendInlineCard('assistant', `
       <div style="margin-bottom:8px">Here's what I found:</div>
       ${renderInlinePersonaCard(state.persona, state.igData)}
     `);
-    await sleep(1100);
+    await sleep(900);
 
     // 4. Stream in-character welcome
     await streamOnboardingWelcome();
-    await sleep(800);
+    await sleep(600);
 
     // 5. Push picker (Create / Pitch)
     pushOnboardingPicker();
   } catch(e){
-    stopLoading('persona');
-    document.getElementById('persona-loading')?.classList.add('hidden');
-    document.getElementById('persona-cta')?.classList.remove('hidden');
     console.error('Onboarding error:', e);
-    showError('Could not analyze @' + cleanHandle + ': ' + (e.message || 'unknown error'));
+    status1.finish(`Hit a snag analyzing @${cleanHandle} — ${e.message || 'unknown error'}. Try a different handle?`);
+    pushOnboardingHandlePrompt();
   }
 }
 
@@ -3479,13 +3471,19 @@ function advanceToPulse(){ switchTab('pulse'); if(!state.pulseGen) generatePulse
 function advanceToBrands(){ switchTab('brands'); if(!state.brandsGen) generateBrands(); }
 
 // ── Persona ───────────────────────────────────────────────────────────────────
-async function generatePersona(){
+// inlineMode skips the full-screen persona-loading panel + the post-render
+// continue CTA. Used by the chat-first onboarding flow which narrates
+// progress as inline assistant bubbles instead.
+async function generatePersona(options = {}){
   if(state._personaLoading) return;
   state._personaLoading=true;
-  document.getElementById('persona-cta').classList.add('hidden');
-  document.getElementById('persona-loading').classList.remove('hidden');
-  // Only start a fresh progress run if one isn't already going (e.g., from analyzeIG)
-  if(!_loadingTimers.persona) startLoading('persona', 8);
+  const inlineMode = !!options.inlineMode;
+  if(!inlineMode){
+    document.getElementById('persona-cta').classList.add('hidden');
+    document.getElementById('persona-loading').classList.remove('hidden');
+    // Only start a fresh progress run if one isn't already going (e.g., from analyzeIG)
+    if(!_loadingTimers.persona) startLoading('persona', 8);
+  }
 
   const system=`Creator analyst. Return ONLY JSON, no markdown. Exact structure:
 {"name":"Name","bio":"One sentence bio.","score":87,"vibes":["Tag1","Tag2","Tag3","Tag4","Tag5"],"totalReach":"549K","avgEngagement":"5.3%","growthRate":"+18K/mo","tier":"Rising Star","pillars":[{"l":"Fitness","p":40},{"l":"Lifestyle","p":30},{"l":"Beauty","p":20},{"l":"Other","p":10}]}
@@ -3505,15 +3503,21 @@ pillars p must sum to 100. Keep 4-5 pillars.`;
       if(state.igData.engagementRate) data.avgEngagement=state.igData.engagementRate;
     }
     state.persona=data;
-    stopLoading('persona');
-    document.getElementById('persona-loading').classList.add('hidden');
+    if(!inlineMode){
+      stopLoading('persona');
+      document.getElementById('persona-loading').classList.add('hidden');
+      showContinueCTA('persona-result','Persona ready — discover what to <span class="hl">create</span> next.','Continue to Create',advanceToPulse);
+    }
     renderPersona(data);
-    showContinueCTA('persona-result','Persona ready — discover what to <span class="hl">create</span> next.','Continue to Create',advanceToPulse);
   } catch(e){
-    stopLoading('persona');
-    document.getElementById('persona-loading').classList.add('hidden');
-    document.getElementById('persona-cta').classList.remove('hidden');
-    showError(e.message);
+    if(!inlineMode){
+      stopLoading('persona');
+      document.getElementById('persona-loading').classList.add('hidden');
+      document.getElementById('persona-cta').classList.remove('hidden');
+      showError(e.message);
+    } else {
+      throw e;
+    }
   } finally { state._personaLoading=false; }
 }
 
