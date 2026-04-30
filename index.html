@@ -1345,6 +1345,88 @@ function handleGoogleOauthReturn(){
   }
 }
 
+// ── Telegram link handler ────────────────────────────────────────────────────
+// The bot sends users a link like creatorclaw.co/?telegram_link=ABC123. We
+// stash the code in sessionStorage so it survives the OAuth redirect when
+// the user has to sign in first, then prompt for confirmation.
+function handleTelegramLinkParam(){
+  const params = new URLSearchParams(location.search);
+  const code = params.get('telegram_link');
+  if(code){
+    sessionStorage.setItem('pendingTelegramLink', code);
+    history.replaceState({}, '', location.pathname + location.hash);
+  }
+  const pending = sessionStorage.getItem('pendingTelegramLink');
+  if(!pending) return;
+  // Defer slightly so getCurrentUser/initAuth has populated session state.
+  setTimeout(()=>showTelegramLinkConfirm(pending), 400);
+}
+
+async function showTelegramLinkConfirm(code){
+  const user = await getCurrentUser();
+  if(!user){
+    // Show a sign-in prompt instead of the confirm. Code stays in storage.
+    showModal(`
+      <div class="modal-title">Link Telegram → CreatorClaw</div>
+      <div class="modal-sub">Sign in to your CreatorClaw account first, then we'll link your Telegram.</div>
+      <div class="modal-row" style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+        <button class="modal-cancel-btn" type="button" onclick="cancelTelegramLink()">Cancel</button>
+        <button class="modal-save-btn" type="button" onclick="signInWithGoogle()">Sign in with Google</button>
+      </div>
+    `);
+    return;
+  }
+  showModal(`
+    <div class="modal-title">Link Telegram</div>
+    <div class="modal-sub">Connect this CreatorClaw account to the Telegram chat that sent you here? You'll be able to chat with your agent on the go — same persona, same pipeline.</div>
+    <div class="modal-row" style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+      <button class="modal-cancel-btn" type="button" onclick="cancelTelegramLink()">Cancel</button>
+      <button class="modal-save-btn" type="button" id="tg-confirm-btn" onclick="confirmTelegramLink()">Link Telegram</button>
+    </div>
+  `);
+}
+
+function cancelTelegramLink(){
+  sessionStorage.removeItem('pendingTelegramLink');
+  closeModal();
+}
+
+async function confirmTelegramLink(){
+  const code = sessionStorage.getItem('pendingTelegramLink');
+  if(!code){ closeModal(); return; }
+  const btn = document.getElementById('tg-confirm-btn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Linking…'; }
+  let session;
+  try { ({ data: { session } } = await sb.auth.getSession()); }
+  catch(e) { session = null; }
+  if(!session?.access_token){
+    showIntroToast('Sign in first.');
+    if(btn){ btn.disabled = false; btn.textContent = 'Link Telegram'; }
+    return;
+  }
+  try {
+    const res = await fetch(`${PROXY_URL}/telegram/link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){
+      const err = data.message || data.error || ('http ' + res.status);
+      showIntroToast('Link failed: ' + err);
+      if(btn){ btn.disabled = false; btn.textContent = 'Link Telegram'; }
+      return;
+    }
+    sessionStorage.removeItem('pendingTelegramLink');
+    closeModal();
+    showIntroToast('Telegram linked. Head back to the bot.');
+  } catch(e) {
+    console.error('Telegram link', e);
+    showIntroToast('Link failed: ' + (e.message || 'network'));
+    if(btn){ btn.disabled = false; btn.textContent = 'Link Telegram'; }
+  }
+}
+
 // Refresh the Google connection button to reflect current connection state.
 async function refreshGoogleConnectionState(){
   const btn = document.getElementById('connect-google-btn');
@@ -1749,6 +1831,10 @@ async function initAuth(){
   // Pick up the OAuth return params first so the toast fires before any
   // tab/connection-state UI churn from the rest of the bootstrap.
   handleGoogleOauthReturn();
+  // Telegram link param — captures ?telegram_link=<code> into sessionStorage
+  // (survives sign-in redirect) and shows a confirm modal once the user
+  // session is established.
+  handleTelegramLinkParam();
   // Check auth state on load
   const user = await getCurrentUser();
   updateAuthUI(user);

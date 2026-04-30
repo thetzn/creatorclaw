@@ -566,6 +566,152 @@ export async function handleAgentChat(request, env, body, cors, deps) {
   }
 }
 
+// ── Telegram channel ─────────────────────────────────────────────────────────
+// Same agent setup as handleAgentChat, but consumes the streaming run into a
+// final text payload (+ cards) rather than emitting SSE. Phase 1: caller
+// concatenates text and posts to Telegram. Phase 2 will use the cards array
+// to render inline keyboards (brand matches / email drafts / ideas).
+//
+// Args mirror handleAgentChat:
+//   env, body — same body shape (messages, creatorContext,
+//     sharedAgentContext, tool). messages should already be in OpenAI shape
+//     (system + user/assistant turns).
+//   deps — { executeToolByName, googleAccessToken } same as web.
+//
+// Returns { text, cards, toolFired, finalMessageText } — caller decides how
+// to render. Throws on agent_run_failed.
+export async function handleTelegramAgentTurn(env, body, deps) {
+  setupOpenAIEnv(env);
+  const activeTool = (body.tool && ['main', 'create', 'pitch'].includes(body.tool)) ? body.tool : 'main';
+  console.log('[agents-tg]', activeTool, 'turn');
+
+  const { instructions, convo } = shapeMessages(body.messages);
+  if (!convo.length) throw new Error('messages must include at least one user/assistant message');
+  if (!deps || typeof deps.executeToolByName !== 'function') {
+    throw new Error('handleTelegramAgentTurn requires deps.executeToolByName');
+  }
+
+  const cc = body.creatorContext || {};
+  ensureResponsesApi();
+  const googleMcp = buildGoogleMcpTool(deps.googleAccessToken);
+
+  const tz = cc.timezone || 'UTC';
+  const today = new Date().toISOString().slice(0, 10);
+  const runtimeCtx =
+    `\n\nRUNTIME CONTEXT (current as of this turn):\n` +
+    `- Today's date (UTC): ${today}\n` +
+    `- User's IANA timezone: ${tz}\n` +
+    `- Channel: Telegram (chat-only; no inline cards rendered yet — describe results in text)\n`;
+
+  const sharedAgentContext = (body.sharedAgentContext || instructions || '') + runtimeCtx;
+  const agents = buildAgentSet(googleMcp, sharedAgentContext);
+  const startAgent = agents[activeTool] || agents.main;
+  const runCtx = {
+    creatorContext: cc,
+    env,
+    executeToolByName: deps.executeToolByName,
+    accessToken: cc.accessToken || null,
+    userId: cc.userId || null,
+  };
+
+  const result = await run(startAgent, convo, { stream: true, maxTurns: 10, context: runCtx });
+
+  let liveText = '';           // streamed text deltas
+  let finalMessageText = '';   // assembled from message_output_created (fallback if deltas don't fire)
+  let postToolBuffer = '';     // text deltas after a card-producing tool (suppressed in cards-mode)
+  let bufferingPostTool = false;
+  let toolFired = false;
+  let lastToolOutput = null;
+  const cards = [];
+
+  for await (const event of result) {
+    if (event.type === 'raw_model_stream_event') {
+      const d = event.data;
+      if (d && d.type === 'output_text_delta' && d.delta) {
+        if (bufferingPostTool) postToolBuffer += d.delta;
+        else liveText += d.delta;
+      }
+    } else if (event.type === 'run_item_stream_event' && event.name === 'tool_called') {
+      bufferingPostTool = true;
+      toolFired = true;
+    } else if (event.type === 'run_item_stream_event' && event.name === 'tool_output' && event.item) {
+      const output = event.item?.output ?? event.item?.rawItem?.output;
+      let parsed = output;
+      if (typeof parsed === 'string') {
+        try { parsed = JSON.parse(parsed); } catch {}
+      }
+      lastToolOutput = parsed;
+      if (parsed && typeof parsed === 'object') {
+        if (Array.isArray(parsed.brands) && parsed.brands.length) {
+          cards.push({ type: 'brand_matches', items: parsed.brands });
+        } else if (Array.isArray(parsed.ideas) && parsed.ideas.length) {
+          cards.push({ type: 'pulse_ideas', items: parsed.ideas });
+        }
+      }
+    } else if (event.type === 'run_item_stream_event' && event.name === 'message_output_created' && event.item) {
+      const content = event.item?.rawItem?.content;
+      if (Array.isArray(content)) {
+        for (const part of content) {
+          if (part?.type === 'output_text' && part.text) finalMessageText += part.text;
+        }
+      }
+    }
+  }
+  await result.completed;
+
+  // Resolve the text we send back. Priority mirrors the SSE wrapper:
+  //   1. Cards rendered → for Phase 1 we don't have inline keyboards, so
+  //      surface the post-tool buffered prose if present, else a generic
+  //      acknowledgement that lists items in plain text.
+  //   2. Buffered post-tool text after no cards → flush it.
+  //   3. Live-streamed text → use it.
+  //   4. Fallback to message_output_created assembly.
+  //   5. Last-resort: tool output's response/message field.
+  let text;
+  if (cards.length) {
+    // Phase 1: list card items in text form so the user sees them in
+    // Telegram even without inline keyboards.
+    const lines = [];
+    if (postToolBuffer) lines.push(postToolBuffer.trim());
+    for (const c of cards) {
+      if (c.type === 'brand_matches') {
+        lines.push('Brand matches:');
+        for (const b of c.items.slice(0, 6)) {
+          const name = b.name || '?';
+          const cat = b.cat ? ` · ${b.cat}` : '';
+          const match = b.match ? ` (${b.match}% match)` : '';
+          const deal = b.deal ? ` — ${b.deal}` : '';
+          lines.push(`• ${name}${cat}${match}${deal}`);
+        }
+      } else if (c.type === 'pulse_ideas') {
+        lines.push('Content ideas:');
+        for (const i of c.items.slice(0, 6)) {
+          const title = i.title || i.t || '?';
+          const desc = i.desc || i.d || '';
+          lines.push(`• ${title}${desc ? ' — ' + desc : ''}`);
+        }
+      }
+    }
+    text = lines.join('\n');
+  } else if (postToolBuffer) {
+    text = postToolBuffer.trim();
+  } else if (liveText) {
+    text = liveText.trim();
+  } else if (finalMessageText) {
+    text = finalMessageText.trim();
+  } else if (toolFired && lastToolOutput && typeof lastToolOutput === 'object') {
+    text = String(lastToolOutput.response || lastToolOutput.message || '(action complete)');
+  } else {
+    text = '(no response)';
+  }
+
+  console.log('[agents-tg] done', JSON.stringify({
+    liveLen: liveText.length, finalLen: finalMessageText.length,
+    bufferLen: postToolBuffer.length, toolFired, cards: cards.length,
+  }));
+  return { text, cards, toolFired, finalMessageText };
+}
+
 // Wrap a streaming agent run as OpenAI-shaped SSE so the existing frontend
 // parser (`data: {choices:[{delta:{content:'...'}}]}`) just works.
 //

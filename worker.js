@@ -7,7 +7,7 @@
  * - Production agent chat: handleAgentChat in worker-agents.js — multi-agent orchestration with delegate-tool specialists.
  */
 
-import { handleAgentsSpike, handleAgentChat } from './worker-agents.js';
+import { handleAgentsSpike, handleAgentChat, handleTelegramAgentTurn } from './worker-agents.js';
 
 const CHAT_URL = 'https://api.openai.com/v1/chat/completions';
 const RESPONSES_URL = 'https://api.openai.com/v1/responses';
@@ -1327,7 +1327,49 @@ export default {
       return new Response(null, { status: 204, headers: cors(origin, allowed) });
     }
     if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+
+    // ── Telegram webhook ─────────────────────────────────────────────────
+    // Inbound updates from Telegram. Origin won't match our ALLOWED_ORIGINS
+    // (api.telegram.org), so this must run BEFORE the CORS allowlist check.
+    // Auth is via the X-Telegram-Bot-Api-Secret-Token header — set when we
+    // call /setWebhook with secret_token=<random>.
+    if (path === '/telegram/webhook') {
+      const sig = request.headers.get('X-Telegram-Bot-Api-Secret-Token') || '';
+      if (!env.TELEGRAM_WEBHOOK_SECRET || sig !== env.TELEGRAM_WEBHOOK_SECRET) {
+        console.log('[telegram] webhook auth failed');
+        return new Response('unauthorized', { status: 401 });
+      }
+      let update;
+      try { update = await request.json(); }
+      catch { return new Response('bad json', { status: 400 }); }
+      // Acknowledge fast to avoid Telegram retries; do work in background.
+      ctx.waitUntil(handleTelegramUpdate(update, env).catch(e => console.error('[telegram] update failed', e)));
+      return new Response('ok', { status: 200 });
+    }
+
     if (!allowed) return new Response('Forbidden', { status: 403 });
+
+    // ── Telegram link endpoint ──────────────────────────────────────────
+    // Called from the web app's /?telegram_link=<code> confirm modal. The
+    // user is signed in (JWT in Authorization), and the body carries the
+    // short-lived code the bot generated. We map telegram_id ↔ user_id.
+    if (path === '/telegram/link') {
+      const auth = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+      const userId = auth ? decodeJwtSub(auth) : null;
+      if (!userId) return json({ error: 'unauthenticated' }, 401, origin, allowed);
+      let body;
+      try { body = await request.json(); }
+      catch { return json({ error: 'bad_json' }, 400, origin, allowed); }
+      const code = String(body.code || '').trim();
+      if (!code) return json({ error: 'missing_code' }, 400, origin, allowed);
+      try {
+        const result = await consumeTelegramLinkCode(env, code, userId, auth);
+        return json(result, 200, origin, allowed);
+      } catch (e) {
+        console.error('[telegram] link failed', e);
+        return json({ error: 'link_failed', message: String(e.message || e) }, 400, origin, allowed);
+      }
+    }
 
     // ── Agents SDK spike: validates @openai/agents on Workers ──────────────
     // Isolated route — does NOT use the existing tool-call loop. Remove once
@@ -2398,4 +2440,479 @@ function googleOauthErrorPage(error, description) {
 </script>
 </body>
 </html>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Telegram bot — Phase 1 (text chat only, linked accounts)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TG_API = 'https://api.telegram.org';
+const TG_MAX_MSG = 4000;  // Telegram caps at 4096; leave headroom
+
+// ── Supabase JWT mint (HS256) ────────────────────────────────────────────────
+// Mints a short-lived user-scoped JWT so the Worker can call Supabase REST
+// with the user's RLS context. Same identity model as the web — auth.uid()
+// resolves to the linked user_id.
+async function mintSupabaseJwt(userId, env, ttlSec = 300) {
+  if (!env.SUPABASE_JWT_SECRET) throw new Error('SUPABASE_JWT_SECRET not configured');
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const payload = {
+    sub: userId,
+    role: 'authenticated',
+    aud: 'authenticated',
+    iss: SUPABASE_URL + '/auth/v1',
+    iat: now,
+    exp: now + ttlSec,
+  };
+  const enc = obj => base64UrlEncode(JSON.stringify(obj));
+  const data = enc(header) + '.' + enc(payload);
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(env.SUPABASE_JWT_SECRET),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sigBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
+  // Base64-url-encode the raw sig bytes
+  const sigBytes = new Uint8Array(sigBuf);
+  let sigStr = '';
+  for (let i = 0; i < sigBytes.length; i++) sigStr += String.fromCharCode(sigBytes[i]);
+  const sig = btoa(sigStr).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return data + '.' + sig;
+}
+
+// ── Supabase REST helpers ────────────────────────────────────────────────────
+async function sbServiceFetch(env, path, opts = {}) {
+  // Service-role: bypasses RLS. Used for telegram_link_codes lookup
+  // (pre-link, no user identity yet) and for user_telegram_links lookup
+  // by telegram_id (we don't have a JWT until we know the user).
+  const role = env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!role) throw new Error('SUPABASE_SERVICE_ROLE_KEY not configured');
+  const url = SUPABASE_URL + '/rest/v1' + path;
+  return fetch(url, {
+    ...opts,
+    headers: {
+      apikey: role,
+      Authorization: 'Bearer ' + role,
+      'Content-Type': 'application/json',
+      ...(opts.headers || {}),
+    },
+  });
+}
+async function sbUserFetch(jwt, path, opts = {}) {
+  // User-scoped: RLS enforces ownership.
+  const url = SUPABASE_URL + '/rest/v1' + path;
+  return fetch(url, {
+    ...opts,
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: 'Bearer ' + jwt,
+      'Content-Type': 'application/json',
+      ...(opts.headers || {}),
+    },
+  });
+}
+
+// ── Telegram API client ──────────────────────────────────────────────────────
+async function tg(env, method, body) {
+  const token = env.TELEGRAM_BOT_TOKEN;
+  if (!token) throw new Error('TELEGRAM_BOT_TOKEN not configured');
+  const res = await fetch(`${TG_API}/bot${token}/${method}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => res.statusText);
+    console.warn('[telegram] api', method, res.status, t.slice(0, 200));
+  }
+  return res;
+}
+async function tgSendMessage(env, chatId, text, opts = {}) {
+  return tg(env, 'sendMessage', { chat_id: chatId, text, parse_mode: opts.parseMode || 'Markdown', disable_web_page_preview: true, ...opts.extra });
+}
+async function tgSendChatAction(env, chatId, action = 'typing') {
+  return tg(env, 'sendChatAction', { chat_id: chatId, action });
+}
+function tgChunkText(text) {
+  // Split on paragraph breaks first, fall back to hard slicing for very long blocks.
+  const out = [];
+  let buf = '';
+  for (const para of String(text).split(/\n\n+/)) {
+    if ((buf + '\n\n' + para).length > TG_MAX_MSG) {
+      if (buf) { out.push(buf); buf = ''; }
+      if (para.length > TG_MAX_MSG) {
+        for (let i = 0; i < para.length; i += TG_MAX_MSG) out.push(para.slice(i, i + TG_MAX_MSG));
+      } else {
+        buf = para;
+      }
+    } else {
+      buf = buf ? buf + '\n\n' + para : para;
+    }
+  }
+  if (buf) out.push(buf);
+  return out;
+}
+
+// ── Link-code generation + consumption ───────────────────────────────────────
+function generateLinkCode() {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  // Base32-ish (uppercase alphanum, no easily-confused chars)
+  const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < bytes.length; i++) s += alphabet[bytes[i] % alphabet.length];
+  return s;
+}
+
+async function consumeTelegramLinkCode(env, code, userId, userJwt) {
+  // Look up the code (service-role — pre-link, RLS doesn't apply).
+  const lookup = await sbServiceFetch(env,
+    `/telegram_link_codes?code=eq.${encodeURIComponent(code)}&select=*`);
+  if (!lookup.ok) throw new Error('lookup failed: ' + lookup.status);
+  const rows = await lookup.json();
+  if (!rows.length) throw new Error('code_not_found');
+  const row = rows[0];
+  if (row.consumed_at) throw new Error('code_already_used');
+  if (new Date(row.expires_at).getTime() < Date.now()) throw new Error('code_expired');
+
+  // Upsert the link under the user's JWT (RLS enforces user_id = auth.uid).
+  const upsertRes = await sbUserFetch(userJwt,
+    `/user_telegram_links?on_conflict=telegram_id`, {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify({
+        telegram_id: row.telegram_id,
+        user_id: userId,
+        telegram_username: row.telegram_username,
+        telegram_first_name: row.telegram_first_name,
+        last_active_at: new Date().toISOString(),
+      }),
+    });
+  if (!upsertRes.ok) {
+    const t = await upsertRes.text().catch(() => '');
+    throw new Error('link_persist_failed: ' + t.slice(0, 200));
+  }
+
+  // Mark code consumed (service-role).
+  await sbServiceFetch(env,
+    `/telegram_link_codes?code=eq.${encodeURIComponent(code)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ consumed_at: new Date().toISOString() }),
+    }).catch(e => console.warn('[telegram] mark consumed failed', e));
+
+  // Tell the bot.
+  await tgSendMessage(env, row.telegram_id,
+    `✓ Linked to your CreatorClaw account.\n\nTry: *find brands for me*, *draft a pitch to Faherty*, or */help* for the full menu.`);
+
+  return { ok: true, telegram_username: row.telegram_username };
+}
+
+// ── Update dispatcher ────────────────────────────────────────────────────────
+async function handleTelegramUpdate(update, env) {
+  if (update.message) return handleTelegramMessage(update.message, env);
+  if (update.callback_query) {
+    // Phase 2: brand-card / email-send button handling. Phase 1 acknowledges.
+    const cb = update.callback_query;
+    await tg(env, 'answerCallbackQuery', { callback_query_id: cb.id, text: 'Coming soon.' });
+    return;
+  }
+}
+
+async function handleTelegramMessage(msg, env) {
+  // Reject group chats — auth model is 1:1.
+  const chat = msg.chat || {};
+  if (chat.type !== 'private') {
+    await tgSendMessage(env, chat.id, "I only work in direct messages right now. Let's chat 1:1.");
+    return;
+  }
+  const fromId = msg.from?.id;
+  if (!fromId) return;
+  const text = String(msg.text || '').trim();
+
+  // Voice / photo / document → polite decline (Phase 1 = text only).
+  if (!text) {
+    await tgSendMessage(env, chat.id, "I only handle text right now. Voice and image support coming soon.");
+    return;
+  }
+
+  // Look up link (service-role — we don't have a JWT until we know who they are).
+  const linkRes = await sbServiceFetch(env,
+    `/user_telegram_links?telegram_id=eq.${fromId}&select=user_id,telegram_username,telegram_first_name`);
+  const linkRows = linkRes.ok ? await linkRes.json() : [];
+  const link = linkRows[0] || null;
+
+  // Slash command parsing.
+  if (text.startsWith('/')) {
+    const m = text.match(/^\/([a-z_]+)(?:@\w+)?(?:\s+(.*))?$/i);
+    const cmd = (m?.[1] || '').toLowerCase();
+    if (cmd === 'start') return handleStart(msg, link, env);
+    if (cmd === 'help')  return handleHelp(chat.id, !!link, env);
+    if (cmd === 'unlink') return handleUnlink(msg, link, env);
+    // Phase 2 commands — stub politely.
+    if (['refresh','pipeline','connect_google','bug'].includes(cmd)) {
+      await tgSendMessage(env, chat.id, `\`/${cmd}\` is coming soon. For now, do that in the web app at creatorclaw.co.`);
+      return;
+    }
+    await tgSendMessage(env, chat.id, "I don't know that command. Try /help.");
+    return;
+  }
+
+  // Default text → agent. Requires a link.
+  if (!link) {
+    await tgSendMessage(env, chat.id,
+      "Let's link your CreatorClaw account first. Tap /start to get a link.");
+    return;
+  }
+  return handleAgentMessage(msg, link, env);
+}
+
+// ── Slash commands ───────────────────────────────────────────────────────────
+async function handleStart(msg, link, env) {
+  const chatId = msg.chat.id;
+  const fromId = msg.from.id;
+  if (link) {
+    await tgSendMessage(env, chatId,
+      `You're already linked. Try *find brands for me* or */help* for the full menu.`);
+    return;
+  }
+  const code = generateLinkCode();
+  const insertRes = await sbServiceFetch(env, '/telegram_link_codes', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      code,
+      telegram_id: fromId,
+      telegram_username: msg.from.username || null,
+      telegram_first_name: msg.from.first_name || null,
+    }),
+  });
+  if (!insertRes.ok) {
+    const t = await insertRes.text().catch(() => '');
+    console.error('[telegram] code insert failed', t.slice(0, 200));
+    await tgSendMessage(env, chatId, "Hit a snag generating your link code. Try /start again.");
+    return;
+  }
+  const url = `https://creatorclaw.co/?telegram_link=${encodeURIComponent(code)}`;
+  await tgSendMessage(env, chatId,
+    `Hey 👋\n\nLink your CreatorClaw account so I can pitch brands and draft emails on your behalf.\n\n[Tap here to link](${url})\n\n_Code expires in 15 min._`);
+}
+
+async function handleHelp(chatId, isLinked, env) {
+  if (!isLinked) {
+    await tgSendMessage(env, chatId,
+      `Tap /start to link your CreatorClaw account first.\n\nOnce linked, you can chat naturally — *find brands for me*, *draft a pitch to Gymshark*, *what should I charge for a reel?*, etc.`);
+    return;
+  }
+  const lines = [
+    "*What I can do*",
+    "",
+    "Just talk to me naturally:",
+    "• _find brands that fit my audience_",
+    "• _draft a pitch to Gymshark_",
+    "• _what should I charge for a reel?_",
+    "• _give me 5 content ideas for next week_",
+    "",
+    "*Commands*",
+    "/help — this menu",
+    "/refresh — pull latest Instagram data _(soon)_",
+    "/pipeline — show your deals _(soon)_",
+    "/connect\\_google — link Gmail + Calendar _(soon)_",
+    "/bug — report a bug _(soon)_",
+    "/unlink — disconnect from CreatorClaw",
+  ];
+  await tgSendMessage(env, chatId, lines.join('\n'));
+}
+
+async function handleUnlink(msg, link, env) {
+  const chatId = msg.chat.id;
+  if (!link) {
+    await tgSendMessage(env, chatId, "You're not linked.");
+    return;
+  }
+  const jwt = await mintSupabaseJwt(link.user_id, env);
+  const delRes = await sbUserFetch(jwt,
+    `/user_telegram_links?telegram_id=eq.${msg.from.id}`, { method: 'DELETE' });
+  if (!delRes.ok) {
+    await tgSendMessage(env, chatId, "Couldn't unlink — try again in a sec.");
+    return;
+  }
+  await tgSendMessage(env, chatId,
+    "Unlinked. Re-link any time with /start.\n\nYour CreatorClaw account, persona, and pipeline are untouched.");
+}
+
+// ── Agent turn ───────────────────────────────────────────────────────────────
+async function handleAgentMessage(msg, link, env) {
+  const chatId = msg.chat.id;
+  const text = String(msg.text || '').trim();
+  await tgSendChatAction(env, chatId, 'typing');
+
+  let jwt;
+  try { jwt = await mintSupabaseJwt(link.user_id, env); }
+  catch (e) {
+    console.error('[telegram] jwt mint failed', e);
+    await tgSendMessage(env, chatId, "Auth hiccup — try again in a sec.");
+    return;
+  }
+
+  // Bump last_active.
+  sbUserFetch(jwt, `/user_telegram_links?telegram_id=eq.${msg.from.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ last_active_at: new Date().toISOString() }),
+  }).catch(() => {});
+
+  // Load persona + recent IG data.
+  const personaRes = await sbUserFetch(jwt,
+    `/personas?user_id=eq.${link.user_id}&order=updated_at.desc&limit=1&select=*`);
+  const personas = personaRes.ok ? await personaRes.json() : [];
+  const persona = personas[0] || null;
+
+  // One Telegram chat = one persisted conversation, mirroring the web's
+  // sidebar entry. Lets the agent retain context across messages.
+  const conversationId = await getOrCreateTelegramConversation(jwt, link.user_id, chatId, text);
+  if (!conversationId) {
+    await tgSendMessage(env, chatId, "Couldn't load your chat history. Try again.");
+    return;
+  }
+  const histRes = await sbUserFetch(jwt,
+    `/messages?conversation_id=eq.${conversationId}&order=created_at.desc&limit=20&select=role,content`);
+  const histRaw = histRes.ok ? await histRes.json() : [];
+  const history = histRaw.reverse();  // oldest first
+
+  // Save user turn.
+  await sbUserFetch(jwt, '/messages', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      conversation_id: conversationId,
+      user_id: link.user_id,
+      role: 'user',
+      content: text,
+    }),
+  }).catch(e => console.warn('[telegram] save user msg', e));
+
+  const sharedAgentContext = buildSharedAgentContextServer(persona);
+  const messages = [
+    { role: 'system', content: sharedAgentContext },
+    ...history.map(m => ({ role: m.role, content: m.content })),
+    { role: 'user', content: text },
+  ];
+
+  let googleAccessToken = null;
+  try {
+    const g = await getGoogleAccessToken(link.user_id, jwt, env);
+    googleAccessToken = g?.accessToken || null;
+  } catch (e) { console.warn('[telegram] google token', e); }
+
+  const creatorContext = {
+    followers: parseFollowersStr(persona?.scraped_data?.followers),
+    engagementPct: parseEngStr(persona?.scraped_data?.engagementRate),
+    niche: persona?.ai_analysis?.topCategory || persona?.scraped_data?.topCategory || 'lifestyle',
+    userId: link.user_id,
+    accessToken: jwt,
+    timezone: 'UTC',
+  };
+  const executeToolByName = async (name, args) => {
+    const fakeToolCall = { function: { name, arguments: JSON.stringify(args || {}) } };
+    return await executeRateToolCall(fakeToolCall, creatorContext, env);
+  };
+
+  let result;
+  try {
+    result = await handleTelegramAgentTurn(env, {
+      messages, creatorContext, sharedAgentContext, tool: 'main',
+    }, { executeToolByName, googleAccessToken });
+  } catch (e) {
+    console.error('[telegram] agent turn failed', e);
+    await tgSendMessage(env, chatId, "Hit a snag working through that — try rephrasing.");
+    return;
+  }
+
+  // Persist assistant turn.
+  await sbUserFetch(jwt, '/messages', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      conversation_id: conversationId,
+      user_id: link.user_id,
+      role: 'assistant',
+      content: result.text,
+    }),
+  }).catch(e => console.warn('[telegram] save assistant msg', e));
+
+  sbUserFetch(jwt, `/conversations?id=eq.${conversationId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ updated_at: new Date().toISOString() }),
+  }).catch(() => {});
+
+  const chunks = tgChunkText(result.text || '(no response)');
+  for (const chunk of chunks) {
+    await tgSendMessage(env, chatId, chunk);
+  }
+}
+
+async function getOrCreateTelegramConversation(jwt, userId, telegramChatId, firstMessage) {
+  const findRes = await sbUserFetch(jwt,
+    `/conversations?telegram_chat_id=eq.${telegramChatId}&user_id=eq.${userId}&select=id&limit=1`);
+  if (findRes.ok) {
+    const rows = await findRes.json();
+    if (rows.length) return rows[0].id;
+  }
+  const title = String(firstMessage || 'Telegram chat').slice(0, 60);
+  const createRes = await sbUserFetch(jwt, '/conversations', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      user_id: userId,
+      title: title + (firstMessage && firstMessage.length > 60 ? '…' : ''),
+      tool: 'main',
+      telegram_chat_id: telegramChatId,
+    }),
+  });
+  if (!createRes.ok) {
+    console.error('[telegram] create conversation failed', await createRes.text().catch(() => ''));
+    return null;
+  }
+  const created = await createRes.json();
+  return Array.isArray(created) ? created[0]?.id : created?.id;
+}
+
+// Server-side persona prompt builder (mirrors index.html buildSharedAgentContext).
+function buildSharedAgentContextServer(personaRow) {
+  const ai = personaRow?.ai_analysis || {};
+  const ig = personaRow?.scraped_data || {};
+  const name = ai.name || ig.displayName || ig.username || 'the creator';
+  const parts = [
+    `You are CreatorClaw, a personal AI assistant for ${name}, an Instagram content creator. Be warm, direct, and actionable.`
+  ];
+  parts.push(`\n--- What you know about this creator ---`);
+  if (ig.username) parts.push(`Instagram handle: @${String(ig.username).replace(/^@/, '')}`);
+  if (ig.followers) parts.push(`Followers: ${ig.followers}`);
+  if (ig.engagementRate) parts.push(`Engagement rate: ${ig.engagementRate}`);
+  if (ig.totalPosts) parts.push(`Total posts: ${ig.totalPosts}`);
+  if (Array.isArray(ai.vibes) && ai.vibes.length) parts.push(`Voice/vibes: ${ai.vibes.join(', ')}`);
+  if (Array.isArray(ai.pillars) && ai.pillars.length) {
+    const pillars = ai.pillars.map(x => typeof x === 'string' ? x : (x.l || x.label)).filter(Boolean).join(', ');
+    if (pillars) parts.push(`Content pillars: ${pillars}`);
+  }
+  if (Array.isArray(ig.recentThemes) && ig.recentThemes.length) parts.push(`Recent content themes: ${ig.recentThemes.join(', ')}`);
+  if (ig.bio) parts.push(`Bio: "${ig.bio}"`);
+  parts.push(`\n--- Style ---`);
+  parts.push(`Use the data above freely when answering questions about their audience, performance, or strategy. Cite specific numbers and themes rather than speaking generically. Keep responses concise — Telegram messages should fit on a phone screen unless the user asks for detail.`);
+  return parts.join('\n');
+}
+
+function parseFollowersStr(raw) {
+  if (typeof raw === 'number') return raw;
+  if (typeof raw === 'string') {
+    const s = raw.replace(/[, ]/g, '');
+    if (/M$/i.test(s)) return Math.round(parseFloat(s) * 1_000_000);
+    if (/K$/i.test(s)) return Math.round(parseFloat(s) * 1_000);
+    const n = Number(s); if (!isNaN(n)) return n;
+  }
+  return 0;
+}
+function parseEngStr(raw) {
+  if (typeof raw === 'number') return raw;
+  if (typeof raw === 'string') { const m = raw.match(/([\d.]+)/); if (m) return parseFloat(m[1]); }
+  return null;
 }
