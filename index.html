@@ -139,6 +139,7 @@ body.in-tool .nav{display:none}
 .chat-msg-body{flex:1;font-size:14px;line-height:1.7;color:var(--text);min-width:0;padding-top:4px;word-wrap:break-word;white-space:pre-wrap}
 .chat-msg-body.has-card{white-space:normal}
 .chat-msg.assistant .chat-msg-body .typing-cursor{display:inline-block;width:6px;height:14px;background:var(--gold);animation:blink 0.9s infinite;vertical-align:text-bottom;margin-left:2px}
+.chat-msg.assistant .chat-msg-body .thinking-verb{display:inline-block;color:var(--muted);font-style:italic;font-size:13px;letter-spacing:0.01em;opacity:0.75;transition:opacity 0.25s ease}
 .chat-msg-body strong{font-weight:600;color:var(--text)}
 .chat-msg-body em{font-style:italic;color:var(--text)}
 .chat-msg-body a{color:var(--gold);text-decoration:underline;text-underline-offset:2px}
@@ -1156,6 +1157,77 @@ const LOADING_MESSAGES={
     'Curating your top 10 picks…'
   ]
 };
+// Viral-trend gerunds rotated in the chat bubble while waiting for the first
+// streaming token. Pure verbs only — no nouns/objects — so they read sensibly
+// regardless of what the user actually asked for.
+const CHAT_THINKING_VERBS=[
+  'Yeeting…','Dabbing…','Flossing…','Whipping…','Nae-Nae-ing…',
+  'On-fleek-ing…','Turnt-ing…','Renegade-ing…','Toosie-sliding…',
+  'Savage-dancing…','Woah-ing…','Mannequin-challenging…','Bottle-flipping…',
+  'Ice-bucket-challenging…','Milk-crate-challenging…','Shoot-dancing…',
+  'Apple-bottom-jeans-ing…','Dougie-ing…',
+  'Stan-ning…','Simping…','Vibe-checking…','Doomscrolling…','Manifesting…',
+  'Ratio-ing…','Gatekeeping…','Clout-chasing…','Karen-ing…','Cancelling…',
+  'Boomer-ing…','No-cap-ping…',
+  'Bussin\'…','Slay-ing…','Rent-free-ing…','Periodt-ing…','Snatching…',
+  'Touch-grassing…','Cheugy-ing…','Sending-it…','Spilling…','Eating…','Cooking…',
+  'NPC-ing…','Romanticizing…','Soft-launching…','Hard-launching…',
+  'Griddy-ing…','Villain-era-ing…','Main-charactering…','Cottagecore-ing…',
+  'Goblin-moding…','Quiet-quitting…','Loud-quitting…','Hot-girl-walking…',
+  'Caught-lacking…','Pop-off-ing…',
+  'Rizzing…','Glazing…','Mewing…','Looksmaxxing…','Delulu-ing…',
+  'Sigma-grinding…','Aura-farming…','Skibidi-ing…','Era-maxxing…',
+  'Pookie-ing…','Lore-dropping…','Plot-twisting…','Side-questing…',
+  'Speed-running…','Glowing-up…','De-influencing…','Situationship-ing…',
+  'Lucky-girl-syndroming…','Girl-math-ing…','Girl-dinner-ing…',
+  'Roman-Empiring…','Therapy-posting…',
+  'Brat-ting…','Demure-ing…','Loud-budgeting…','Brain-rotting…',
+  'Mob-wife-ing…','Coastal-grandma-ing…','Clean-girl-ing…',
+  'Tomato-girl-summering…','Quiet-luxurying…','Old-money-ing…',
+  'Barbiecore-ing…','Goblincore-ing…','Dopamine-dressing…',
+  'Beige-flagging…','Hawk-tuah-ing…','Gyatt-ing…','Aura-posting…',
+  'Feral-ing…','Chronically-onlining…','Unhinged-posting…',
+  'Bare-minimum-mondaying…',
+  'Dueting…','Stitching…','FYP-ing…','POV-ing…','GRWM-ing…',
+  'Haul-ing…','Unboxing…','Influencing…','Algorithm-hacking…',
+  'Content-batching…','Niche-ing-down…','Pivoting…','Going-viral…',
+  'Yass-ing…','Deadass-ing…','Spitting…','Snapping…','Going-off…',
+  'Ghosting…','Clapping-back…','W-posting…','Trauma-dumping…',
+  'Oversharing…','Cringe-ing…','Queening…','Malding…','Coping…',
+  'Spiraling…','Girlboss-ing…',
+  'Pilates-princess-ing…','Serotonin-farming…','Healing-era-ing…',
+  'Soft-resetting…','Vision-boarding…','75-hard-ing…',
+  'Soft-life-ing…','That-girl-ing…','It-girl-ing…',
+  'Arc-completing…','Plot-armoring…','Main-questing…',
+  'Redemption-arcing…','Era-entering…','Core-memory-making…',
+  'Based-posting…','Chaotic-neutral-ing…','Rage-quitting…',
+  'Respawning…','No-life-ing…',
+  'Devious-licking…','Corn-kid-ing…','Hot-dog-dancing…',
+  'In-my-feelings-ing…','Keke-challenging…'
+];
+function startThinkingVerb(targetEl){
+  if(!targetEl) return null;
+  const span=document.createElement('span');
+  span.className='thinking-verb';
+  let i=Math.floor(Math.random()*CHAT_THINKING_VERBS.length);
+  span.textContent=CHAT_THINKING_VERBS[i];
+  targetEl.appendChild(span);
+  const interval=setInterval(()=>{
+    i=Math.floor(Math.random()*CHAT_THINKING_VERBS.length);
+    span.style.opacity='0';
+    setTimeout(()=>{
+      span.textContent=CHAT_THINKING_VERBS[i];
+      span.style.opacity='0.75';
+    },220);
+  },1800);
+  return { span, interval };
+}
+function stopThinkingVerb(handle){
+  if(!handle) return;
+  clearInterval(handle.interval);
+  if(handle.span && handle.span.parentNode) handle.span.parentNode.removeChild(handle.span);
+}
+
 const _loadingTimers={};
 function startLoading(key, estSec){
   stopLoading(key);
@@ -3126,7 +3198,10 @@ async function sendChatMessage(){
   wrap?.classList.add('is-loading');
   const cursor = document.createElement('span');
   cursor.className = 'typing-cursor';
-  bodyEl.appendChild(cursor);
+  // Show a rotating viral-trend verb while waiting for the first token.
+  // The verb gets wiped naturally when innerHTML is reset on first delta;
+  // we just need to clear its interval.
+  let verbHandle = startThinkingVerb(bodyEl);
 
   // Build message history for API
   const systemPrompt = buildSystemPrompt();
@@ -3213,6 +3288,7 @@ async function sendChatMessage(){
           const delta = deltaObj?.content;
           if(delta){
             fullText += delta;
+            if(verbHandle){ stopThinkingVerb(verbHandle); verbHandle = null; }
             cursor.remove();
             bodyEl.innerHTML = renderMarkdown(fullText);
             bodyEl.appendChild(cursor);
@@ -3229,6 +3305,7 @@ async function sendChatMessage(){
         } catch {}
       }
     }
+    if(verbHandle){ stopThinkingVerb(verbHandle); verbHandle = null; }
     cursor.remove();
     if(fullText){
       chatState.messages.push({ role: 'assistant', content: fullText });
@@ -3241,12 +3318,14 @@ async function sendChatMessage(){
       bodyEl.style.color = 'var(--muted)';
     }
   } catch(e){
+    if(verbHandle){ stopThinkingVerb(verbHandle); verbHandle = null; }
     cursor.remove();
     const isAbort = e.name === 'AbortError';
     bodyEl.textContent = isAbort ? '(request timed out — try again)' : '(error: '+e.message+')';
     bodyEl.style.color = 'var(--red)';
     console.error('Chat error:', e);
   } finally {
+    if(verbHandle){ stopThinkingVerb(verbHandle); verbHandle = null; }
     wrap?.classList.remove('is-loading');
     resetChatSend();
     // Skip auto-refocus on mobile — re-popping the iOS keyboard after
