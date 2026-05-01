@@ -2819,16 +2819,19 @@ async function handleAgentMessage(msg, link, env) {
     return await executeRateToolCall(fakeToolCall, creatorContext, env);
   };
 
-  // Live streaming via editMessageText. Buffer the first ~30 chars to avoid
+  // Live streaming via editMessageText. Buffer the first ~15 chars to avoid
   // a flicker of "S" → "Su" → "Sub..." on the first message, then send and
-  // edit-throttled at ~1/sec (Telegram rate-limits editMessageText). Skipped
-  // for Subject:-shaped output: pitches render as a separate email card after
+  // edit-throttled at ~700ms. Telegram's documented safe limit is 1 edit/sec
+  // per chat; short bursts above that usually pass, and any 429 we hit is
+  // silently dropped by the .catch() below — so a slightly aggressive cadence
+  // smooths perceived output without risking visible failures. Skipped for
+  // Subject:-shaped output: pitches render as a separate email card after
   // the run completes, and we don't want a half-formed pitch to flash first.
   let streamMsgId = null;
   let lastEdit = 0;
   let pitchAborted = false;
-  const STREAM_FIRST_CHARS = 30;
-  const EDIT_THROTTLE_MS = 1100;
+  const STREAM_FIRST_CHARS = 15;
+  const EDIT_THROTTLE_MS = 700;
   const onTextProgress = async (text) => {
     if (pitchAborted) return;
     const now = Date.now();
