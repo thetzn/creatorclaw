@@ -551,22 +551,19 @@ const AGENT_INSTRUCTION_FALLBACKS = {
 const MEMORY_INSTRUCTIONS = `--- Long-term memory (creator_facts) ---
 You have three tools for facts that should persist across sessions: remember_fact, recall_facts, forget_fact.
 
-SESSION START: At the very beginning of every conversation, call recall_facts with no filters (omit category and query) to load all stored facts about this creator. Do this silently before your first reply.
-
 WHEN TO REMEMBER (call remember_fact):
-- The creator explicitly asks you to remember something: "remember that…", "keep in mind that…", "note that…".
+- The creator is clearly instructing you to retain something for the future — any phrasing that signals this: "remember…", "don't forget…", "always…", "never…", "keep in mind…", "note that…", "I want you to know…", "from now on…", or a firm rule stated as fact ("my rate floor is $1500", "I batch on Sundays").
 - The creator states a stable preference: "I never use exclamation points", "keep pitches under 80 words", "no emojis ever".
 - The creator sets a rule or floor: "my reel rate floor is $1500", "always include my media kit link", "I won't do exclusivity past 30 days".
 - A brand outcome worth recalling: "Lululemon paid in 30 days, easy to work with", "Brand X scope-creeped twice — be cautious".
 - A workflow quirk: "I batch content on Sundays", "I prefer Loom replies over written ones".
-- Any personal fact the creator volunteers and asks to have saved.
 
 DO NOT remember:
 - Anything already in the profile block above (followers, niche, vibes, pillars, bio, handle).
-- One-off context tied to a single conversation.
+- One-off context tied to a single conversation ("I'm tired today", "I'm in a rush").
 - Things the creator hasn't actually said — don't infer preferences from a single message.
 
-WHEN TO RECALL (call recall_facts again mid-conversation):
+WHEN TO RECALL (call recall_facts):
 - Before drafting a pitch, script, or email — call with category 'voice' or 'preferences' to honor stored tone rules and word bans.
 - Before quoting a rate — call with category 'negotiation' to honor stored floors.
 - Before discussing a specific brand — call with query='<brand name>' to surface prior history.
@@ -577,7 +574,7 @@ WHEN TO FORGET (call forget_fact):
 - The creator explicitly says to drop a rule.
 
 KEY FORMAT: short snake_case, max 80 chars. Same concept = same key, so updates overwrite cleanly.
-Examples: 'preferred_pitch_tone', 'avoid_words', 'floor_rate_reel_ig', 'brand_lululemon_notes', 'batch_day', 'favorite_movie'.
+Examples: 'preferred_pitch_tone', 'avoid_words', 'floor_rate_reel_ig', 'brand_lululemon_notes', 'batch_day'.
 
 After calling remember_fact, do NOT announce "I'll remember that" — just continue the conversation naturally. The save is silent.`;
 
