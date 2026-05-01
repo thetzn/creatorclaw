@@ -247,12 +247,143 @@ const createOutreachDealTool = tool({
   },
 });
 
+// ── Creator memory (creator_facts) ─────────────────────────────────────────
+// Lightweight long-term memory: stable preferences / outcomes / strategy
+// the agent learns from conversation. Keyed by short label so subsequent
+// remember_fact calls with the same key overwrite the value (upsert).
+async function rememberFactRemote(args, ctx) {
+  const accessToken = ctx?.accessToken;
+  const userId = ctx?.userId;
+  if (!accessToken || !userId) {
+    return { error: 'not_signed_in', message: 'Creator must sign in before facts can be saved.' };
+  }
+  const key = String(args.key || '').trim().toLowerCase().replace(/\s+/g, '_').slice(0, 80);
+  const value = String(args.value || '').trim().slice(0, 1000);
+  if (!key || !value) return { error: 'invalid', message: 'key and value are required.' };
+  const row = {
+    user_id: userId,
+    key,
+    value,
+    category: args.category || 'general',
+    source: args.source || 'chat',
+  };
+  // PostgREST upsert via on_conflict on the (user_id, key) unique constraint.
+  const r = await fetch(`${SUPABASE_REST_URL}/creator_facts?on_conflict=user_id,key`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY_PUB,
+      Authorization: `Bearer ${accessToken}`,
+      Prefer: 'resolution=merge-duplicates,return=representation',
+    },
+    body: JSON.stringify(row),
+  });
+  if (!r.ok) {
+    const errText = await r.text().catch(() => r.statusText);
+    return { error: 'upsert_failed', status: r.status, details: errText.slice(0, 300) };
+  }
+  return { status: 'saved', key, value, category: row.category };
+}
+
+async function recallFactsRemote(args, ctx) {
+  const accessToken = ctx?.accessToken;
+  const userId = ctx?.userId;
+  if (!accessToken || !userId) {
+    return { error: 'not_signed_in', facts: [] };
+  }
+  const limit = Math.min(Math.max(Number(args.limit) || 20, 1), 50);
+  const params = new URLSearchParams();
+  params.set('select', 'key,value,category,updated_at');
+  params.set('order', 'updated_at.desc');
+  params.set('limit', String(limit));
+  if (args.category) params.set('category', `eq.${args.category}`);
+  if (args.query) {
+    const q = String(args.query).replace(/[%,()]/g, '').slice(0, 80);
+    if (q) params.set('or', `(key.ilike.%${q}%,value.ilike.%${q}%)`);
+  }
+  const r = await fetch(`${SUPABASE_REST_URL}/creator_facts?${params.toString()}`, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY_PUB,
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!r.ok) {
+    const errText = await r.text().catch(() => r.statusText);
+    return { error: 'select_failed', status: r.status, details: errText.slice(0, 300), facts: [] };
+  }
+  const facts = await r.json().catch(() => []);
+  return { facts: Array.isArray(facts) ? facts : [] };
+}
+
+async function forgetFactRemote(args, ctx) {
+  const accessToken = ctx?.accessToken;
+  const userId = ctx?.userId;
+  if (!accessToken || !userId) {
+    return { error: 'not_signed_in' };
+  }
+  const key = String(args.key || '').trim().toLowerCase().replace(/\s+/g, '_').slice(0, 80);
+  if (!key) return { error: 'invalid', message: 'key is required.' };
+  const r = await fetch(`${SUPABASE_REST_URL}/creator_facts?key=eq.${encodeURIComponent(key)}`, {
+    method: 'DELETE',
+    headers: {
+      apikey: SUPABASE_ANON_KEY_PUB,
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!r.ok) {
+    const errText = await r.text().catch(() => r.statusText);
+    return { error: 'delete_failed', status: r.status, details: errText.slice(0, 300) };
+  }
+  return { status: 'forgotten', key };
+}
+
+const rememberFactTool = tool({
+  name: 'remember_fact',
+  description: "Save a stable long-term fact about the creator (preferences, brand history, negotiation rules, workflow quirks). Call this when the creator expresses a clear preference or rule that should persist across future sessions — e.g. 'I never use exclamation points', 'my floor for IG reels is $1500', 'Lululemon always pays in 30 days'. Do NOT save things already in their profile (followers, niche, vibes) or one-off facts about a single conversation. Use a short snake_case key (max 80 chars) so the same concept overwrites cleanly.",
+  parameters: z.object({
+    key: z.string().describe("Short snake_case label, e.g. 'preferred_pitch_tone', 'avoid_words', 'floor_rate_reel_ig', 'brand_lululemon_payment_speed'."),
+    value: z.string().describe('The fact itself, written as a short sentence the agent can read back later.'),
+    category: z.enum(['voice','preferences','brand_history','negotiation','workflow','general']).nullable().optional(),
+    source: z.string().nullable().optional().describe("Where this was learned. Default 'chat'."),
+  }),
+  async execute(args, runContext) {
+    return rememberFactRemote(args, runContext.context);
+  },
+});
+
+const recallFactsTool = tool({
+  name: 'recall_facts',
+  description: "Look up previously saved facts about the creator. Call this BEFORE drafting a pitch, script, or rate quote when you need to honor stored preferences (tone rules, words to avoid, rate floors, brand history). Without args returns the most recent facts; pass `category` to scope, or `query` for a keyword match against key/value.",
+  parameters: z.object({
+    query: z.string().nullable().optional().describe('Optional keyword to filter (matches key or value, case-insensitive).'),
+    category: z.enum(['voice','preferences','brand_history','negotiation','workflow','general']).nullable().optional(),
+    limit: z.number().int().nullable().optional().describe('Max results, default 20, max 50.'),
+  }),
+  async execute(args, runContext) {
+    return recallFactsRemote(args, runContext.context);
+  },
+});
+
+const forgetFactTool = tool({
+  name: 'forget_fact',
+  description: 'Delete a previously saved fact when the creator says it no longer applies or contradicts it. Provide the same key used to save it.',
+  parameters: z.object({
+    key: z.string().describe('The snake_case key of the fact to delete.'),
+  }),
+  async execute(args, runContext) {
+    return forgetFactRemote(args, runContext.context);
+  },
+});
+
 const TOOL_REGISTRY = {
   get_rate_estimate:       { tool: rateEstimateTool,         agents: ['main', 'create', 'pitch', 'pipeline'] },
   compare_offer:           { tool: compareOfferTool,         agents: ['main', 'create', 'pitch', 'pipeline'] },
   generate_content_ideas:  { tool: generateContentIdeasTool, agents: ['main', 'create'] },
   find_brand_matches:      { tool: findBrandMatchesTool,     agents: ['main', 'pitch'] },
   create_outreach_deal:    { tool: createOutreachDealTool,   agents: ['pipeline'] },
+  remember_fact:           { tool: rememberFactTool,         agents: ['main', 'create', 'pitch', 'pipeline'] },
+  recall_facts:            { tool: recallFactsTool,          agents: ['main', 'create', 'pitch', 'pipeline'] },
+  forget_fact:             { tool: forgetFactTool,           agents: ['main', 'create', 'pitch', 'pipeline'] },
 };
 
 // ── Specialist delegation (agents-as-tools) ─────────────────────────────────
@@ -414,6 +545,37 @@ const AGENT_INSTRUCTION_FALLBACKS = {
   pipeline: PIPELINE_AGENT_INSTRUCTIONS,
 };
 
+// Appended to every agent's instructions. Drives use of remember_fact /
+// recall_facts / forget_fact (the creator_facts table). Kept separate so the
+// rules live in one place and stay consistent across specialists.
+const MEMORY_INSTRUCTIONS = `--- Long-term memory (creator_facts) ---
+You have three tools for facts that should persist across sessions: remember_fact, recall_facts, forget_fact.
+
+WHEN TO REMEMBER (call remember_fact):
+- The creator states a stable preference: "I never use exclamation points", "keep pitches under 80 words", "no emojis ever".
+- The creator sets a rule or floor: "my reel rate floor is $1500", "always include my media kit link", "I won't do exclusivity past 30 days".
+- A brand outcome worth recalling: "Lululemon paid in 30 days, easy to work with", "Brand X scope-creeped twice — be cautious".
+- A workflow quirk: "I batch content on Sundays", "I prefer Loom replies over written ones".
+
+DO NOT remember:
+- Anything already in the profile block above (followers, niche, vibes, pillars, bio, handle).
+- One-off context tied to a single conversation.
+- Things the creator hasn't actually said — don't infer preferences from a single message.
+
+WHEN TO RECALL (call recall_facts):
+- Before drafting a pitch, script, or email — call with category 'voice' or 'preferences' to honor stored tone rules and word bans.
+- Before quoting a rate — call with category 'negotiation' to honor stored floors.
+- Before discussing a specific brand — call with query='<brand name>' to surface prior history.
+
+WHEN TO FORGET (call forget_fact):
+- The creator contradicts a saved fact ("actually, I'm fine with exclamation points now").
+- The creator explicitly says to drop a rule.
+
+KEY FORMAT: short snake_case, max 80 chars. Same concept = same key, so updates overwrite cleanly.
+Examples: 'preferred_pitch_tone', 'avoid_words', 'floor_rate_reel_ig', 'brand_lululemon_notes', 'batch_day'.
+
+After calling remember_fact, do NOT announce "I'll remember that" — just continue the conversation naturally. The save is silent.`;
+
 // Tool descriptions shown to a calling agent when it considers invoking a
 // specialist via delegate_<name>. Keep these directive — the calling agent
 // uses these to decide *when* to delegate.
@@ -451,8 +613,8 @@ function buildAgentSet(googleMcp, sharedAgentContext) {
     if (Array.isArray(extraTools)) for (const t of extraTools) if (t) tools.push(t);
     const persona = AGENT_INSTRUCTION_FALLBACKS[name];
     const instructions = sharedAgentContext
-      ? `${sharedAgentContext}\n\n--- Your role on this turn ---\n${persona}`
-      : persona;
+      ? `${sharedAgentContext}\n\n--- Your role on this turn ---\n${persona}\n\n${MEMORY_INSTRUCTIONS}`
+      : `${persona}\n\n${MEMORY_INSTRUCTIONS}`;
     return new Agent({
       name: name === 'main' ? 'CreatorClaw' : `CreatorClaw-${name}`,
       model: willAttachMcp ? 'gpt-4o' : 'gpt-4o-mini',
