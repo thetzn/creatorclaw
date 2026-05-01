@@ -140,6 +140,7 @@ body.in-tool .nav{display:none}
 .chat-msg-body.has-card{white-space:normal}
 .chat-msg.assistant .chat-msg-body .typing-cursor{display:inline-block;width:6px;height:14px;background:var(--gold);animation:blink 0.9s infinite;vertical-align:text-bottom;margin-left:2px}
 .chat-msg.assistant .chat-msg-body .thinking-verb{display:inline-block;background:linear-gradient(90deg,var(--gold3),var(--gold),var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:600;font-size:14px;letter-spacing:-0.005em;opacity:1;transition:opacity 0.25s ease;animation:thinking-verb-bounce 2.4s ease-in-out infinite;will-change:transform}
+.chat-msg.assistant .chat-msg-body .thinking-verb-dots{display:inline-block;width:1.1em;text-align:left;letter-spacing:0.04em}
 @keyframes thinking-verb-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
 .chat-msg-body strong{font-weight:600;color:var(--text)}
 .chat-msg-body em{font-style:italic;color:var(--text)}
@@ -1208,24 +1209,38 @@ const CHAT_THINKING_VERBS=[
 ];
 function startThinkingVerb(targetEl){
   if(!targetEl) return null;
+  const cleanVerb=(s)=>s.replace(/[.…]+\s*$/,'');
   const span=document.createElement('span');
   span.className='thinking-verb';
+  const verbText=document.createElement('span');
+  verbText.className='thinking-verb-text';
+  const dots=document.createElement('span');
+  dots.className='thinking-verb-dots';
+  span.appendChild(verbText);
+  span.appendChild(dots);
   let i=Math.floor(Math.random()*CHAT_THINKING_VERBS.length);
-  span.textContent=CHAT_THINKING_VERBS[i];
+  verbText.textContent=cleanVerb(CHAT_THINKING_VERBS[i]);
   targetEl.appendChild(span);
+  // Animate dots: '' → . → .. → ... → '' (loop). Conveys active streaming.
+  let dotCount=0;
+  const dotInterval=setInterval(()=>{
+    dotCount=(dotCount+1)%4;
+    dots.textContent='.'.repeat(dotCount);
+  },360);
   const interval=setInterval(()=>{
     i=Math.floor(Math.random()*CHAT_THINKING_VERBS.length);
     span.style.opacity='0';
     setTimeout(()=>{
-      span.textContent=CHAT_THINKING_VERBS[i];
+      verbText.textContent=cleanVerb(CHAT_THINKING_VERBS[i]);
       span.style.opacity='1';
     },220);
-  },2592);
-  return { span, interval };
+  },2981);
+  return { span, interval, dotInterval };
 }
 function stopThinkingVerb(handle){
   if(!handle) return;
   clearInterval(handle.interval);
+  if(handle.dotInterval) clearInterval(handle.dotInterval);
   if(handle.span && handle.span.parentNode) handle.span.parentNode.removeChild(handle.span);
 }
 
