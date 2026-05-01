@@ -5332,9 +5332,11 @@ async function draftScript(encodedTitle){
   const idea=(state.pulseIdeas||[]).find(i=>i.title===title);
   if(!idea) return;
   const p=state.persona||{};
-  showModal(
+  const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Render the script card inline in chat instead of as a popup modal.
+  const cardBody=appendInlineCard('assistant',
     '<div class="modal-title">Drafting script…</div>'+
-    '<div class="modal-sub">"'+title.replace(/</g,'&lt;')+'"</div>'+
+    '<div class="modal-sub">"'+esc(title)+'"</div>'+
     '<div class="pitch-loading"><div class="spinner" data-crab></div><div class="loading-title">Writing your script…</div></div>'
   );
   const sys='Short-form video scriptwriter. Return ONLY JSON: {"hook":"...","body":"...","cta":"...","length":"..."} No markdown. The hook is the first 3 seconds (must stop the scroll). The body is the main content (25-40 seconds of spoken content). The cta is the closing line. Length is an estimated duration string like "45 seconds". Write in the creator\'s voice — use their vibes and tone.';
@@ -5343,10 +5345,9 @@ async function draftScript(encodedTitle){
   try {
     const raw=await chatLLM(sys,user);
     const script=parseJSON(raw);
-    const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const fullText=`HOOK (0-3s):\n${script.hook}\n\nBODY:\n${script.body}\n\nCTA:\n${script.cta}\n\nEstimated length: ${script.length}`;
     const copyText=fullText.replace(/\\/g,'\\\\').replace(/`/g,'\\`').replace(/\$/g,'\\$');
-    showModal(
+    cardBody.innerHTML=
       '<div class="modal-title">Script: '+esc(idea.title)+'</div>'+
       '<div class="modal-sub">Written in your voice — '+esc(p.name||'the creator')+'. '+esc(script.length||'')+'.</div>'+
       '<div class="modal-label">Hook (first 3 seconds)</div>'+
@@ -5357,12 +5358,10 @@ async function draftScript(encodedTitle){
       '<div class="pitch-subject-val">'+esc(script.cta)+'</div>'+
       '<div class="modal-row">'+
         '<button class="copy-btn" onclick="copyPitch(this,`'+copyText+'`)">Copy to Clipboard</button>'+
-        '<button class="modal-cancel-btn" onclick="closeModal()">Close</button>'+
-      '</div>'
-    );
+      '</div>';
+    requestAnimationFrame(()=>revealBubble(cardBody));
   } catch(e){
-    closeModal();
-    showError('Script draft failed: '+e.message);
+    cardBody.innerHTML='<div class="modal-title">Script draft failed</div><div class="modal-sub" style="color:var(--red)">'+esc(e.message||'Unknown error')+'</div>';
   }
 }
 
