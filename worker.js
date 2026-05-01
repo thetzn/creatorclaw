@@ -2819,49 +2819,17 @@ async function handleAgentMessage(msg, link, env) {
     return await executeRateToolCall(fakeToolCall, creatorContext, env);
   };
 
-  // Live streaming via editMessageText. Buffer the first ~15 chars to avoid
-  // a flicker of "S" → "Su" → "Sub..." on the first message, then send and
-  // edit-throttled at ~700ms. Telegram's documented safe limit is 1 edit/sec
-  // per chat; short bursts above that usually pass, and any 429 we hit is
-  // silently dropped by the .catch() below — so a slightly aggressive cadence
-  // smooths perceived output without risking visible failures. Skipped for
-  // Subject:-shaped output: pitches render as a separate email card after
-  // the run completes, and we don't want a half-formed pitch to flash first.
-  let streamMsgId = null;
-  let lastEdit = 0;
-  let pitchAborted = false;
-  const STREAM_FIRST_CHARS = 15;
-  const EDIT_THROTTLE_MS = 700;
-  const onTextProgress = async (text) => {
-    if (pitchAborted) return;
-    const now = Date.now();
-    if (!streamMsgId) {
-      if (text.length < STREAM_FIRST_CHARS) return;
-      // First-emit: send the message, capture id for future edits.
-      const sent = await tgSendMessage(env, chatId, text, { parseMode: undefined });
-      streamMsgId = sent?.result?.message_id || null;
-      lastEdit = now;
-      return;
-    }
-    if (now - lastEdit < EDIT_THROTTLE_MS) return;
-    lastEdit = now;
-    await tgEditMessageText(env, chatId, streamMsgId, text, { parseMode: undefined }).catch(() => {});
-  };
-  const onPitchDetected = () => {
-    pitchAborted = true;
-    // If we already opened a streaming message before we knew it was a
-    // pitch, replace its content with a placeholder so it doesn't dangle.
-    if (streamMsgId) {
-      tgEditMessageText(env, chatId, streamMsgId, '<i>Drafting email…</i>', {})
-        .catch(() => {});
-    }
-  };
-
+  // Buffer-and-send: agent runs to completion, then we send one cohesive
+  // message (or several if cards / pitch shape detected). Typing indicator
+  // already fired above tells the user the agent is working. Tried live
+  // editMessageText streaming in Phase 2.5 — Telegram's whole-message
+  // redraw on every edit feels jumpier than buffered, so we kept the
+  // streaming hooks in worker-agents.js but no longer pass them.
   let result;
   try {
     result = await handleTelegramAgentTurn(env, {
       messages, creatorContext, sharedAgentContext, tool: 'main',
-    }, { executeToolByName, googleAccessToken }, { onTextProgress, onPitchDetected });
+    }, { executeToolByName, googleAccessToken });
   } catch (e) {
     console.error('[telegram] agent turn failed', e);
     await tgSendMessage(env, chatId, "Hit a snag working through that — try rephrasing.");
@@ -2888,12 +2856,7 @@ async function handleAgentMessage(msg, link, env) {
   // Phase 2 routing: cards become inline-keyboard messages; pitch drafts
   // (Subject:/body) get an [Send] [Open in Gmail] button row.
   if (Array.isArray(result.cards) && result.cards.length) {
-    // If we streamed text before cards arrived (rare — usually tools fire
-    // first), edit the streamed message to the final text. Otherwise send
-    // the intro fresh.
-    if (streamMsgId && result.text) {
-      await tgEditMessageText(env, chatId, streamMsgId, result.text, { parseMode: undefined }).catch(() => {});
-    } else if (result.text) {
+    if (result.text) {
       const chunks = tgChunkText(result.text);
       for (const chunk of chunks) await tgSendMessage(env, chatId, chunk);
     }
@@ -2908,23 +2871,12 @@ async function handleAgentMessage(msg, link, env) {
   }
   const pitch = detectPitchInTextServer(result.text);
   if (pitch) {
-    // Pitch detected: if streaming opened a placeholder message, delete it
-    // (we'll send the proper email card next).
-    if (streamMsgId) {
-      tg(env, 'deleteMessage', { chat_id: chatId, message_id: streamMsgId }).catch(() => {});
-    }
     await renderEmailCardTelegram(env, chatId, link.user_id, jwt, pitch, history);
     return;
   }
-  // Plain text: if we streamed, do one final edit with the complete text.
-  // Otherwise send fresh (chunked).
-  if (streamMsgId) {
-    await tgEditMessageText(env, chatId, streamMsgId, result.text || '(no response)', { parseMode: undefined }).catch(() => {});
-  } else {
-    const chunks = tgChunkText(result.text || '(no response)');
-    for (const chunk of chunks) {
-      await tgSendMessage(env, chatId, chunk);
-    }
+  const chunks = tgChunkText(result.text || '(no response)');
+  for (const chunk of chunks) {
+    await tgSendMessage(env, chatId, chunk);
   }
 }
 
