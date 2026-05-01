@@ -703,6 +703,69 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 .settings-btn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--muted);font-size:11px;display:flex;align-items:center;gap:6px;letter-spacing:0.08em}
 .settings-btn:hover{border-color:var(--border2);color:var(--text)}
 .error-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1010;border:1px solid var(--red);border-radius:8px;padding:12px 20px;color:var(--red);font-size:12px;font-weight:500;z-index:200;max-width:90vw;text-align:center}
+
+/* ── Settings tab ─────────────────────────────────────────────────────────── */
+#tab-settings{display:flex;height:calc(100vh - 52px);overflow:hidden}
+.st-nav{width:240px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto;padding:8px 0}
+.st-nav-item{display:flex;align-items:center;gap:14px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px;position:relative;transition:background 0.12s}
+.st-nav-item:hover{background:var(--card)}
+.st-nav-item.active{background:var(--card)}
+.st-nav-item svg{width:18px;height:18px;flex-shrink:0;color:var(--muted)}
+.st-nav-item.active svg{color:var(--text)}
+.st-nav-label{flex:1}
+.st-nav-soon{font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;opacity:0.6}
+.st-nav-item.st-disabled{cursor:default;opacity:0.45}
+.st-nav-item.st-disabled:hover{background:transparent}
+.st-nav-chevron{color:var(--muted);opacity:0.4}
+.st-nav-sep{height:1px;background:var(--border);margin:6px 0}
+.st-nav-sub{padding-left:52px;font-size:13px;color:var(--muted)}
+.st-nav-sub.active{color:var(--text)}
+.st-nav-sub:hover{color:var(--text);background:var(--card)}
+.st-content{flex:1;overflow-y:auto;padding:32px 36px;max-width:680px}
+.st-section-title{font-size:18px;font-weight:500;color:var(--text);margin-bottom:4px;letter-spacing:0.01em}
+.st-section-sub{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:28px}
+.st-label{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;margin-top:22px}
+.st-label:first-of-type{margin-top:0}
+.st-input{width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;box-sizing:border-box}
+.st-input:focus{border-color:var(--gold)}
+.st-textarea{resize:vertical;min-height:120px;line-height:1.55}
+.st-row{display:flex;gap:10px;margin-top:20px}
+.st-btn{padding:10px 20px;border-radius:8px;font-size:12px;font-weight:600;letter-spacing:0.06em;cursor:pointer;border:none;transition:opacity 0.15s}
+.st-btn-primary{background:var(--gold);color:#000}
+.st-btn-primary:hover{opacity:0.85}
+.st-btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--muted)}
+.st-btn-ghost:hover{border-color:var(--border);color:var(--text)}
+.st-btn:disabled{opacity:0.45;cursor:default}
+.st-fact-list{display:flex;flex-direction:column;gap:1px;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:4px}
+.st-fact-row{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;background:var(--card2);transition:background 0.1s}
+.st-fact-row:hover{background:var(--card)}
+.st-fact-row:first-child{border-radius:9px 9px 0 0}
+.st-fact-row:last-child{border-radius:0 0 9px 9px}
+.st-fact-row:only-child{border-radius:9px}
+.st-fact-key{font-size:11px;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;min-width:140px;flex-shrink:0;padding-top:2px}
+.st-fact-val{flex:1;font-size:13px;color:var(--text);line-height:1.5}
+.st-fact-cat{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:2px 7px;border-radius:999px;border:1px solid var(--border2);color:var(--muted);white-space:nowrap;margin-top:2px}
+.st-fact-actions{display:flex;gap:6px;flex-shrink:0}
+.st-fact-btn{background:transparent;border:none;cursor:pointer;padding:3px 6px;border-radius:5px;color:var(--muted);font-size:11px;transition:color 0.12s,background 0.12s}
+.st-fact-btn:hover{color:var(--text);background:var(--border)}
+.st-fact-btn.del:hover{color:var(--red)}
+.st-fact-empty{text-align:center;padding:36px 24px;color:var(--muted);font-size:13px;line-height:1.6}
+.st-fact-empty svg{width:32px;height:32px;margin:0 auto 12px;display:block;opacity:0.3}
+.st-profile-row{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.st-avatar{width:52px;height:52px;border-radius:50%;background:var(--card2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:300;color:var(--gold);flex-shrink:0;overflow:hidden}
+.st-avatar img{width:100%;height:100%;object-fit:cover}
+.st-profile-name{font-size:16px;font-weight:500}
+.st-profile-handle{font-size:12px;color:var(--muted);margin-top:2px}
+.st-vibes{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.st-vibe{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:var(--card);border:1px solid var(--border2);color:var(--muted)}
+.st-edit-fact-wrap{background:var(--card2);border:1px solid var(--gold-border);border-radius:10px;padding:16px;margin-top:12px}
+@media(max-width:640px){
+  #tab-settings{flex-direction:column;height:auto}
+  .st-nav{width:100%;border-right:none;border-bottom:1px solid var(--border);padding:4px 0}
+  .st-nav-item{padding:11px 16px;font-size:13px}
+  .st-content{padding:20px 16px}
+  .st-fact-key{min-width:100px}
+}
 </style>
 </head>
 <body class="logged-out">
@@ -748,6 +811,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <button class="nav-btn" data-tab="brands" onclick="switchTab('brands')">Pitch</button>
       <button class="nav-btn" data-tab="pipeline" onclick="switchTab('pipeline')">Pipeline</button>
       <button class="nav-btn hidden" id="nav-accounts" data-tab="accounts" onclick="switchTab('accounts')">Connect</button>
+      <button class="nav-btn" data-tab="settings" onclick="switchTab('settings')">Settings</button>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <button class="theme-toggle" id="bug-report-btn" onclick="openBugReport()" aria-label="Report a bug" title="Report a bug">
@@ -964,6 +1028,115 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
   <div id="pulse-result" class="hidden"><div class="pulse-filters" id="pulse-filters"></div><div class="pulse-section-label"><span class="dot" style="background:var(--gold)"></span> Trending Now — Matched to Your Persona</div><div style="position:relative"><div class="pulse-grid" id="pulse-grid"></div><div class="teaser-gate" id="pulse-gate" style="top:auto;bottom:-20px;padding:60px 24px 40px"><div class="teaser-gate-icon">◎</div><h3>Unlock all 10 content ideas</h3><p>Sign in to see the full list of AI-generated ideas, save them to your calendar, and auto-draft scripts in your voice.</p><div class="gate-actions"><button class="google-btn" onclick="signInWithGoogle()"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>Sign in with Google</button><button class="ig-btn" onclick="connectInstagram()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></svg>Connect Instagram</button></div></div></div></div>
 </div>
 
+<!-- SETTINGS TAB -->
+<div id="tab-settings" class="hidden">
+  <!-- Left nav -->
+  <div class="st-nav">
+    <div class="st-nav-item active" data-stnav="profile" onclick="openSettingsSection('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      <span class="st-nav-label">Profile</span>
+      <svg class="st-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+    <div class="st-nav-item st-disabled">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>
+      <span class="st-nav-label">Billing</span>
+      <span class="st-nav-soon">Soon</span>
+    </div>
+    <div class="st-nav-item st-disabled">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span class="st-nav-label">Usage</span>
+      <span class="st-nav-soon">Soon</span>
+    </div>
+    <div class="st-nav-sep"></div>
+    <div class="st-nav-item" data-stsuper="capabilities" onclick="toggleSettingsGroup('capabilities')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/><circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="8" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg>
+      <span class="st-nav-label">Capabilities</span>
+      <svg id="st-cap-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;transition:transform 0.2s;transform:rotate(90deg)"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+    <div id="st-cap-group" style="display:block">
+      <div class="st-nav-item st-nav-sub" data-stnav="memory" onclick="openSettingsSection('memory')">What your agent knows</div>
+      <div class="st-nav-item st-nav-sub" data-stnav="agent-persona" onclick="openSettingsSection('agent-persona')">Agent style</div>
+    </div>
+    <div class="st-nav-item st-disabled">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span class="st-nav-label">Connectors</span>
+      <span class="st-nav-soon">Soon</span>
+    </div>
+    <div class="st-nav-item st-disabled">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="6"/><circle cx="16" cy="12" r="4" fill="currentColor" stroke="none"/></svg>
+      <span class="st-nav-label">Permissions</span>
+      <span class="st-nav-soon">Soon</span>
+    </div>
+    <div class="st-nav-sep"></div>
+    <div class="st-nav-item" onclick="toggleTheme()" title="Toggle light/dark mode">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <span class="st-nav-label">Appearance</span>
+      <span class="st-nav-soon" id="st-appearance-label">Dark</span>
+    </div>
+    <div class="st-nav-item st-disabled">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a4.5 4.5 0 0 1 0 9 4.5 4.5 0 0 1 0 9"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+      <span class="st-nav-label">Language</span>
+      <span class="st-nav-soon">Soon</span>
+    </div>
+  </div>
+
+  <!-- Right content -->
+  <div class="st-content">
+
+    <!-- Profile -->
+    <div id="st-panel-profile">
+      <div class="st-section-title">Profile</div>
+      <div class="st-section-sub">Your connected accounts and public creator info.</div>
+      <div class="st-profile-row" id="st-profile-summary">
+        <div class="st-avatar" id="st-profile-avatar">CC</div>
+        <div>
+          <div class="st-profile-name" id="st-profile-name">—</div>
+          <div class="st-profile-handle" id="st-profile-handle">—</div>
+        </div>
+      </div>
+      <div id="st-profile-vibes" class="st-vibes" style="margin-bottom:20px"></div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6">To update your profile, re-run analytics from the <span style="color:var(--text);cursor:pointer;text-decoration:underline" onclick="switchTab('persona')">Analytics tab</span>. Connections are managed in the <span style="color:var(--text);cursor:pointer;text-decoration:underline" onclick="switchTab('connect')">Connect tab</span>.</div>
+    </div>
+
+    <!-- Memory Summary -->
+    <div id="st-panel-memory" class="hidden">
+      <div class="st-section-title">What your agent knows</div>
+      <div class="st-section-sub">Your agent builds a picture of you as you chat. Review and correct anything here — edits take effect immediately.</div>
+      <div id="st-memory-body">
+        <div class="st-fact-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>Loading…</div>
+      </div>
+      <div id="st-fact-edit-wrap" class="st-edit-fact-wrap hidden">
+        <div class="st-label" style="margin-top:0">Editing</div>
+        <input id="st-edit-key" class="st-input" style="margin-bottom:8px" placeholder="key (snake_case)" maxlength="80">
+        <textarea id="st-edit-val" class="st-input st-textarea" style="margin-bottom:8px;min-height:72px" placeholder="value"></textarea>
+        <div class="st-row" style="margin-top:0">
+          <button class="st-btn st-btn-primary" onclick="saveEditedFact()">Save</button>
+          <button class="st-btn st-btn-ghost" onclick="cancelFactEdit()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent Style -->
+    <div id="st-panel-agent-persona" class="hidden">
+      <div class="st-section-title">Agent style</div>
+      <div class="st-section-sub">How your agent communicates — tone, focus, and voice. Pre-filled from your profile. Edit freely.</div>
+      <div class="st-label">Name</div>
+      <input id="st-agent-name" class="st-input" type="text" maxlength="40" placeholder="CreatorClaw">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="st-label">Instructions</div>
+        <button type="button" onclick="stPrefillPersona()" style="background:transparent;border:none;color:var(--gold);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;padding:0;margin-top:14px">Prefill from profile</button>
+      </div>
+      <textarea id="st-agent-instructions" class="st-input st-textarea" maxlength="2000" placeholder="Tone, expertise, what to avoid. Left blank, defaults apply."></textarea>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;margin-bottom:4px">Up to 2000 characters.</div>
+      <div class="st-row">
+        <button class="st-btn st-btn-primary" id="st-agent-save-btn" onclick="saveAgentStyleFromSettings()">Save</button>
+        <button class="st-btn st-btn-ghost" onclick="resetAgentStyleFromSettings()">Reset to default</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 </div>
 
 <!-- Shared side menu (used by chat view AND tool views) -->
@@ -1126,6 +1299,8 @@ function toggleTheme(){
   const next=cur==='dark'?'light':'dark';
   applyTheme(next);
   try{localStorage.setItem('cc-theme',next)}catch(e){}
+  const lbl=document.getElementById('st-appearance-label');
+  if(lbl) lbl.textContent=next==='dark'?'Dark':'Light';
 }
 (function(){
   let saved='dark';
@@ -1548,6 +1723,197 @@ async function refreshTelegramConnectionState(){
   } catch(e) {
     console.warn('refreshTelegramConnectionState', e);
   }
+}
+
+// ── Settings tab ─────────────────────────────────────────────────────────────
+
+let stCurrentSection = 'profile';
+let stEditingKey = null;
+let stFactsCache = [];
+
+function openSettingsSection(section){
+  stCurrentSection = section;
+  document.querySelectorAll('.st-nav-item[data-stnav],.st-nav-item[data-stnav],.st-nav-item.st-nav-sub[data-stnav]').forEach(el=>{
+    el.classList.toggle('active', el.dataset.stnav === section);
+  });
+  document.querySelectorAll('#tab-settings .st-content > div[id^="st-panel-"]').forEach(p=>{
+    p.classList.add('hidden');
+  });
+  const panel = document.getElementById('st-panel-' + section);
+  if(panel) panel.classList.remove('hidden');
+  if(section === 'profile') stRenderProfile();
+  if(section === 'memory') stLoadMemory();
+  if(section === 'agent-persona') stLoadAgentPersona();
+}
+
+function toggleSettingsGroup(group){
+  if(group === 'capabilities'){
+    const el = document.getElementById('st-cap-group');
+    const chev = document.getElementById('st-cap-chevron');
+    const open = el.style.display !== 'none';
+    el.style.display = open ? 'none' : 'block';
+    if(chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
+  }
+}
+
+function stRenderProfile(){
+  const p = state.persona || {};
+  const d = state.igData || {};
+  const nameEl = document.getElementById('st-profile-name');
+  const handleEl = document.getElementById('st-profile-handle');
+  const avatarEl = document.getElementById('st-profile-avatar');
+  const vibesEl = document.getElementById('st-profile-vibes');
+  const fullName = p.name || d.full_name || '—';
+  const handle = d.username ? '@' + d.username : (d.handle ? '@' + d.handle : '—');
+  if(nameEl) nameEl.textContent = fullName;
+  if(handleEl) handleEl.textContent = handle;
+  const initials = fullName.split(' ').filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase() || 'CC';
+  if(avatarEl){
+    const pic = d.profile_pic_url || d.hd_profile_pic_url_info?.url;
+    if(pic) avatarEl.innerHTML = `<img src="${pic}" alt="avatar">`;
+    else avatarEl.textContent = initials;
+  }
+  if(vibesEl){
+    const vibes = p.vibes || [];
+    vibesEl.innerHTML = vibes.map(v=>`<span class="st-vibe">${v}</span>`).join('');
+  }
+}
+
+async function stLoadMemory(){
+  const body = document.getElementById('st-memory-body');
+  if(!body) return;
+  body.innerHTML = '<div class="st-fact-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>Loading…</div>';
+  cancelFactEdit();
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if(!session){ body.innerHTML = '<div class="st-fact-empty">Sign in to view your memory.</div>'; return; }
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/creator_facts?order=updated_at.desc`, {
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + session.access_token }
+    });
+    const facts = res.ok ? await res.json() : [];
+    stFactsCache = facts || [];
+    stRenderMemory();
+  } catch(e){
+    body.innerHTML = '<div class="st-fact-empty">Could not load memory.</div>';
+  }
+}
+
+function stRenderMemory(){
+  const body = document.getElementById('st-memory-body');
+  if(!body) return;
+  const p = state.persona || {};
+  const profileSnippets = [];
+  if(p.bio) profileSnippets.push({ key: 'bio', value: p.bio, cat: 'profile', readonly: true });
+  const pillars = (p.pillars||[]).map(x=>typeof x==='string'?x:x.l||x.label).filter(Boolean);
+  if(pillars.length) profileSnippets.push({ key: 'content_pillars', value: pillars.join(', '), cat: 'profile', readonly: true });
+  const allRows = [...profileSnippets, ...stFactsCache.map(f=>({ key: f.key, value: f.value, cat: f.category, id: f.id, readonly: false }))];
+  if(!allRows.length){
+    body.innerHTML = '<div class="st-fact-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Nothing stored yet. Your agent learns as you chat.</div>';
+    return;
+  }
+  body.innerHTML = '<div class="st-fact-list">' + allRows.map(r=>`
+    <div class="st-fact-row" data-key="${esc(r.key)}">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span class="st-fact-key">${esc(r.key.replace(/_/g,' '))}</span>
+          <span class="st-fact-cat">${esc(r.cat)}</span>
+          ${r.readonly ? '<span class="st-fact-cat" style="color:var(--gold);border-color:var(--gold-border)">from profile</span>' : ''}
+        </div>
+        <div class="st-fact-val">${esc(r.value)}</div>
+      </div>
+      ${r.readonly ? '' : `<div class="st-fact-actions">
+        <button class="st-fact-btn" onclick="startEditFact('${esc(r.key)}','${esc(r.value.replace(/'/g,"\\'"))}','${r.id}')">Edit</button>
+        <button class="st-fact-btn del" onclick="deleteMemoryFact('${r.id}','${esc(r.key)}')">Delete</button>
+      </div>`}
+    </div>`).join('') + '</div>';
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function startEditFact(key, value, id){
+  stEditingKey = id;
+  const wrap = document.getElementById('st-fact-edit-wrap');
+  const keyEl = document.getElementById('st-edit-key');
+  const valEl = document.getElementById('st-edit-val');
+  if(!wrap||!keyEl||!valEl) return;
+  keyEl.value = key;
+  valEl.value = value;
+  wrap.classList.remove('hidden');
+  valEl.focus();
+}
+
+function cancelFactEdit(){
+  stEditingKey = null;
+  const wrap = document.getElementById('st-fact-edit-wrap');
+  if(wrap) wrap.classList.add('hidden');
+}
+
+async function saveEditedFact(){
+  const keyEl = document.getElementById('st-edit-key');
+  const valEl = document.getElementById('st-edit-val');
+  const btn = document.querySelector('#st-fact-edit-wrap .st-btn-primary');
+  if(!keyEl||!valEl||!stEditingKey) return;
+  const newKey = keyEl.value.trim();
+  const newVal = valEl.value.trim();
+  if(!newKey||!newVal) return;
+  if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if(!session) return;
+    await fetch(`${SUPABASE_URL}/rest/v1/creator_facts?id=eq.${stEditingKey}`, {
+      method: 'PATCH',
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: newKey, value: newVal })
+    });
+    cancelFactEdit();
+    await stLoadMemory();
+  } catch(e) {
+    if(btn){ btn.disabled=false; btn.textContent='Save'; }
+  }
+}
+
+async function deleteMemoryFact(id, key){
+  if(!confirm(`Delete "${key.replace(/_/g,' ')}"?`)) return;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if(!session) return;
+    await fetch(`${SUPABASE_URL}/rest/v1/creator_facts?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + session.access_token }
+    });
+    stFactsCache = stFactsCache.filter(f=>f.id !== id);
+    stRenderMemory();
+  } catch(e) { console.warn('deleteMemoryFact', e); }
+}
+
+function stLoadAgentPersona(){
+  const nameEl = document.getElementById('st-agent-name');
+  const instrEl = document.getElementById('st-agent-instructions');
+  if(nameEl) nameEl.value = state.agent.name || '';
+  if(instrEl) instrEl.value = state.agent.persona || '';
+}
+
+function stPrefillPersona(){
+  const instrEl = document.getElementById('st-agent-instructions');
+  if(instrEl) instrEl.value = agentPersonaSuggestion();
+}
+
+async function saveAgentStyleFromSettings(){
+  const nameEl = document.getElementById('st-agent-name');
+  const instrEl = document.getElementById('st-agent-instructions');
+  const btn = document.getElementById('st-agent-save-btn');
+  if(!nameEl||!instrEl||!btn) return;
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const { error } = await saveAgentIdentity(nameEl.value, instrEl.value);
+  if(error){ btn.disabled=false; btn.textContent='Save'; showError('Could not save'); return; }
+  btn.textContent = 'Saved ✓';
+  setTimeout(()=>{ btn.disabled=false; btn.textContent='Save'; }, 1800);
+}
+
+async function resetAgentStyleFromSettings(){
+  if(!confirm('Reset agent name and instructions to defaults?')) return;
+  await saveAgentIdentity('', '');
+  stLoadAgentPersona();
 }
 
 // ── Telegram link handler ────────────────────────────────────────────────────
@@ -3667,7 +4033,8 @@ function getConnectedStats(){
 // ── Tab navigation ────────────────────────────────────────────────────────────
 function switchTab(id){
   document.querySelectorAll('#nav .nav-btn').forEach(b=>{b.classList.toggle('active',b.dataset.tab===id)});
-  ['connect','persona','brands','pulse','pipeline','accounts'].forEach(t=>{document.getElementById('tab-'+t)?.classList.toggle('hidden',t!==id)});
+  ['connect','persona','brands','pulse','pipeline','accounts','settings'].forEach(t=>{document.getElementById('tab-'+t)?.classList.toggle('hidden',t!==id)});
+  if(id === 'settings') openSettingsSection(stCurrentSection || 'profile');
 }
 
 // ── Pipeline (deal tracker) ───────────────────────────────────────────────────
