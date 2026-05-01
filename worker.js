@@ -2524,8 +2524,9 @@ async function tg(env, method, body) {
   if (!res.ok) {
     const t = await res.text().catch(() => res.statusText);
     console.warn('[telegram] api', method, res.status, t.slice(0, 200));
+    return { ok: false, status: res.status };
   }
-  return res;
+  return res.json().catch(() => ({ ok: false }));
 }
 async function tgSendMessage(env, chatId, text, opts = {}) {
   return tg(env, 'sendMessage', { chat_id: chatId, text, parse_mode: opts.parseMode || 'Markdown', disable_web_page_preview: true, ...opts.extra });
@@ -2818,11 +2819,46 @@ async function handleAgentMessage(msg, link, env) {
     return await executeRateToolCall(fakeToolCall, creatorContext, env);
   };
 
+  // Live streaming via editMessageText. Buffer the first ~30 chars to avoid
+  // a flicker of "S" → "Su" → "Sub..." on the first message, then send and
+  // edit-throttled at ~1/sec (Telegram rate-limits editMessageText). Skipped
+  // for Subject:-shaped output: pitches render as a separate email card after
+  // the run completes, and we don't want a half-formed pitch to flash first.
+  let streamMsgId = null;
+  let lastEdit = 0;
+  let pitchAborted = false;
+  const STREAM_FIRST_CHARS = 30;
+  const EDIT_THROTTLE_MS = 1100;
+  const onTextProgress = async (text) => {
+    if (pitchAborted) return;
+    const now = Date.now();
+    if (!streamMsgId) {
+      if (text.length < STREAM_FIRST_CHARS) return;
+      // First-emit: send the message, capture id for future edits.
+      const sent = await tgSendMessage(env, chatId, text, { parseMode: undefined });
+      streamMsgId = sent?.result?.message_id || null;
+      lastEdit = now;
+      return;
+    }
+    if (now - lastEdit < EDIT_THROTTLE_MS) return;
+    lastEdit = now;
+    await tgEditMessageText(env, chatId, streamMsgId, text, { parseMode: undefined }).catch(() => {});
+  };
+  const onPitchDetected = () => {
+    pitchAborted = true;
+    // If we already opened a streaming message before we knew it was a
+    // pitch, replace its content with a placeholder so it doesn't dangle.
+    if (streamMsgId) {
+      tgEditMessageText(env, chatId, streamMsgId, '<i>Drafting email…</i>', {})
+        .catch(() => {});
+    }
+  };
+
   let result;
   try {
     result = await handleTelegramAgentTurn(env, {
       messages, creatorContext, sharedAgentContext, tool: 'main',
-    }, { executeToolByName, googleAccessToken });
+    }, { executeToolByName, googleAccessToken }, { onTextProgress, onPitchDetected });
   } catch (e) {
     console.error('[telegram] agent turn failed', e);
     await tgSendMessage(env, chatId, "Hit a snag working through that — try rephrasing.");
@@ -2849,7 +2885,12 @@ async function handleAgentMessage(msg, link, env) {
   // Phase 2 routing: cards become inline-keyboard messages; pitch drafts
   // (Subject:/body) get an [Send] [Open in Gmail] button row.
   if (Array.isArray(result.cards) && result.cards.length) {
-    if (result.text) {
+    // If we streamed text before cards arrived (rare — usually tools fire
+    // first), edit the streamed message to the final text. Otherwise send
+    // the intro fresh.
+    if (streamMsgId && result.text) {
+      await tgEditMessageText(env, chatId, streamMsgId, result.text, { parseMode: undefined }).catch(() => {});
+    } else if (result.text) {
       const chunks = tgChunkText(result.text);
       for (const chunk of chunks) await tgSendMessage(env, chatId, chunk);
     }
@@ -2864,12 +2905,23 @@ async function handleAgentMessage(msg, link, env) {
   }
   const pitch = detectPitchInTextServer(result.text);
   if (pitch) {
+    // Pitch detected: if streaming opened a placeholder message, delete it
+    // (we'll send the proper email card next).
+    if (streamMsgId) {
+      tg(env, 'deleteMessage', { chat_id: chatId, message_id: streamMsgId }).catch(() => {});
+    }
     await renderEmailCardTelegram(env, chatId, link.user_id, jwt, pitch, history);
     return;
   }
-  const chunks = tgChunkText(result.text || '(no response)');
-  for (const chunk of chunks) {
-    await tgSendMessage(env, chatId, chunk);
+  // Plain text: if we streamed, do one final edit with the complete text.
+  // Otherwise send fresh (chunked).
+  if (streamMsgId) {
+    await tgEditMessageText(env, chatId, streamMsgId, result.text || '(no response)', { parseMode: undefined }).catch(() => {});
+  } else {
+    const chunks = tgChunkText(result.text || '(no response)');
+    for (const chunk of chunks) {
+      await tgSendMessage(env, chatId, chunk);
+    }
   }
 }
 
@@ -3112,7 +3164,10 @@ async function renderEmailCardTelegram(env, chatId, userId, jwt, pitch, history)
     '&body=' + encodeURIComponent(pitch.body);
   const buttons = [];
   if (actionId) buttons.push([{ text: '📤 Send', callback_data: `pitch_send:${actionId}` }]);
-  buttons.push([{ text: '✉️ Open in Gmail', url: gmailUrl }]);
+  buttons.push([
+    { text: '✉️ Open in Gmail', url: gmailUrl },
+    { text: '📎 Media kit',     url: 'https://creatorclaw.co/?download_media_kit=1' },
+  ]);
   // sendMessage caps at 4096 chars; if the body is long we split, sending
   // the buttons only with the final chunk.
   const chunks = tgChunkText(text);

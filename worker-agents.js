@@ -580,7 +580,19 @@ export async function handleAgentChat(request, env, body, cors, deps) {
 //
 // Returns { text, cards, toolFired, finalMessageText } — caller decides how
 // to render. Throws on agent_run_failed.
-export async function handleTelegramAgentTurn(env, body, deps) {
+//
+// Optional `streaming` callbacks let the caller render progressive output
+// (typewriter effect via Telegram editMessageText). All callbacks are
+// fire-and-forget — exceptions inside them are caught so they don't break
+// the run.
+//   streaming.onTextProgress(text)  — called after every text delta with the
+//                                     full accumulated text so far.
+//   streaming.onPitchDetected()     — called once when the streamed text
+//                                     starts with "Subject:" (caller may
+//                                     want to abort streaming UI and let
+//                                     the post-run pitch card path handle
+//                                     it instead).
+export async function handleTelegramAgentTurn(env, body, deps, streaming = {}) {
   setupOpenAIEnv(env);
   const activeTool = (body.tool && ['main', 'create', 'pitch'].includes(body.tool)) ? body.tool : 'main';
   console.log('[agents-tg]', activeTool, 'turn');
@@ -622,6 +634,7 @@ export async function handleTelegramAgentTurn(env, body, deps) {
   let bufferingPostTool = false;
   let toolFired = false;
   let lastToolOutput = null;
+  let pitchDetected = false;
   const cards = [];
 
   for await (const event of result) {
@@ -630,6 +643,18 @@ export async function handleTelegramAgentTurn(env, body, deps) {
       if (d && d.type === 'output_text_delta' && d.delta) {
         if (bufferingPostTool) postToolBuffer += d.delta;
         else liveText += d.delta;
+        // Streaming: notify the caller after each delta. Detect pitch
+        // shape early so the caller can stop sending edits and let the
+        // post-run path render an email card instead.
+        if (!bufferingPostTool && streaming) {
+          if (!pitchDetected && /^\s*(?:\*\*)?Subject:/i.test(liveText)) {
+            pitchDetected = true;
+            try { streaming.onPitchDetected && streaming.onPitchDetected(); } catch (e) { console.warn('[agents-tg] onPitchDetected', e); }
+          }
+          if (!pitchDetected) {
+            try { streaming.onTextProgress && streaming.onTextProgress(liveText); } catch (e) { console.warn('[agents-tg] onTextProgress', e); }
+          }
+        }
       }
     } else if (event.type === 'run_item_stream_event' && event.name === 'tool_called') {
       bufferingPostTool = true;

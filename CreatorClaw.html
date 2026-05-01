@@ -1428,6 +1428,30 @@ function handleTelegramLinkParam(){
   setTimeout(()=>showTelegramLinkConfirm(pending), 400);
 }
 
+// Triggered when a Telegram message links here with ?download_media_kit=1.
+// The bot's [📎 Media kit] button on email drafts uses this URL so users
+// can grab the PDF on their phone, then attach it from Gmail compose.
+function handleTelegramMediaKitParam(){
+  const params = new URLSearchParams(location.search);
+  if(!params.get('download_media_kit')) return;
+  // Clean URL so a refresh doesn't loop the download.
+  history.replaceState({}, '', location.pathname + location.hash);
+  // Defer until persona state is loaded so the PDF actually has data.
+  setTimeout(async () => {
+    const user = await getCurrentUser();
+    if(!user){
+      showIntroToast('Sign in to download your media kit.');
+      return;
+    }
+    // Wait briefly for state.persona to populate from initAuth.
+    let attempts = 0;
+    while((!state.persona || !state.igData) && attempts++ < 20){
+      await new Promise(r => setTimeout(r, 250));
+    }
+    downloadMediaKit({ toast: true });
+  }, 600);
+}
+
 async function showTelegramLinkConfirm(code){
   const user = await getCurrentUser();
   if(!user){
@@ -1902,6 +1926,7 @@ async function initAuth(){
   // (survives sign-in redirect) and shows a confirm modal once the user
   // session is established.
   handleTelegramLinkParam();
+  handleTelegramMediaKitParam();
   // Check auth state on load
   const user = await getCurrentUser();
   updateAuthUI(user);
