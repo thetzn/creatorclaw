@@ -813,8 +813,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
     </div>
     <div class="nav" id="nav">
       <button class="nav-btn" id="nav-back-to-chat" onclick="showChatView()" style="display:none;color:var(--gold)">← Chat</button>
-      <button class="nav-btn active" data-tab="connect" onclick="switchTab('connect')">Connect</button>
-      <button class="nav-btn" data-tab="persona" onclick="switchTab('persona')">Analytics</button>
+      <button class="nav-btn active" data-tab="persona" onclick="switchTab('persona')">Analytics</button>
       <button class="nav-btn" data-tab="pulse" onclick="switchTab('pulse')">Create</button>
       <button class="nav-btn" data-tab="brands" onclick="switchTab('brands')">Pitch</button>
       <button class="nav-btn" data-tab="pipeline" onclick="switchTab('pipeline')">Pipeline</button>
@@ -840,55 +839,6 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 <div class="main">
 
 <!-- CONNECT TAB -->
-<div id="tab-connect">
-  <div class="card" style="padding:28px">
-    <div class="chart-title">Your Connections</div>
-    <div class="rate-card-meta" style="margin-top:4px">Link accounts so CreatorClaw can analyze content, send pitches, and more on your behalf.</div>
-    <div style="display:flex;flex-direction:column;gap:12px;margin-top:20px">
-
-      <div class="connection-row">
-        <div class="connection-left">
-          <div class="connection-icon" style="background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="#fff"/></svg>
-          </div>
-          <div class="connection-info">
-            <div class="connection-name">Instagram</div>
-            <div class="connection-desc" id="connect-ig-desc">Link your Business/Creator account for real follower + engagement data.</div>
-          </div>
-        </div>
-        <button class="connection-btn" id="connect-ig-btn" onclick="connectInstagram()">Connect</button>
-      </div>
-
-      <div class="connection-row">
-        <div class="connection-left">
-          <div class="connection-icon" style="background:#fff;border:1px solid var(--border2)">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-          </div>
-          <div class="connection-info">
-            <div class="connection-name">Google Workspace</div>
-            <div class="connection-desc" id="connect-google-desc">Read inbox, send pitches, manage calendar. Required for Gmail + Calendar tools in chat.</div>
-          </div>
-        </div>
-        <button class="connection-btn" id="connect-google-btn" onclick="connectGoogleWorkspace()">Connect</button>
-      </div>
-
-      <div class="connection-row">
-        <div class="connection-left">
-          <div class="connection-icon" style="background:#229ED9">
-            <svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M21.5 4.2L18 20.3c-.3 1.2-1 1.5-2 .9l-5.6-4.1-2.7 2.6c-.3.3-.6.6-1.2.6l.4-6 11-9.9c.5-.4-.1-.7-.7-.3L4.6 11.5l-5.8-1.8c-1.3-.4-1.3-1.3.3-1.9L20 .7c1-.4 1.9.3 1.5 3.5z" transform="translate(1 1)"/></svg>
-          </div>
-          <div class="connection-info">
-            <div class="connection-name">Telegram</div>
-            <div class="connection-desc" id="connect-telegram-desc">Chat with your agent on the go — same persona and pipeline. Sends drafts, pitches, and pipeline summaries to your phone.</div>
-          </div>
-        </div>
-        <button class="connection-btn" id="connect-telegram-btn" onclick="connectTelegram()">Connect</button>
-      </div>
-
-    </div>
-  </div>
-</div>
-
 <!-- ACCOUNTS TAB (post-onboarding connection manager) -->
 <div id="tab-accounts" class="hidden">
   <h1 class="page-title">Connect your <span class="gold-text">accounts</span></h1>
@@ -1065,10 +1015,10 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <div class="st-nav-item st-nav-sub" data-stnav="memory" onclick="openSettingsSection('memory')">What your agent knows</div>
       <div class="st-nav-item st-nav-sub" data-stnav="agent-persona" onclick="openSettingsSection('agent-persona')">Agent style</div>
     </div>
-    <div class="st-nav-item st-disabled">
+    <div class="st-nav-item" data-stnav="connectors" onclick="openSettingsSection('connectors')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
       <span class="st-nav-label">Connectors</span>
-      <span class="st-nav-soon">Soon</span>
+      <svg class="st-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="9 18 15 12 9 6"/></svg>
     </div>
     <div class="st-nav-item st-disabled">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="6"/><circle cx="16" cy="12" r="4" fill="currentColor" stroke="none"/></svg>
@@ -1103,7 +1053,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
         </div>
       </div>
       <div id="st-profile-vibes" class="st-vibes" style="margin-bottom:20px"></div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.6">To update your profile, re-run analytics from the <span style="color:var(--text);cursor:pointer;text-decoration:underline" onclick="switchTab('persona')">Analytics tab</span>. Connections are managed in the <span style="color:var(--text);cursor:pointer;text-decoration:underline" onclick="switchTab('connect')">Connect tab</span>.</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6">To update your profile, re-run analytics from the <span style="color:var(--text);cursor:pointer;text-decoration:underline" onclick="switchTab('persona')">Analytics tab</span>. Manage linked accounts under <span style="color:var(--text);cursor:pointer;text-decoration:underline" onclick="openSettingsSection('connectors')">Connectors</span>.</div>
     </div>
 
     <!-- Memory Summary -->
@@ -1142,6 +1092,54 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       </div>
     </div>
 
+    <!-- Connectors -->
+    <div id="st-panel-connectors" class="hidden">
+      <div class="st-section-title">Connectors</div>
+      <div class="st-section-sub">Link accounts so CreatorClaw can analyze content, send pitches, and reach you across channels.</div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:20px">
+
+        <div class="connection-row">
+          <div class="connection-left">
+            <div class="connection-icon" style="background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="#fff"/></svg>
+            </div>
+            <div class="connection-info">
+              <div class="connection-name">Instagram</div>
+              <div class="connection-desc" id="connect-ig-desc">Link your Business/Creator account for real follower + engagement data.</div>
+            </div>
+          </div>
+          <button class="connection-btn" id="connect-ig-btn" onclick="connectInstagram()">Connect</button>
+        </div>
+
+        <div class="connection-row">
+          <div class="connection-left">
+            <div class="connection-icon" style="background:#fff;border:1px solid var(--border2)">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            </div>
+            <div class="connection-info">
+              <div class="connection-name">Google Workspace</div>
+              <div class="connection-desc" id="connect-google-desc">Read inbox, send pitches, manage calendar. Required for Gmail + Calendar tools in chat.</div>
+            </div>
+          </div>
+          <button class="connection-btn" id="connect-google-btn" onclick="connectGoogleWorkspace()">Connect</button>
+        </div>
+
+        <div class="connection-row">
+          <div class="connection-left">
+            <div class="connection-icon" style="background:#229ED9">
+              <svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M21.5 4.2L18 20.3c-.3 1.2-1 1.5-2 .9l-5.6-4.1-2.7 2.6c-.3.3-.6.6-1.2.6l.4-6 11-9.9c.5-.4-.1-.7-.7-.3L4.6 11.5l-5.8-1.8c-1.3-.4-1.3-1.3.3-1.9L20 .7c1-.4 1.9.3 1.5 3.5z" transform="translate(1 1)"/></svg>
+            </div>
+            <div class="connection-info">
+              <div class="connection-name">Telegram</div>
+              <div class="connection-desc" id="connect-telegram-desc">Chat with your agent on the go — same persona and pipeline. Sends drafts, pitches, and pipeline summaries to your phone.</div>
+            </div>
+          </div>
+          <button class="connection-btn" id="connect-telegram-btn" onclick="connectTelegram()">Connect</button>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1161,7 +1159,6 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
     </div>
     <div class="chat-tools">
       <div class="chat-section-label" style="padding:0 8px 6px">Tools</div>
-      <button class="chat-tool-btn" onclick="openTool('connect')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Connect</button>
       <button class="chat-tool-btn" onclick="openTool('persona')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-3"/></svg>Analytics</button>
       <button class="chat-tool-btn" onclick="openTool('pulse')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>Create</button>
       <button class="chat-tool-btn" onclick="openTool('brands')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6"/><path d="M15 15l3 3-3 3"/><path d="M18 18h-4"/></svg>Pitch</button>
@@ -1182,7 +1179,6 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <button class="chat-hamburger" onclick="openChatSidebar()" aria-label="Open menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
       <div class="chat-context-badge" id="chat-context-badge" style="display:none"></div>
       <div class="chat-title" id="chat-active-title">New chat</div>
-      <button class="chat-theme-toggle" onclick="openTool('settings')" aria-label="Settings" title="Settings" style="margin-right:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       <button class="chat-theme-toggle" onclick="openBugReport()" aria-label="Report a bug" title="Report a bug" style="margin-right:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2l1.5 1.5"/><path d="M16 2l-1.5 1.5"/><rect x="6" y="7" width="12" height="13" rx="6"/><path d="M12 7v13"/><path d="M3 13h3"/><path d="M3 9l3 1"/><path d="M3 17l3-1"/><path d="M21 13h-3"/><path d="M21 9l-3 1"/><path d="M21 17l-3-1"/></svg></button>
       <button class="chat-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><svg id="chat-theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>
     </div>
@@ -1777,7 +1773,7 @@ function stRenderProfile(){
   if(handleEl) handleEl.textContent = handle;
   const initials = fullName.split(' ').filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase() || 'CC';
   if(avatarEl){
-    const pic = d.profile_pic_url || d.hd_profile_pic_url_info?.url;
+    const pic = d.profilePicData || d.profilePicUrl;
     if(pic) avatarEl.innerHTML = `<img src="${pic}" alt="avatar">`;
     else avatarEl.textContent = initials;
   }
@@ -2467,8 +2463,6 @@ async function initAuth(){
       document.getElementById('persona-cta').classList.add('hidden');
       renderPersona(saved.ai_analysis);
       updateLastRefreshLabel();
-      const connectTab = document.querySelector('#nav .nav-btn[data-tab="connect"]');
-      if(connectTab) connectTab.style.display = 'none';
       const savedText = document.getElementById('saved-banner-text');
       if(savedText) savedText.textContent = 'Loaded saved persona for @' + saved.ig_handle;
       // Kick off a background re-scrape if the cached data is over a week
@@ -2489,8 +2483,6 @@ async function initAuth(){
           refreshUserAvatars();
           document.getElementById('persona-cta').classList.add('hidden');
           renderPersona(p.analysis);
-          const connectTab = document.querySelector('#nav .nav-btn[data-tab="connect"]');
-          if(connectTab) connectTab.style.display = 'none';
         }catch(e){ console.error('pending save failed', e); }
       } else {
         // Truly no persona yet — soft-prompt for handle in chat.
@@ -4057,7 +4049,7 @@ function getConnectedStats(){
 // ── Tab navigation ────────────────────────────────────────────────────────────
 function switchTab(id){
   document.querySelectorAll('#nav .nav-btn').forEach(b=>{b.classList.toggle('active',b.dataset.tab===id)});
-  ['connect','persona','brands','pulse','pipeline','accounts','settings'].forEach(t=>{document.getElementById('tab-'+t)?.classList.toggle('hidden',t!==id)});
+  ['persona','brands','pulse','pipeline','accounts','settings'].forEach(t=>{document.getElementById('tab-'+t)?.classList.toggle('hidden',t!==id)});
   if(id === 'settings') openSettingsSection(stCurrentSection || 'profile');
 }
 
@@ -4499,10 +4491,6 @@ async function analyzeIGProfile(){
     document.getElementById('ig-badge').innerHTML=`✓ Analyzed`;
     document.getElementById('ig-badge').classList.remove('hidden');
 
-    // Once connected, the Connect tab isn't needed anymore — hide its nav button
-    const connectTab=document.querySelector('#nav .nav-btn[data-tab="connect"]');
-    if(connectTab) connectTab.style.display='none';
-
     // Kick off persona — spinner keeps running, no visible "handoff"
     generatePersona();
 
@@ -4510,7 +4498,8 @@ async function analyzeIGProfile(){
     stopLoading('persona');
     document.getElementById('persona-loading').classList.add('hidden');
     document.getElementById('persona-cta').classList.remove('hidden');
-    switchTab('connect');
+    switchTab('settings');
+    openSettingsSection('connectors');
     showError('Could not analyze profile: '+e.message);
     btn.disabled=false;
   }
