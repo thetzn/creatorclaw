@@ -139,7 +139,8 @@ body.in-tool .nav{display:none}
 .chat-msg-body{flex:1;font-size:14px;line-height:1.7;color:var(--text);min-width:0;padding-top:4px;word-wrap:break-word;white-space:pre-wrap}
 .chat-msg-body.has-card{white-space:normal}
 .chat-msg.assistant .chat-msg-body .typing-cursor{display:inline-block;width:6px;height:14px;background:var(--gold);animation:blink 0.9s infinite;vertical-align:text-bottom;margin-left:2px}
-.chat-msg.assistant .chat-msg-body .thinking-verb{display:inline-block;color:var(--muted);font-style:italic;font-size:13px;letter-spacing:0.01em;opacity:0.75;transition:opacity 0.25s ease}
+.chat-msg.assistant .chat-msg-body .thinking-verb{display:inline-block;background:linear-gradient(90deg,var(--gold3),var(--gold),var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:600;font-size:14px;letter-spacing:-0.005em;opacity:1;transition:opacity 0.25s ease;animation:thinking-verb-bounce 2.4s ease-in-out infinite;will-change:transform}
+@keyframes thinking-verb-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
 .chat-msg-body strong{font-weight:600;color:var(--text)}
 .chat-msg-body em{font-style:italic;color:var(--text)}
 .chat-msg-body a{color:var(--gold);text-decoration:underline;text-underline-offset:2px}
@@ -1217,9 +1218,9 @@ function startThinkingVerb(targetEl){
     span.style.opacity='0';
     setTimeout(()=>{
       span.textContent=CHAT_THINKING_VERBS[i];
-      span.style.opacity='0.75';
+      span.style.opacity='1';
     },220);
-  },2160);
+  },2592);
   return { span, interval };
 }
 function stopThinkingVerb(handle){
