@@ -3721,6 +3721,11 @@ function buildSharedAgentContext(){
   }
   if((d.recentThemes||[]).length) parts.push(`Recent content themes: ${d.recentThemes.join(', ')}`);
   if(d.bio) parts.push(`Bio: "${d.bio}"`);
+  const recommendationContext = buildRecommendationContext();
+  if(recommendationContext) {
+    parts.push(`\n--- Recommendation grounding from scraped Instagram posts ---`);
+    parts.push(recommendationContext);
+  }
 
   // Real Graph API insights (if connected)
   if(igConnection?.insights){
@@ -3737,6 +3742,51 @@ function buildSharedAgentContext(){
   parts.push(`\n--- Style ---`);
   parts.push(`Use the data above freely when answering questions about their audience, performance, or strategy. Cite specific numbers and themes rather than speaking generically. When drafting content, match their voice (vibes + content pillars). Keep responses concise unless the user asks for detail. Only say you don't have certain data if the specific metric they asked about isn't listed above.`);
   return parts.join('\n');
+}
+
+function buildRecommendationContext(){
+  const d = state.igData || {};
+  if(d.recommendationContext) return String(d.recommendationContext).slice(0, 3200);
+  const lines = [];
+  const clean = v => String(v || '').replace(/\s+/g, ' ').trim();
+  const list = (arr, mapFn, limit=8) => Array.isArray(arr)
+    ? arr.slice(0, limit).map(mapFn).filter(Boolean)
+    : [];
+  const themes = list(d.recentThemes, x => clean(x), 8);
+  if(themes.length) lines.push(`Recent themes to build on: ${themes.join(', ')}`);
+  if(d.audienceHints) lines.push(`Audience read: ${clean(d.audienceHints)}`);
+  if(d.baseLocation?.city) {
+    lines.push(`Location signal: ${clean([d.baseLocation.city, d.baseLocation.region, d.baseLocation.country].filter(Boolean).join(', '))}`);
+  } else if(Array.isArray(d.topLocations) && d.topLocations.length) {
+    lines.push(`Location signals: ${list(d.topLocations, x => x.city ? `${clean(x.city)} (${x.count || 1})` : null, 4).join(', ')}`);
+  }
+  if(d.aestheticProfile){
+    const a = d.aestheticProfile;
+    const bits = [a.aesthetic, a.palette, a.lighting, a.setting, a.style].map(clean).filter(Boolean);
+    if(bits.length) lines.push(`Visual style: ${bits.join('; ')}`);
+    if(Array.isArray(a.visible_brands) && a.visible_brands.length) lines.push(`Visible/adjacent brands in visuals: ${a.visible_brands.map(clean).filter(Boolean).slice(0,5).join(', ')}`);
+    if(a.notes) lines.push(`Visual notes: ${clean(a.notes)}`);
+  }
+  const postMix = d.postMix || {};
+  const mixBits = ['reel','carousel','image','video'].map(k => postMix[k] ? `${postMix[k]} ${k}` : null).filter(Boolean);
+  if(mixBits.length) lines.push(`Recent format mix: ${mixBits.join(', ')}`);
+  const hashtags = list(d.topHashtags, h => h.name ? `#${clean(h.name)} (${h.count || 1})` : null, 10);
+  if(hashtags.length) lines.push(`Repeated hashtags: ${hashtags.join(', ')}`);
+  const mentions = list(d.topMentions, m => m.name ? `@${clean(m.name)} (${m.count || 1})` : null, 8);
+  if(mentions.length) lines.push(`Repeated mentions / brand orbit: ${mentions.join(', ')}`);
+  const affinities = list(d.brandAffinities, b => clean(String(b).replace(/^@/, '')), 8);
+  if(affinities.length) lines.push(`Existing brand affinities, use as signal not recommendations: ${affinities.join(', ')}`);
+  const sounds = list(d.topSounds, s => s.song_name ? `"${clean(s.song_name)}", ${clean(s.artist_name || 'Unknown')} (${s.count || 1} uses)` : null, 6);
+  if(sounds.length) lines.push(`Reused reel audio: ${sounds.join('; ')}`);
+  const topPosts = list(d.topPosts, (post, i) => {
+    const caption = clean(post.caption).slice(0, 220);
+    if(!caption) return null;
+    const metrics = [post.type || 'post', post.likes ? `${post.likes} likes` : null, post.comments ? `${post.comments} comments` : null, post.views ? `${post.views} views` : null].filter(Boolean).join(', ');
+    const visual = clean(post.alt).slice(0, 120);
+    return `${i + 1}. ${metrics}: "${caption}"${visual ? ` Visual: ${visual}` : ''}`;
+  }, 4);
+  if(topPosts.length) lines.push(`Best-performing recent posts to riff from:\n${topPosts.join('\n')}`);
+  return lines.join('\n').slice(0, 3200);
 }
 
 // Backwards-compat alias, the system message we send is now just the
@@ -3880,6 +3930,7 @@ async function sendChatMessage(options = {}){
     // this to suggest real songs from the creator's own library instead of
     // hallucinating "trending audio" names.
     topSounds: Array.isArray(d.topSounds) ? d.topSounds.slice(0,8) : [],
+    recommendationContext: buildRecommendationContext(),
     userId,
     accessToken,
     timezone,
@@ -5044,12 +5095,15 @@ async function generateBrands(){
 
   const system=`Brand matchmaker. Return ONLY a JSON array of 8 brands, no markdown. Structure:
 [{"name":"Gymshark","domain":"gymshark.com","match":96,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"}]
-Real brands. domain is the primary website (no https:// or trailing slash). match 60-99. reasons exactly 3. deal is dollar range. Order by match desc.`;
+Real brands. domain is the primary website (no https:// or trailing slash). match 60-99. reasons exactly 3. deal is dollar range. Order by match desc.
+
+Use the scraped Instagram recommendation context like retrieval evidence: match the creator's actual themes, top-performing post formats, visual style, audience/location signals, and brand orbit. Do not recommend brands already listed as existing affinities. Prefer less-obvious brands that fit the same audience and aesthetic tier.`;
 
   const personaSummary=state.persona
     ? `${state.persona.name}: ${state.persona.bio} Pillars: ${state.persona.pillars.map(p=>p.l).join(', ')}. Vibes: ${state.persona.vibes.join(', ')}. Reach: ${state.persona.totalReach}, Engagement: ${state.persona.avgEngagement}`
     : getConnectedStats();
-  const user=`${personaSummary}${excludeLine}\n\n8 brand matches:`;
+  const recommendationContext = buildRecommendationContext();
+  const user=`${personaSummary}${excludeLine}${recommendationContext?`\n\nScraped recommendation context:\n${recommendationContext}`:''}\n\n8 brand matches:`;
 
   try {
     const raw=await chatLLM(system,user);
@@ -5741,6 +5795,8 @@ async function generatePulse(){
 [{"title":"Title","hook":"Why this works.","trend":"hot","match":96,"format":"Reel / TikTok","platform":"Both","estReach":"45K – 80K","tags":["#tag1","#tag2","#tag3"],"persona":["Trait1","Trait2"],"cat":"fitness","sound":"Song Name, Artist"}]
 trend: hot/rising/steady/new. platform: Both/Instagram/TikTok/YouTube. cat: fitness/lifestyle/beauty/tech/wellness/other. Mix categories. Order by match desc.
 
+Use the scraped Instagram recommendation context like retrieval evidence: riff from the creator's best-performing recent posts, repeated themes, visual style, format mix, hashtags, and reused audio. Ideas should feel like only this creator would post them, not generic niche templates. Avoid bland titles like "Morning Routine" unless tied to a specific observed pattern.
+
 For the \`sound\` field: prefer suggesting an audio the creator has actually used before (listed below if any), write the exact name as "Song Name, Artist". Their reuse signals it works for their audience. Don't invent songs you can't verify exist; leave \`sound\` empty if nothing from their library fits the idea.`;
 
   const topSounds = (state.igData && Array.isArray(state.igData.topSounds)) ? state.igData.topSounds : [];
@@ -5750,7 +5806,8 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
   const personaSummary=state.persona
     ? `${state.persona.name}: ${state.persona.bio} Pillars: ${state.persona.pillars.map(p=>p.l).join(', ')}. Vibes: ${state.persona.vibes.join(', ')}`
     : getConnectedStats();
-  const user=`${personaSummary}${soundsLine}\n\n10 content ideas:`;
+  const recommendationContext = buildRecommendationContext();
+  const user=`${personaSummary}${soundsLine}${recommendationContext?`\n\nScraped recommendation context:\n${recommendationContext}`:''}\n\n10 content ideas:`;
 
   try {
     const raw=await chatLLM(system,user);

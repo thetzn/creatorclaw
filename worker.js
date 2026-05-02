@@ -183,6 +183,8 @@ async function executeRateToolCall(toolCall, creatorContext, env) {
 {"title":"...","hook":"first 3-second hook","format":"reel|carousel|static|story-series","platform":"Instagram|TikTok","trend":"hot|rising|steady|new","match":85,"persona":["Authentic","Relatable"],"estReach":"50K-150K","tags":["#tag1","#tag2"],"sound":"Song Name, Artist (or empty string)"}
 Real, specific, and shippable. Each idea distinct. match is 60-99 reflecting fit to this creator. trend reflects timeliness.
 
+Use the scraped Instagram recommendation context like retrieval evidence: riff from the creator's best-performing recent posts, repeated themes, visual style, format mix, hashtags, and reused audio. Ideas should feel like only this creator would post them, not generic niche templates. Avoid bland titles like "Morning Routine" unless tied to a specific observed pattern.
+
 For the \`sound\` field: prefer suggesting an audio the creator has actually used before (provided in context if any), write the exact name as "Song Name, Artist". Their reuse signals it works for their audience. Don't invent songs you can't verify exist; leave \`sound\` as an empty string if nothing from their library fits the idea.`;
       const topSoundsLines = Array.isArray(creator.topSounds) && creator.topSounds.length
         ? creator.topSounds.slice(0, 8).map(s => `- "${s.song_name || 'Untitled'}", ${s.artist_name || 'Unknown'} (used ${s.count || 1}× in their reels)`).join('\n')
@@ -191,6 +193,7 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
         creator.niche ? `Niche: ${creator.niche}` : null,
         creator.followers ? `Followers: ${creator.followers}` : null,
         creator.engagementPct ? `Engagement: ${creator.engagementPct}%` : null,
+        creator.recommendationContext ? `Scraped Instagram recommendation context:\n${String(creator.recommendationContext).slice(0, 3200)}` : null,
         topSoundsLines ? `Audios this creator has used before (use one of these by exact name when it fits the idea):\n${topSoundsLines}` : null,
         theme ? `Requested theme/angle: ${theme}` : null,
       ].filter(Boolean).join('\n');
@@ -231,11 +234,14 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
       const exclude = Array.isArray(args.exclude) ? args.exclude.filter(Boolean).map(String).slice(0, 20) : [];
       const sys = `Brand matchmaker for individual creators. Return ONLY a JSON array of ${count} brands, no markdown. Schema:
 [{"name":"Gymshark","domain":"gymshark.com","match":92,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"}]
-domain has no protocol or trailing slash. match 60-99. Exactly 3 reasons each. Order by match desc. Real, currently-active brands; avoid generic ones the creator already mentioned (those are existing relationships, not new leads).`;
+domain has no protocol or trailing slash. match 60-99. Exactly 3 reasons each. Order by match desc. Real, currently-active brands; avoid generic ones the creator already mentioned (those are existing relationships, not new leads).
+
+Use the scraped Instagram recommendation context like retrieval evidence: match the creator's actual themes, top-performing post formats, visual style, audience/location signals, and brand orbit. Prefer less-obvious brands that fit the same audience and aesthetic tier.`;
       const ctxLines = [
         creator.niche ? `Niche: ${creator.niche}` : null,
         creator.followers ? `Followers: ${creator.followers}` : null,
         creator.engagementPct ? `Engagement: ${creator.engagementPct}%` : null,
+        creator.recommendationContext ? `Scraped Instagram recommendation context:\n${String(creator.recommendationContext).slice(0, 3200)}` : null,
         Array.isArray(creator.brandAffinities) && creator.brandAffinities.length
           ? `Existing partnerships (DO NOT recommend, use as tier signal only): ${creator.brandAffinities.join(', ')}`
           : null,
@@ -1912,6 +1918,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     reelsScraped: reels.length,
     _raw: { followers, following, posts: totalPosts, reels: reels.length, avgLikes, avgComments, private: !!p.private, actorFields: Object.keys(p).slice(0, 30) },
   };
+  profile.recommendationContext = buildRecommendationContextServer(profile);
 
   // Return in the same shape the frontend expects from chatLLM
   return json({
@@ -2870,6 +2877,9 @@ async function handleAgentMessage(msg, link, env) {
     followers: parseFollowersStr(persona?.scraped_data?.followers),
     engagementPct: parseEngStr(persona?.scraped_data?.engagementRate),
     niche: persona?.ai_analysis?.topCategory || persona?.scraped_data?.topCategory || 'lifestyle',
+    brandAffinities: Array.isArray(persona?.scraped_data?.brandAffinities) ? persona.scraped_data.brandAffinities.slice(0, 8) : [],
+    topSounds: Array.isArray(persona?.scraped_data?.topSounds) ? persona.scraped_data.topSounds.slice(0, 8) : [],
+    recommendationContext: buildRecommendationContextServer(persona?.scraped_data || {}),
     userId: link.user_id,
     accessToken: jwt,
     timezone: 'UTC',
@@ -2966,6 +2976,50 @@ async function getOrCreateTelegramConversation(jwt, userId, telegramChatId, firs
   return Array.isArray(created) ? created[0]?.id : created?.id;
 }
 
+function buildRecommendationContextServer(ig) {
+  ig = ig || {};
+  const lines = [];
+  const clean = v => String(v || '').replace(/\s+/g, ' ').trim();
+  const list = (arr, mapFn, limit = 8) => Array.isArray(arr)
+    ? arr.slice(0, limit).map(mapFn).filter(Boolean)
+    : [];
+  const themes = list(ig.recentThemes, x => clean(x), 8);
+  if (themes.length) lines.push(`Recent themes to build on: ${themes.join(', ')}`);
+  if (ig.audienceHints) lines.push(`Audience read: ${clean(ig.audienceHints)}`);
+  if (ig.baseLocation?.city) {
+    lines.push(`Location signal: ${clean([ig.baseLocation.city, ig.baseLocation.region, ig.baseLocation.country].filter(Boolean).join(', '))}`);
+  } else if (Array.isArray(ig.topLocations) && ig.topLocations.length) {
+    lines.push(`Location signals: ${list(ig.topLocations, x => x.city ? `${clean(x.city)} (${x.count || 1})` : null, 4).join(', ')}`);
+  }
+  if (ig.aestheticProfile) {
+    const a = ig.aestheticProfile;
+    const bits = [a.aesthetic, a.palette, a.lighting, a.setting, a.style].map(clean).filter(Boolean);
+    if (bits.length) lines.push(`Visual style: ${bits.join('; ')}`);
+    if (Array.isArray(a.visible_brands) && a.visible_brands.length) lines.push(`Visible/adjacent brands in visuals: ${a.visible_brands.map(clean).filter(Boolean).slice(0, 5).join(', ')}`);
+    if (a.notes) lines.push(`Visual notes: ${clean(a.notes)}`);
+  }
+  const postMix = ig.postMix || {};
+  const mixBits = ['reel', 'carousel', 'image', 'video'].map(k => postMix[k] ? `${postMix[k]} ${k}` : null).filter(Boolean);
+  if (mixBits.length) lines.push(`Recent format mix: ${mixBits.join(', ')}`);
+  const hashtags = list(ig.topHashtags, h => h.name ? `#${clean(h.name)} (${h.count || 1})` : null, 10);
+  if (hashtags.length) lines.push(`Repeated hashtags: ${hashtags.join(', ')}`);
+  const mentions = list(ig.topMentions, m => m.name ? `@${clean(m.name)} (${m.count || 1})` : null, 8);
+  if (mentions.length) lines.push(`Repeated mentions / brand orbit: ${mentions.join(', ')}`);
+  const affinities = list(ig.brandAffinities, b => clean(String(b).replace(/^@/, '')), 8);
+  if (affinities.length) lines.push(`Existing brand affinities, use as signal not recommendations: ${affinities.join(', ')}`);
+  const sounds = list(ig.topSounds, s => s.song_name ? `"${clean(s.song_name)}", ${clean(s.artist_name || 'Unknown')} (${s.count || 1} uses)` : null, 6);
+  if (sounds.length) lines.push(`Reused reel audio: ${sounds.join('; ')}`);
+  const topPosts = list(ig.topPosts, (post, i) => {
+    const caption = clean(post.caption).slice(0, 220);
+    if (!caption) return null;
+    const metrics = [post.type || 'post', post.likes ? `${post.likes} likes` : null, post.comments ? `${post.comments} comments` : null, post.views ? `${post.views} views` : null].filter(Boolean).join(', ');
+    const visual = clean(post.alt).slice(0, 120);
+    return `${i + 1}. ${metrics}: "${caption}"${visual ? ` Visual: ${visual}` : ''}`;
+  }, 4);
+  if (topPosts.length) lines.push(`Best-performing recent posts to riff from:\n${topPosts.join('\n')}`);
+  return lines.join('\n').slice(0, 3200);
+}
+
 // Server-side persona prompt builder (mirrors index.html buildSharedAgentContext).
 function buildSharedAgentContextServer(personaRow) {
   const ai = personaRow?.ai_analysis || {};
@@ -2992,6 +3046,11 @@ function buildSharedAgentContextServer(personaRow) {
   }
   if (Array.isArray(ig.recentThemes) && ig.recentThemes.length) parts.push(`Recent content themes: ${ig.recentThemes.join(', ')}`);
   if (ig.bio) parts.push(`Bio: "${ig.bio}"`);
+  const recommendationContext = buildRecommendationContextServer(ig);
+  if (recommendationContext) {
+    parts.push(`\n--- Recommendation grounding from scraped Instagram posts ---`);
+    parts.push(recommendationContext);
+  }
   parts.push(`\n--- Style ---`);
   parts.push(`Use the data above freely when answering questions about their audience, performance, or strategy. Cite specific numbers and themes rather than speaking generically. Keep responses concise, Telegram messages should fit on a phone screen unless the user asks for detail.`);
   return parts.join('\n');
