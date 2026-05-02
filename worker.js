@@ -2379,9 +2379,9 @@ function decodeJwtSub(jwt) {
 // Returns { accessToken, email } or null if no connection / refresh failed.
 async function getGoogleAccessToken(userId, sbAccessToken, env) {
   if (!userId || !sbAccessToken) return null;
-  const r = await fetch(
-    `${SUPABASE_URL}/rest/v1/google_workspace_connections?user_id=eq.${userId}&select=*`,
-    { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + sbAccessToken } }
+  const r = await sbServiceFetch(
+    env,
+    `/google_workspace_connections?user_id=eq.${userId}&select=email,access_token,refresh_token,expires_at`
   );
   if (!r.ok) return null;
   const rows = await r.json().catch(() => []);
@@ -2418,14 +2418,12 @@ async function getGoogleAccessToken(userId, sbAccessToken, env) {
   if (!newAccessToken) return null;
   const newExpiresAt = new Date(Date.now() + (newExpiresIn - 60) * 1000).toISOString();
 
-  await fetch(
-    `${SUPABASE_URL}/rest/v1/google_workspace_connections?user_id=eq.${userId}`,
+  await sbServiceFetch(
+    env,
+    `/google_workspace_connections?user_id=eq.${userId}`,
     {
       method: 'PATCH',
       headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: 'Bearer ' + sbAccessToken,
-        'Content-Type': 'application/json',
         Prefer: 'return=minimal',
       },
       body: JSON.stringify({ access_token: newAccessToken, expires_at: newExpiresAt }),
