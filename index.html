@@ -540,13 +540,8 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .radar-track{height:3px;border-radius:2px;background:var(--border);overflow:hidden}
 .radar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--gold3),var(--gold));transition:width 1s ease}
 
-.growth-bars{display:flex;align-items:flex-end;gap:3px;height:140px;padding:10px 0}
-.growth-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
-.growth-stack{width:100%;display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;justify-content:flex-end}
-.growth-bar-ig{width:12px;border-radius:3px 3px 0 0;background:var(--gold);transition:height 1s ease}
 .growth-bar-tt{width:12px;border-radius:3px 3px 0 0;background:var(--muted2);transition:height 1s ease}
 .growth-label{font-size:7px;color:var(--muted2);margin-top:4px;font-weight:500;letter-spacing:0.05em}
-.growth-legend{display:flex;justify-content:center;gap:20px;margin-top:12px;font-size:10px;color:var(--muted)}
 
 /* Brands */
 .brand-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
@@ -669,7 +664,6 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   .outreach-btn{padding:12px 16px;font-size:11px;min-height:40px;justify-content:center}
   .pulse-actions{flex-wrap:wrap;gap:8px}
   .pulse-save-btn,.pulse-draft-btn{padding:11px 14px;min-height:40px;flex:1;justify-content:center}
-  .growth-bars{height:110px}
   .vbar-container{height:90px}
   /* Modal tap targets + content fit */
   .modal-box{padding:28px;max-height:94vh}
@@ -916,10 +910,9 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
         <div class="persona-refresh hidden" id="persona-refresh-label"></div>
       </div>
     </div>
-    <div class="grid-4">
+    <div class="grid-3">
       <div class="stat-card reach"><div class="stat-card-icon" style="background:var(--gold-dim);color:var(--gold)">◎</div><div class="stat-card-val">549K</div><div class="stat-card-label">Total Reach<span class="stat-card-sub">+12%</span></div></div>
       <div class="stat-card engagement"><div class="stat-card-icon" style="background:var(--plum-dim);color:var(--plum)">♡</div><div class="stat-card-val">5.3%</div><div class="stat-card-label">Avg Engagement<span class="stat-card-sub">+0.8%</span></div></div>
-      <div class="stat-card growth"><div class="stat-card-icon" style="background:var(--green-dim);color:var(--green)">↗</div><div class="stat-card-val">+18K/mo</div><div class="stat-card-label">Growth Rate</div></div>
       <div class="stat-card tier"><div class="stat-card-icon" style="background:var(--gold-dim);color:var(--gold)">★</div><div class="stat-card-val">Rising Star</div><div class="stat-card-label">Creator Tier</div></div>
     </div>
     <div class="card" style="margin-bottom:20px;padding:28px"><div class="chart-title">Content Pillars</div><div class="pillars" id="pillars-container"></div></div>
@@ -938,10 +931,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
           <div class="chart-card"><div class="chart-title">Age Distribution</div><div class="vbar-container" id="age-bars"></div></div>
           <div class="chart-card"><div class="chart-title">Top Locations</div><div id="loc-bars" style="padding-top:8px"></div></div>
         </div>
-        <div class="grid-2">
-          <div class="chart-card"><div class="chart-title">Creator Profile</div><div id="radar-bars" style="padding-top:4px"></div></div>
-          <div class="chart-card"><div class="chart-title">Follower Growth (12mo)</div><div class="growth-bars" id="growth-chart"></div><div class="growth-legend"><span><span class="pie-dot" style="background:var(--gold)"></span> Instagram</span></div></div>
-        </div>
+        <div class="chart-card"><div class="chart-title">Creator Profile</div><div id="radar-bars" style="padding-top:4px"></div></div>
       </div>
       <div class="teaser-gate">
         <div class="teaser-gate-icon">✦</div>
@@ -3378,7 +3368,6 @@ function renderInlinePersonaCard(persona, igData){
   const followers = p.totalReach || d.followers || '—';
   const engagement = p.avgEngagement || d.engagementRate || '—';
   const tier = p.tier || '';
-  const growth = p.growthRate || '—';
   const topAge = (p.age||[]).slice().sort((a,b)=>(b.pct||0)-(a.pct||0))[0]?.age || '—';
   const topCity = (p.locations||[])[0]?.city || '—';
   const audienceHints = String(d.audienceHints || '').trim();
@@ -3396,7 +3385,6 @@ function renderInlinePersonaCard(persona, igData){
       <div class="inline-persona-stats">
         <div class="inline-persona-stat"><strong>${escapeHtml(followers)}</strong>Reach</div>
         <div class="inline-persona-stat"><strong>${escapeHtml(engagement)}</strong>Engagement</div>
-        <div class="inline-persona-stat"><strong>${escapeHtml(growth)}</strong>Growth</div>
         <div class="inline-persona-stat"><strong>${escapeHtml(topAge)}</strong>Top Age</div>
         <div class="inline-persona-stat"><strong>${escapeHtml(topCity)}</strong>Top City</div>
       </div>
@@ -4077,7 +4065,7 @@ async function downloadMediaKit(opts = {}){
     { label: 'FOLLOWERS', val: p.totalReach || d.followers || '—' },
     { label: 'ENGAGEMENT', val: p.avgEngagement || d.engagementRate || '—' },
     { label: 'POSTS', val: d.totalPosts || '—' },
-    { label: 'GROWTH', val: p.growthRate || '—' },
+    { label: 'TIER', val: p.tier || '—' },
   ];
   const colW = (W - 2*M) / 2;
   for(let i = 0; i < stats.length; i++){
@@ -4769,7 +4757,7 @@ async function generatePersona(options = {}){
   }
 
   const system=`Creator analyst. Return ONLY JSON, no markdown. Exact structure:
-{"name":"Name","bio":"One sentence bio.","score":87,"vibes":["Tag1","Tag2","Tag3","Tag4","Tag5"],"totalReach":"549K","avgEngagement":"5.3%","growthRate":"+18K/mo","tier":"Rising Star","pillars":[{"l":"Fitness","p":40},{"l":"Lifestyle","p":30},{"l":"Beauty","p":20},{"l":"Other","p":10}]}
+{"name":"Name","bio":"One sentence bio.","score":87,"vibes":["Tag1","Tag2","Tag3","Tag4","Tag5"],"totalReach":"549K","avgEngagement":"5.3%","tier":"Rising Star","pillars":[{"l":"Fitness","p":40},{"l":"Lifestyle","p":30},{"l":"Beauty","p":20},{"l":"Other","p":10}]}
 pillars p must sum to 100. Keep 4-5 pillars.`;
 
   const stats=getConnectedStats();
@@ -4870,8 +4858,7 @@ function renderPersona(d){
   const statCards=document.querySelectorAll('.stat-card');
   if(statCards[0]) statCards[0].querySelector('.stat-card-val').textContent=fmt(d.totalReach);
   if(statCards[1]) statCards[1].querySelector('.stat-card-val').textContent=fmt(d.avgEngagement);
-  if(statCards[2]) statCards[2].querySelector('.stat-card-val').textContent=fmt(d.growthRate);
-  if(statCards[3]) statCards[3].querySelector('.stat-card-val').textContent=fmt(d.tier);
+  if(statCards[2]) statCards[2].querySelector('.stat-card-val').textContent=fmt(d.tier);
   // Charts
   buildCharts(d);
   document.getElementById('persona-result').classList.remove('hidden');
@@ -5006,32 +4993,12 @@ function buildCharts(d){
   const rb=document.getElementById('radar-bars');
   rb.innerHTML=radarData.map(x=>`<div class="radar-item"><div class="radar-label"><span>${x.t}</span><span>${x.v}</span></div><div class="radar-track"><div class="radar-fill" style="width:0" data-w="${x.v}"></div></div></div>`).join('');
 
-  const gc=document.getElementById('growth-chart');
-  const months=["May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr"];
-  // Use real IG follower count if available, else fallback
-  const followersNum=(()=>{
-    const s=(d.totalReach||'').toString().trim();
-    const n=parseFloat(s);
-    if(!isFinite(n)) return 500000;
-    if(/k/i.test(s)) return n*1000;
-    if(/m/i.test(s)) return n*1000000;
-    return n;
-  })();
-  const startFollowers=followersNum*0.65;
-  const growthPerMonth=(followersNum-startFollowers)/(months.length-1);
-  const maxG=followersNum*1.05;
-  gc.innerHTML=months.map((m,i)=>{
-    const ig=startFollowers+i*growthPerMonth;
-    return`<div class="growth-col"><div class="growth-stack"><div class="growth-bar-ig" style="height:0" data-h="${(ig/maxG*105).toFixed(1)}"></div></div><div class="growth-label">${m}</div></div>`;
-  }).join('');
-
   // Single RAF to trigger all CSS transitions
   requestAnimationFrame(()=>{
     pc.querySelectorAll('.bar-fill').forEach((b,i)=>{b.style.width=pillarsData[i].p*2.5+'%'});
     ab.querySelectorAll('.vbar-bar').forEach(b=>{b.style.height=b.dataset.h+'px'});
     lb.querySelectorAll('.hbar-fill').forEach(b=>{b.style.width=b.dataset.w+'%'});
     rb.querySelectorAll('.radar-fill').forEach(b=>{b.style.width=b.dataset.w+'%'});
-    gc.querySelectorAll('.growth-bar-ig').forEach(b=>{b.style.height=b.dataset.h+'px'});
   });
 }
 
