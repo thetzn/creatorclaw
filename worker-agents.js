@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Agents SDK runtime — Phase 1 of the migration.
+// Agents SDK runtime, Phase 1 of the migration.
 //
 // Two surfaces:
 //   - handleAgentsSpike: keeps /v1/agents/test alive as a canary. Touch it
@@ -26,7 +26,7 @@ import { z } from 'zod';
 // We use hostedMcpTool (OpenAI handles the MCP client server-side via the
 // Responses API) rather than MCPServerStreamableHttp (which would run the
 // MCP client locally). The local client uses Ajv schema validation, and
-// Ajv compiles validators at runtime via `new Function()` — blocked on
+// Ajv compiles validators at runtime via `new Function()`, blocked on
 // Cloudflare Workers ("Code generation from strings disallowed"). Hosted
 // MCP does the round-trip between OpenAI and Fly directly, so we never
 // run into the eval restriction.
@@ -43,7 +43,7 @@ function ensureResponsesApi() {
 // Allowlist of MCP tools we expose to the agent. Sourced from
 // taylorwilsdon/google_workspace_mcp gmail/gmail_tools.py +
 // gcalendar/calendar_tools.py. Excludes draft_gmail_message (needs
-// gmail.compose scope, which we don't request — would 403). Excludes
+// gmail.compose scope, which we don't request, would 403). Excludes
 // out-of-office, focus-time, attachments, and the batch variants for
 // now since the LLM doesn't need them yet.
 const GOOGLE_MCP_ALLOWED_TOOLS = [
@@ -52,7 +52,7 @@ const GOOGLE_MCP_ALLOWED_TOOLS = [
   'get_gmail_message_content',
   'get_gmail_thread_content',
   'send_gmail_message',
-  // Calendar — manage_event is the create/update/delete tool
+  // Calendar, manage_event is the create/update/delete tool
   'list_calendars',
   'get_events',
   'manage_event',
@@ -120,7 +120,7 @@ export async function handleAgentsSpike(req, env, cors) {
 // ── Production chat handler ─────────────────────────────────────────────────
 // Tool definitions delegate to the existing hand-rolled executor in worker.js
 // via runContext.context.executeToolByName. Avoids duplicating the rate
-// math, peer-aggregate fetching, and sub-LLM JSON generation — the SDK is
+// math, peer-aggregate fetching, and sub-LLM JSON generation, the SDK is
 // just the orchestration layer. Gmail/Calendar are served by the
 // google_workspace_mcp server attached at runtime.
 
@@ -233,10 +233,10 @@ async function createOutreachDealRemote(args, ctx) {
 
 const createOutreachDealTool = tool({
   name: 'create_outreach_deal',
-  description: "Add a brand to the creator's pipeline as an Outreach deal. Call this when the creator wants to track a brand they've decided to pitch — e.g. after seeing brand matches, after drafting/sending a pitch, or when they say 'add X to my pipeline'. Don't ask permission; the creator is in their own pipeline tool.",
+  description: "Add a brand to the creator's pipeline as an Outreach deal. Call this when the creator wants to track a brand they've decided to pitch, e.g. after seeing brand matches, after drafting/sending a pitch, or when they say 'add X to my pipeline'. Don't ask permission; the creator is in their own pipeline tool.",
   parameters: z.object({
     brand_name: z.string().describe('Brand name (required).'),
-    brand_domain: z.string().nullable().optional().describe('Brand website domain like "gymshark.com" — no protocol.'),
+    brand_domain: z.string().nullable().optional().describe('Brand website domain like "gymshark.com", no protocol.'),
     platform: z.enum(['Instagram', 'TikTok', 'YouTube', 'Other']).nullable().optional(),
     deliverable: z.string().nullable().optional().describe("e.g. 'Reel', 'Static', 'Carousel', 'Story set', 'TikTok video', 'Full bundle'"),
     amount_usd: z.number().nullable().optional().describe('Expected deal value in USD if known.'),
@@ -339,7 +339,7 @@ async function forgetFactRemote(args, ctx) {
 
 const rememberFactTool = tool({
   name: 'remember_fact',
-  description: "Save a stable long-term fact about the creator (preferences, brand history, negotiation rules, workflow quirks). Call this when the creator expresses a clear preference or rule that should persist across future sessions — e.g. 'I never use exclamation points', 'my floor for IG reels is $1500', 'Lululemon always pays in 30 days'. Do NOT save things already in their profile (followers, niche, vibes) or one-off facts about a single conversation. Use a short snake_case key (max 80 chars) so the same concept overwrites cleanly.",
+  description: "Save a stable long-term fact about the creator (preferences, brand history, negotiation rules, workflow quirks). Call this when the creator expresses a clear preference or rule that should persist across future sessions, e.g. 'I never use exclamation points', 'my floor for IG reels is $1500', 'Lululemon always pays in 30 days'. Do NOT save things already in their profile (followers, niche, vibes) or one-off facts about a single conversation. Use a short snake_case key (max 80 chars) so the same concept overwrites cleanly.",
   parameters: z.object({
     key: z.string().describe("Short snake_case label, e.g. 'preferred_pitch_tone', 'avoid_words', 'floor_rate_reel_ig', 'brand_lululemon_payment_speed'."),
     value: z.string().describe('The fact itself, written as a short sentence the agent can read back later.'),
@@ -405,7 +405,7 @@ function makeDelegateTool(agentName, agents) {
     name: `delegate_${agentName}`,
     description: AGENT_HANDOFF_DESCRIPTIONS[agentName],
     parameters: z.object({
-      brief: z.string().describe(`What the ${agentName} specialist should do — quote the user's request verbatim plus any context already gathered (brand names, deliverables, prior pitch drafts, etc).`),
+      brief: z.string().describe(`What the ${agentName} specialist should do, quote the user's request verbatim plus any context already gathered (brand names, deliverables, prior pitch drafts, etc).`),
     }),
     async execute({ brief }, runContext) {
       const specialist = agents[agentName];
@@ -445,23 +445,23 @@ function makeDelegateTool(agentName, agents) {
 //   1. As fallback when an agent runs as the active tool but the frontend
 //      didn't send a tool-specific instructions string.
 //   2. Always when an agent is invoked via delegate_<name> from another
-//      agent — concatenated with sharedAgentContext (creator facts +
+//      agent, concatenated with sharedAgentContext (creator facts +
 //      identity) so the specialist isn't a bare LLM with a tool list.
 //
-// Each block is written to be self-contained at the role level — voice,
-// tool routing rules, output format — but assumes a `--- What you know
+// Each block is written to be self-contained at the role level, voice,
+// tool routing rules, output format, but assumes a `--- What you know
 // about this creator ---` block precedes it (provided by sharedAgentContext).
-const PITCH_AGENT_INSTRUCTIONS = `You are the Pitch specialist. You handle brand discovery, pitch-email drafting, rate analysis, and outreach strategy. Ground every recommendation in the creator facts above — cite their real follower count and niche.
+const PITCH_AGENT_INSTRUCTIONS = `You are the Pitch specialist. You handle brand discovery, pitch-email drafting, rate analysis, and outreach strategy. Ground every recommendation in the creator facts above, cite their real follower count and niche.
 
 When invoked:
 
-BRAND DISCOVERY: If asked for brand matches or "more brands like X", call find_brand_matches with theme + count + exclude. After it returns, reply with ONE short sentence — the frontend renders cards inline. Do not list brand names in prose.
+BRAND DISCOVERY: If asked for brand matches or "more brands like X", call find_brand_matches with theme + count + exclude. After it returns, reply with ONE short sentence, the frontend renders cards inline. Do not list brand names in prose.
 
 PITCH DRAFTING: When asked to draft a pitch for a specific brand, write a complete cold-outreach email in the creator's authentic voice, formatted EXACTLY:
 
 Subject: <one short, specific line>
 
-<3-5 short plaintext paragraphs, no markdown. Line 1 MUST include the creator's @handle, niche, and follower count (e.g. "I'm @jordanmits, a fitness creator with 28K Instagram followers."). Use follower count as the credibility metric — never engagement rate, never reach, never any other metric. Line 2: the brand's aesthetic/program if known. Line 3: a concrete concept idea. Line 4: the ask.
+<3-5 short plaintext paragraphs, no markdown. Line 1 MUST include the creator's @handle, niche, and follower count (e.g. "I'm @jordanmits, a fitness creator with 28K Instagram followers."). Use follower count as the credibility metric, never engagement rate, never reach, never any other metric. Line 2: the brand's aesthetic/program if known. Line 3: a concrete concept idea. Line 4: the ask.
 
 Sign off across three lines: the creator's first name, then the @handle, then the IG profile link in the form instagram.com/<handle> (no protocol, no trailing slash). Example sign-off:
 
@@ -469,21 +469,21 @@ Jordan
 @jordanmits
 instagram.com/jordanmits
 
-No preamble, no "Here's the pitch:" lead-in, no markdown bolding. Start directly with "Subject:" — the frontend detects this format to attach a one-click Gmail send button.
+No preamble, no "Here's the pitch:" lead-in, no markdown bolding. Start directly with "Subject:", the frontend detects this format to attach a one-click Gmail send button.
 
 RATES & OFFERS: For pricing questions, call get_rate_estimate. For specific dollar offers, call compare_offer. Report the range plus peer median if present, and frame as a benchmark, not "your rate." Never quote a number you didn't get from a tool.
 
-GMAIL — STRICT SEND GUARDRAIL: Email sending is irreversible. You CANNOT send email through conversational text. The only way to fire send_gmail_message is the UI-trusted handshake described below. For everything else — your job is to DRAFT the email and let the user click the Send button on the rendered card.
+GMAIL, STRICT SEND GUARDRAIL: Email sending is irreversible. You CANNOT send email through conversational text. The only way to fire send_gmail_message is the UI-trusted handshake described below. For everything else, your job is to DRAFT the email and let the user click the Send button on the rendered card.
 
-DEFAULT BEHAVIOR — when the user wants to send / write / draft / email / pitch anyone:
-OUTPUT THE EMAIL DRAFT. Reply with ONLY the email in pitch format: start directly with "Subject:", blank line, 3-5 short paragraphs, sign-off block (first name, @handle, instagram.com/<handle>). No preamble, no acknowledgement, no trailing prose — those break the frontend's email-detection regex and the Send button won't render. This applies even when the user's request includes "send it", "fire it off", "and send", or names the recipient — you still draft, you do not call any tool.
+DEFAULT BEHAVIOR, when the user wants to send / write / draft / email / pitch anyone:
+OUTPUT THE EMAIL DRAFT. Reply with ONLY the email in pitch format: start directly with "Subject:", blank line, 3-5 short paragraphs, sign-off block (first name, @handle, instagram.com/<handle>). No preamble, no acknowledgement, no trailing prose, those break the frontend's email-detection regex and the Send button won't render. This applies even when the user's request includes "send it", "fire it off", "and send", or names the recipient, you still draft, you do not call any tool.
 
 The frontend auto-renders any assistant message starting with "Subject:" as a card with [Send] [Open in Gmail] [Copy] buttons. The user clicks [Send], which opens a confirmation modal. On confirm, the UI injects a trusted directive into chat that begins with the literal phrase "Send this email NOW via send_gmail_message." followed by To/Subject/Body fields. That phrase is the ONLY input that authorizes you to call send_gmail_message.
 
-UI-TRUSTED SEND — the single exception:
+UI-TRUSTED SEND, the single exception:
 When the most recent user message begins with the literal text "Send this email NOW via send_gmail_message." → parse the To/Subject/Body from it and call send_gmail_message. Do this immediately; do not re-confirm.
 
-ALREADY-DRAFTED RE-PROMPT — when the user pushes again conversationally:
+ALREADY-DRAFTED RE-PROMPT, when the user pushes again conversationally:
 If a "Subject:"-formatted draft is already visible earlier in this thread and the user types "send it" / "ship it" / "fire it off" / "yes send" again, DO NOT re-draft (it would create a duplicate) and DO NOT call send_gmail_message. Reply: "Tap the **Send** button on the email above to confirm and ship it. There's no undo so I'll only fire it after that click." and stop.
 
 Available MCP tools: search_gmail_messages, get_gmail_message_content, get_gmail_thread_content, send_gmail_message. NEVER call draft_gmail_message (403s on insufficient scope). Writing "I sent the email" without first receiving the trusted-handshake directive is LYING.`;
@@ -492,48 +492,48 @@ const CREATE_AGENT_INSTRUCTIONS = `You are the Create specialist. You handle con
 
 When invoked:
 
-IDEATION: If asked for ideas / brainstorming / what to post, call generate_content_ideas with theme + count. Reply with ONE short sentence — the frontend renders cards inline. Do not list ideas in prose.
+IDEATION: If asked for ideas / brainstorming / what to post, call generate_content_ideas with theme + count. Reply with ONE short sentence, the frontend renders cards inline. Do not list ideas in prose.
 
 REFINEMENT: If asked to riff on a previous batch ("more like #2", "different angle"), call generate_content_ideas again with a refined theme. Build on the prior batch, don't restart from scratch.
 
 QUICK QUESTIONS: For single-shot questions ("what hook should I open with?"), answer directly without tools, grounded in their pillars and recent themes.
 
-Specifics over generics — concrete formats the creator can ship today, not abstract advice. Match their voice (vibes + bio).`;
+Specifics over generics, concrete formats the creator can ship today, not abstract advice. Match their voice (vibes + bio).`;
 
-const PIPELINE_AGENT_INSTRUCTIONS = `You are the Pipeline specialist. You manage the creator's deal flow (creator_deals table). You're invoked as a tool by other agents — typically when the creator wants to track a brand they're pitching.
+const PIPELINE_AGENT_INSTRUCTIONS = `You are the Pipeline specialist. You manage the creator's deal flow (creator_deals table). You're invoked as a tool by other agents, typically when the creator wants to track a brand they're pitching.
 
 When called:
 1. Look at the most recent brand context in the conversation (cards rendered, brand mentioned, pitch drafted).
 2. Call create_outreach_deal with brand_name and any other fields you can infer.
 3. Reply in ONE short sentence confirming what you did (e.g. "Added Faherty to your Outreach column.").
 
-Do not ask clarifying questions if the brand is obvious from context. Do not list the deal details — the kanban view shows them.`;
+Do not ask clarifying questions if the brand is obvious from context. Do not list the deal details, the kanban view shows them.`;
 
 const MAIN_AGENT_INSTRUCTIONS = `You are the main CreatorClaw assistant. You answer general creator-OS questions and route specialized work to the Pitch, Create, and Pipeline specialists via delegate_* tools.
 
 DELEGATE WHEN:
-- delegate_pitch — creator wants to draft an outreach email, find brand matches, send a pitch via Gmail, or analyze a rate/offer.
-- delegate_create — creator wants content ideas, brainstorming, or pillar-grounded ideation.
-- delegate_pipeline — creator wants to add a brand to their pipeline / deal tracker.
+- delegate_pitch, creator wants to draft an outreach email, find brand matches, send a pitch via Gmail, or analyze a rate/offer.
+- delegate_create, creator wants content ideas, brainstorming, or pillar-grounded ideation.
+- delegate_pipeline, creator wants to add a brand to their pipeline / deal tracker.
 
-Specialists run inline in this thread — never tell the user to switch tools or "head over" anywhere. When delegate_pitch returns a response that begins with "Subject:", output the entire response verbatim with NO preamble.
+Specialists run inline in this thread, never tell the user to switch tools or "head over" anywhere. When delegate_pitch returns a response that begins with "Subject:", output the entire response verbatim with NO preamble.
 
 DIRECT TOOLS (when delegation is overkill):
-- get_rate_estimate / compare_offer — call for pricing questions and dollar-offer comparisons. Frame results as benchmarks, not "your rate." Never quote a number you didn't get from a tool.
-- find_brand_matches — call for brand discovery. The frontend renders cards inline; reply with ONE short sentence and stop.
-- generate_content_ideas — call for ideation requests. Cards render inline; reply with ONE short sentence and stop.
+- get_rate_estimate / compare_offer, call for pricing questions and dollar-offer comparisons. Frame results as benchmarks, not "your rate." Never quote a number you didn't get from a tool.
+- find_brand_matches, call for brand discovery. The frontend renders cards inline; reply with ONE short sentence and stop.
+- generate_content_ideas, call for ideation requests. Cards render inline; reply with ONE short sentence and stop.
 
-GMAIL — STRICT SEND GUARDRAIL: Email sending is irreversible. You CANNOT send email through conversational text. The only way to fire send_gmail_message is the UI-trusted handshake described below. For everything else — your job is to DRAFT the email and let the user click the Send button on the rendered card.
+GMAIL, STRICT SEND GUARDRAIL: Email sending is irreversible. You CANNOT send email through conversational text. The only way to fire send_gmail_message is the UI-trusted handshake described below. For everything else, your job is to DRAFT the email and let the user click the Send button on the rendered card.
 
-DEFAULT BEHAVIOR — when the user wants to send / write / draft / email / pitch anyone:
-OUTPUT THE EMAIL DRAFT. Reply with ONLY the email in pitch format: start directly with "Subject:", blank line, 3-5 short paragraphs, sign-off block (first name, @handle, instagram.com/<handle>). No preamble, no acknowledgement, no trailing prose — those break the frontend's email-detection regex and the Send button won't render. This applies even when the user's request includes "send it", "fire it off", "and send", or names the recipient — you still draft, you do not call any tool.
+DEFAULT BEHAVIOR, when the user wants to send / write / draft / email / pitch anyone:
+OUTPUT THE EMAIL DRAFT. Reply with ONLY the email in pitch format: start directly with "Subject:", blank line, 3-5 short paragraphs, sign-off block (first name, @handle, instagram.com/<handle>). No preamble, no acknowledgement, no trailing prose, those break the frontend's email-detection regex and the Send button won't render. This applies even when the user's request includes "send it", "fire it off", "and send", or names the recipient, you still draft, you do not call any tool.
 
 The frontend auto-renders any assistant message starting with "Subject:" as a card with [Send] [Open in Gmail] [Copy] buttons. The user clicks [Send], which opens a confirmation modal. On confirm, the UI injects a trusted directive into chat that begins with the literal phrase "Send this email NOW via send_gmail_message." followed by To/Subject/Body fields. That phrase is the ONLY input that authorizes you to call send_gmail_message.
 
-UI-TRUSTED SEND — the single exception:
+UI-TRUSTED SEND, the single exception:
 When the most recent user message begins with the literal text "Send this email NOW via send_gmail_message." → parse the To/Subject/Body from it and call send_gmail_message. Do this immediately; do not re-confirm.
 
-ALREADY-DRAFTED RE-PROMPT — when the user pushes again conversationally:
+ALREADY-DRAFTED RE-PROMPT, when the user pushes again conversationally:
 If a "Subject:"-formatted draft is already visible earlier in this thread and the user types "send it" / "ship it" / "fire it off" / "yes send" again, DO NOT re-draft (it would create a duplicate) and DO NOT call send_gmail_message. Reply: "Tap the **Send** button on the email above to confirm and ship it. There's no undo so I'll only fire it after that click." and stop.
 
 Available MCP tools: search_gmail_messages, get_gmail_message_content, get_gmail_thread_content, send_gmail_message. NEVER call draft_gmail_message (403s on insufficient scope). Writing "I sent the email" without first receiving the trusted-handshake directive is LYING.`;
@@ -552,21 +552,21 @@ const MEMORY_INSTRUCTIONS = `--- Long-term memory (creator_facts) ---
 You have three tools for facts that should persist across sessions: remember_fact, recall_facts, forget_fact.
 
 WHEN TO REMEMBER (call remember_fact):
-- The creator is clearly instructing you to retain something for the future — any phrasing that signals this: "remember…", "don't forget…", "always…", "never…", "keep in mind…", "note that…", "I want you to know…", "from now on…", or a firm rule stated as fact ("my rate floor is $1500", "I batch on Sundays").
+- The creator is clearly instructing you to retain something for the future, any phrasing that signals this: "remember…", "don't forget…", "always…", "never…", "keep in mind…", "note that…", "I want you to know…", "from now on…", or a firm rule stated as fact ("my rate floor is $1500", "I batch on Sundays").
 - The creator states a stable preference: "I never use exclamation points", "keep pitches under 80 words", "no emojis ever".
 - The creator sets a rule or floor: "my reel rate floor is $1500", "always include my media kit link", "I won't do exclusivity past 30 days".
-- A brand outcome worth recalling: "Lululemon paid in 30 days, easy to work with", "Brand X scope-creeped twice — be cautious".
+- A brand outcome worth recalling: "Lululemon paid in 30 days, easy to work with", "Brand X scope-creeped twice, be cautious".
 - A workflow quirk: "I batch content on Sundays", "I prefer Loom replies over written ones".
 
 DO NOT remember:
 - Anything already in the profile block above (followers, niche, vibes, pillars, bio, handle).
 - One-off context tied to a single conversation ("I'm tired today", "I'm in a rush").
-- Things the creator hasn't actually said — don't infer preferences from a single message.
+- Things the creator hasn't actually said, don't infer preferences from a single message.
 
 WHEN TO RECALL (call recall_facts):
-- Before drafting a pitch, script, or email — call with category 'voice' or 'preferences' to honor stored tone rules and word bans.
-- Before quoting a rate — call with category 'negotiation' to honor stored floors.
-- Before discussing a specific brand — call with query='<brand name>' to surface prior history.
+- Before drafting a pitch, script, or email, call with category 'voice' or 'preferences' to honor stored tone rules and word bans.
+- Before quoting a rate, call with category 'negotiation' to honor stored floors.
+- Before discussing a specific brand, call with query='<brand name>' to surface prior history.
 - When the creator asks about something you might have stored ("what did I say about…", "do you remember…").
 
 WHEN TO FORGET (call forget_fact):
@@ -576,14 +576,14 @@ WHEN TO FORGET (call forget_fact):
 KEY FORMAT: short snake_case, max 80 chars. Same concept = same key, so updates overwrite cleanly.
 Examples: 'preferred_pitch_tone', 'avoid_words', 'floor_rate_reel_ig', 'brand_lululemon_notes', 'batch_day'.
 
-After calling remember_fact, do NOT announce "I'll remember that" — just continue the conversation naturally. The save is silent.`;
+After calling remember_fact, do NOT announce "I'll remember that", just continue the conversation naturally. The save is silent.`;
 
 // Tool descriptions shown to a calling agent when it considers invoking a
-// specialist via delegate_<name>. Keep these directive — the calling agent
+// specialist via delegate_<name>. Keep these directive, the calling agent
 // uses these to decide *when* to delegate.
 const AGENT_HANDOFF_DESCRIPTIONS = {
   pipeline: "Add a brand to the creator's pipeline / deal-tracker. Use when the creator wants to start tracking a brand or save a pitch as a deal.",
-  pitch: "Find brand matches, draft cold-outreach emails, or send pitches via Gmail. Use when the creator wants to discover new brands or write/send a pitch. Returns a `response` field — if it begins with 'Subject:', output the entire response verbatim to the user with no preamble.",
+  pitch: "Find brand matches, draft cold-outreach emails, or send pitches via Gmail. Use when the creator wants to discover new brands or write/send a pitch. Returns a `response` field, if it begins with 'Subject:', output the entire response verbatim to the user with no preamble.",
   create: "Generate fresh content ideas and ideation. Use when the creator wants ideas, brainstorming, or content planning.",
   main: "General CreatorClaw assistant for anything else.",
 };
@@ -598,7 +598,7 @@ const AGENT_HANDOFF_DESCRIPTIONS = {
 //     the frontend's sharedAgentContext field plus runtime context (date,
 //     timezone, calendar rules). Prepended to every agent's instructions
 //     so active and delegated invocations of the same role use IDENTICAL
-//     prompts — single source of truth lives in AGENT_INSTRUCTION_FALLBACKS.
+//     prompts, single source of truth lives in AGENT_INSTRUCTION_FALLBACKS.
 function buildAgentSet(googleMcp, sharedAgentContext) {
   // Cost optimization: gpt-4o-mini is reliable enough for our function
   // tools (rate, brands, ideas, deal-creation), but it hallucinated tool
@@ -637,7 +637,7 @@ function buildAgentSet(googleMcp, sharedAgentContext) {
   agents.main     = make('main',     true,  [delegatePitch, delegateCreate, delegatePipeline]);
   agents.create   = make('create',   false, [delegatePitch, delegatePipeline]);
   agents.pitch    = make('pitch',    true,  [delegateCreate, delegatePipeline]);
-  agents.pipeline = make('pipeline', true);  // leaf — no further delegations
+  agents.pipeline = make('pipeline', true);  // leaf, no further delegations
   return agents;
 }
 
@@ -687,7 +687,7 @@ export async function handleAgentChat(request, env, body, cors, deps) {
 
   // If the creator has connected Google Workspace, build a hostedMcpTool
   // that pushes the MCP round-trip to OpenAI's servers. No local connection
-  // lifecycle to manage — it's just a tool definition.
+  // lifecycle to manage, it's just a tool definition.
   const googleMcp = buildGoogleMcpTool(deps.googleAccessToken);
 
   // Append runtime context the frontend can't easily bake into the prompt:
@@ -703,7 +703,7 @@ export async function handleAgentChat(request, env, body, cors, deps) {
     `\nCALENDAR EVENT TIMEZONE RULES (manage_event with action="create" or "update"):\n` +
     `- Pass timezone as a TOP-LEVEL parameter: timezone="${tz}". Do NOT nest it inside start_time or end_time.\n` +
     `- Pass start_time and end_time as naive ISO strings WITHOUT offset, e.g. start_time="2026-04-30T09:00:00", end_time="2026-04-30T10:00:00".\n` +
-    `- DO NOT append "Z" or any "+HH:MM" offset to start_time/end_time when you also pass timezone — that double-encodes and causes UTC drift.\n` +
+    `- DO NOT append "Z" or any "+HH:MM" offset to start_time/end_time when you also pass timezone, that double-encodes and causes UTC drift.\n` +
     `- All three (timezone, start_time, end_time) MUST be supplied for create/update actions or events land in UTC and appear at the wrong wall-clock time.`;
 
   // sharedAgentContext = identity + creator facts + style + runtime context.
@@ -737,21 +737,21 @@ export async function handleAgentChat(request, env, body, cors, deps) {
 // to render inline keyboards (brand matches / email drafts / ideas).
 //
 // Args mirror handleAgentChat:
-//   env, body — same body shape (messages, creatorContext,
+//   env, body, same body shape (messages, creatorContext,
 //     sharedAgentContext, tool). messages should already be in OpenAI shape
 //     (system + user/assistant turns).
-//   deps — { executeToolByName, googleAccessToken } same as web.
+//   deps, { executeToolByName, googleAccessToken } same as web.
 //
-// Returns { text, cards, toolFired, finalMessageText } — caller decides how
+// Returns { text, cards, toolFired, finalMessageText }, caller decides how
 // to render. Throws on agent_run_failed.
 //
 // Optional `streaming` callbacks let the caller render progressive output
 // (typewriter effect via Telegram editMessageText). All callbacks are
-// fire-and-forget — exceptions inside them are caught so they don't break
+// fire-and-forget, exceptions inside them are caught so they don't break
 // the run.
-//   streaming.onTextProgress(text)  — called after every text delta with the
+//   streaming.onTextProgress(text) , called after every text delta with the
 //                                     full accumulated text so far.
-//   streaming.onPitchDetected()     — called once when the streamed text
+//   streaming.onPitchDetected()    , called once when the streamed text
 //                                     starts with "Subject:" (caller may
 //                                     want to abort streaming UI and let
 //                                     the post-run pitch card path handle
@@ -777,7 +777,7 @@ export async function handleTelegramAgentTurn(env, body, deps, streaming = {}) {
     `\n\nRUNTIME CONTEXT (current as of this turn):\n` +
     `- Today's date (UTC): ${today}\n` +
     `- User's IANA timezone: ${tz}\n` +
-    `- Channel: Telegram (chat-only; no inline cards rendered yet — describe results in text)\n`;
+    `- Channel: Telegram (chat-only; no inline cards rendered yet, describe results in text)\n`;
 
   const sharedAgentContext = (body.sharedAgentContext || instructions || '') + runtimeCtx;
   const agents = buildAgentSet(googleMcp, sharedAgentContext);
@@ -883,7 +883,7 @@ export async function handleTelegramAgentTurn(env, body, deps, streaming = {}) {
 // Tool-card duplication guard: when the model calls a card-producing tool,
 // we suppress further text deltas (so the model can't list the same items
 // in prose) and emit a deterministic acknowledgement at the end. Pre-tool
-// text streams normally — gives a natural "Looking for brand matches…"
+// text streams normally, gives a natural "Looking for brand matches…"
 // lead-in before cards render.
 function sseWrapAgentRun(result, corsHeaders) {
   const encoder = new TextEncoder();
@@ -898,7 +898,7 @@ function sseWrapAgentRun(result, corsHeaders) {
     let bufferingPostTool = false;       // flipped on by tool_called
     let postToolBuffer = '';             // text deltas after a tool call
     let liveStreamed = '';               // text we already wrote to the wire (pre-tool)
-    let finalMessageText = '';           // assembled from message_output_created events — fallback if deltas don't fire (e.g. post-handoff)
+    let finalMessageText = '';           // assembled from message_output_created events, fallback if deltas don't fire (e.g. post-handoff)
     let toolFired = false;
     let lastToolOutput = null;
     // Specialist delegation tracking. tool_called and tool_output pair up
@@ -973,7 +973,7 @@ function sseWrapAgentRun(result, corsHeaders) {
             activeDelegateStep = null;
           }
         }
-        // Final assistant message — captures full text. Used as fallback
+        // Final assistant message, captures full text. Used as fallback
         // when post-handoff agents don't fire output_text_delta deltas.
         else if (event.type === 'run_item_stream_event' && event.name === 'message_output_created' && event.item) {
           const content = event.item?.rawItem?.content;
@@ -996,16 +996,16 @@ function sseWrapAgentRun(result, corsHeaders) {
       //  4. Tool fired but produced no usable text anywhere → minimal ack.
       if (renderMetadata?.cards?.type === 'brand_matches') {
         const n = renderMetadata.cards.items?.length || 0;
-        await writeContent(`Here ${n === 1 ? 'is 1 brand' : `are ${n} brands`} that fit your audience — tap **Draft Pitch** on any of them.`);
+        await writeContent(`Here ${n === 1 ? 'is 1 brand' : `are ${n} brands`} that fit your audience, tap **Draft Pitch** on any of them.`);
       } else if (renderMetadata?.cards?.type === 'pulse_ideas') {
         const n = renderMetadata.cards.items?.length || 0;
-        await writeContent(`Here ${n === 1 ? 'is 1 idea' : `are ${n} ideas`} tuned to your pillars — tap **Schedule** or **Script** on any card.`);
+        await writeContent(`Here ${n === 1 ? 'is 1 idea' : `are ${n} ideas`} tuned to your pillars, tap **Schedule** or **Script** on any card.`);
       } else if (postToolBuffer) {
         await writeContent(postToolBuffer);
       } else if (!liveStreamed && finalMessageText) {
         await writeContent(finalMessageText);
       } else if (!liveStreamed && toolFired) {
-        // Last-ditch fallback — pull a useful message from the tool output.
+        // Last-ditch fallback, pull a useful message from the tool output.
         // delegate_<name> tools return { response, brands, ideas }; surface
         // the response field so specialist output reaches the user even if
         // the calling agent didn't narrate after the tool call.

@@ -1,10 +1,10 @@
 /**
- * CreatorClaw — Cloudflare Worker
+ * CreatorClaw, Cloudflare Worker
  * - Regular mode: Chat Completions API with gpt-4o-mini
  * - Web search mode: Responses API with gpt-4o + web_search_preview
  * - IG scrape mode: Apify Instagram Profile Scraper → OpenAI interpretation
- * - Agents SDK spike: POST /v1/agents/test (validation only — see worker-agents.js)
- * - Production agent chat: handleAgentChat in worker-agents.js — multi-agent orchestration with delegate-tool specialists.
+ * - Agents SDK spike: POST /v1/agents/test (validation only, see worker-agents.js)
+ * - Production agent chat: handleAgentChat in worker-agents.js, multi-agent orchestration with delegate-tool specialists.
  */
 
 import { handleAgentsSpike, handleAgentChat, handleTelegramAgentTurn } from './worker-agents.js';
@@ -16,18 +16,18 @@ const APIFY_REEL_URL = 'https://api.apify.com/v2/acts/apify~instagram-reel-scrap
 const MODEL = 'gpt-4o-mini';
 const MODEL_SEARCH = 'gpt-4o';
 
-// Supabase — anon key is public, safe to inline.
+// Supabase, anon key is public, safe to inline.
 const SUPABASE_URL = 'https://ctohycrbzennyzgffodo.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_MsXw1OuEe9ZTBnSU8LSHwA_X19dr90J';
 
 // ── Rate estimator: multipliers (benchmark base rates come from Supabase) ───
 const ENGAGEMENT_BANDS = [
-  { maxPct: 1,   multiplier: 0.5, label: 'Below 1% — red flag' },
+  { maxPct: 1,   multiplier: 0.5, label: 'Below 1%, red flag' },
   { maxPct: 2,   multiplier: 0.8, label: '1-2%' },
-  { maxPct: 4,   multiplier: 1.0, label: '2-4% — baseline' },
+  { maxPct: 4,   multiplier: 1.0, label: '2-4%, baseline' },
   { maxPct: 6,   multiplier: 1.3, label: '4-6%' },
   { maxPct: 10,  multiplier: 1.6, label: '6-10%' },
-  { maxPct: 999, multiplier: 2.0, label: '10%+ — premium' },
+  { maxPct: 999, multiplier: 2.0, label: '10%+, premium' },
 ];
 const NICHE_MULTIPLIERS = { finance: 1.5, b2b: 1.4, tech: 1.2, business: 1.2, wellness: 1.1, beauty: 1.1, fashion: 1.1, fitness: 1.05, parenting: 1.0, travel: 1.0, lifestyle: 1.0, diy: 1.0, home: 1.0, food: 0.9, gaming: 0.9, entertainment: 0.9, default: 1.0 };
 const DELIVERABLE_MULTIPLIERS = { story: 0.4, 'story-series': 0.9, static: 1.0, carousel: 1.1, reel: 1.5, video: 1.0, 'reel-plus-story': 1.8, 'static-plus-stories': 1.4, 'full-bundle': 2.5, ugc: 0.7, 'youtube-short': 0.7, 'youtube-integration': 1.0, 'youtube-dedicated': 2.5, 'crosspost-ig-tt': 2.0 };
@@ -165,7 +165,7 @@ async function computeRateEstimate(opts) {
 
 // ── Per-tool executor ────────────────────────────────────────────────────────
 // Tool schemas now live in worker-agents.js (zod-typed for the SDK). This
-// switch is the implementation half — invoked from the SDK tool's execute()
+// switch is the implementation half, invoked from the SDK tool's execute()
 // via runContext.context.executeToolByName. The fakeToolCall shape preserves
 // the original signature so we don't have to rewrite the body here.
 async function executeRateToolCall(toolCall, creatorContext, env) {
@@ -174,18 +174,18 @@ async function executeRateToolCall(toolCall, creatorContext, env) {
     const args = JSON.parse(toolCall.function.arguments || '{}');
     const creator = creatorContext || {};
 
-    // Content ideation tool — generates structured ideas as JSON. Frontend
+    // Content ideation tool, generates structured ideas as JSON. Frontend
     // renders the items as inline mini-cards in the chat.
     if (name === 'generate_content_ideas') {
       const count = Math.max(1, Math.min(Number(args.count) || 4, 6));
       const theme = String(args.theme || '').trim();
       const sys = `You generate Instagram/TikTok content ideas for individual creators. Return ONLY a JSON array (no markdown), each item shaped:
-{"title":"...","hook":"first 3-second hook","format":"reel|carousel|static|story-series","platform":"Instagram|TikTok","trend":"hot|rising|steady|new","match":85,"persona":["Authentic","Relatable"],"estReach":"50K-150K","tags":["#tag1","#tag2"],"sound":"Song Name — Artist (or empty string)"}
+{"title":"...","hook":"first 3-second hook","format":"reel|carousel|static|story-series","platform":"Instagram|TikTok","trend":"hot|rising|steady|new","match":85,"persona":["Authentic","Relatable"],"estReach":"50K-150K","tags":["#tag1","#tag2"],"sound":"Song Name, Artist (or empty string)"}
 Real, specific, and shippable. Each idea distinct. match is 60-99 reflecting fit to this creator. trend reflects timeliness.
 
-For the \`sound\` field: prefer suggesting an audio the creator has actually used before (provided in context if any) — write the exact name as "Song Name — Artist". Their reuse signals it works for their audience. Don't invent songs you can't verify exist; leave \`sound\` as an empty string if nothing from their library fits the idea.`;
+For the \`sound\` field: prefer suggesting an audio the creator has actually used before (provided in context if any), write the exact name as "Song Name, Artist". Their reuse signals it works for their audience. Don't invent songs you can't verify exist; leave \`sound\` as an empty string if nothing from their library fits the idea.`;
       const topSoundsLines = Array.isArray(creator.topSounds) && creator.topSounds.length
-        ? creator.topSounds.slice(0, 8).map(s => `- "${s.song_name || 'Untitled'}" — ${s.artist_name || 'Unknown'} (used ${s.count || 1}× in their reels)`).join('\n')
+        ? creator.topSounds.slice(0, 8).map(s => `- "${s.song_name || 'Untitled'}", ${s.artist_name || 'Unknown'} (used ${s.count || 1}× in their reels)`).join('\n')
         : null;
       const ctxLines = [
         creator.niche ? `Niche: ${creator.niche}` : null,
@@ -224,7 +224,7 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
       return { ideas: ideas.slice(0, count), count: ideas.length, theme };
     }
 
-    // Brand-match tool — generates structured brand recommendations.
+    // Brand-match tool, generates structured brand recommendations.
     if (name === 'find_brand_matches') {
       const count = Math.max(1, Math.min(Number(args.count) || 4, 6));
       const theme = String(args.theme || '').trim();
@@ -240,7 +240,7 @@ domain has no protocol or trailing slash. match 60-99. Exactly 3 reasons each. O
           ? `Existing partnerships (DO NOT recommend, use as tier signal only): ${creator.brandAffinities.join(', ')}`
           : null,
         exclude.length
-          ? `Already shown (DO NOT repeat — return different brands): ${exclude.join(', ')}`
+          ? `Already shown (DO NOT repeat, return different brands): ${exclude.join(', ')}`
           : null,
         theme ? `Filter / angle: ${theme}` : null,
       ].filter(Boolean).join('\n');
@@ -275,7 +275,7 @@ domain has no protocol or trailing slash. match 60-99. Exactly 3 reasons each. O
     }
 
     // Gmail / Calendar are now served by the google_workspace_mcp server
-    // attached to the SDK runtime — no executor branch needed here.
+    // attached to the SDK runtime, no executor branch needed here.
 
     // Rate estimator path (unchanged).
     const opts = {
@@ -295,10 +295,10 @@ domain has no protocol or trailing slash. match 60-99. Exactly 3 reasons each. O
       let offer_position;
       if (offer < est.low_usd) {
         const pct = Math.round(100 * (est.low_usd - offer) / est.low_usd);
-        offer_position = `${pct}% below benchmark low end — likely undervalued`;
+        offer_position = `${pct}% below benchmark low end, likely undervalued`;
       } else if (offer > est.high_usd) {
         const pct = Math.round(100 * (offer - est.high_usd) / est.high_usd);
-        offer_position = `${pct}% above benchmark high end — strong offer`;
+        offer_position = `${pct}% above benchmark high end, strong offer`;
       } else {
         const spread = est.high_usd - est.low_usd || 1;
         const pctInto = Math.round(100 * (offer - est.low_usd) / spread);
@@ -314,7 +314,7 @@ domain has no protocol or trailing slash. match 60-99. Exactly 3 reasons each. O
 
 // ── Instagram Graph API OAuth ─────────────────────────────────────────────────
 const IG_APP_ID = '922455490592826';
-// IG_APP_SECRET is read from env.IG_APP_SECRET (set as a Cloudflare Worker secret — never hardcode)
+// IG_APP_SECRET is read from env.IG_APP_SECRET (set as a Cloudflare Worker secret, never hardcode)
 const IG_REDIRECT_URI = 'https://creatorclaw-proxy.creatorclaw.workers.dev/callback';
 const IG_SCOPES = 'instagram_business_basic,instagram_business_manage_insights';
 const IG_AUTH_URL = 'https://api.instagram.com/oauth/authorize';
@@ -357,7 +357,7 @@ const PRIVACY_HTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Privacy Policy — CreatorClaw</title>
+<title>Privacy Policy, CreatorClaw</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -465,7 +465,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all 
     <ul>
       <li><strong>Information You Provide:</strong> When you connect social accounts, enter a handle for analysis, or otherwise interact with the Service, you may provide us with personal information such as usernames, profile URLs, and email addresses.</li>
       <li><strong>Automatically Collected Data:</strong> When you visit the Service, we may automatically collect certain information about your device, including your IP address, browser type, operating system, referring URLs, and pages visited.</li>
-      <li><strong>Third-Party Platform Data:</strong> When you authorize CreatorClaw to analyze your social media profiles (e.g., Instagram), we access publicly available profile data — such as follower counts, post counts, engagement metrics, and bio text — through those platforms' public APIs or permitted scraping methods.</li>
+      <li><strong>Third-Party Platform Data:</strong> When you authorize CreatorClaw to analyze your social media profiles (e.g., Instagram), we access publicly available profile data, such as follower counts, post counts, engagement metrics, and bio text, through those platforms' public APIs or permitted scraping methods.</li>
       <li><strong>Usage Data:</strong> We collect information about how you interact with the Service, including which features you use, content ideas you save, and brand matches you view.</li>
     </ul>
   </div>
@@ -579,7 +579,7 @@ const DATA_DELETION_HTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Data Deletion Instructions — CreatorClaw</title>
+<title>Data Deletion Instructions, CreatorClaw</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -835,7 +835,7 @@ const TOS_HTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Terms of Service — CreatorClaw</title>
+<title>Terms of Service, CreatorClaw</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -1140,7 +1140,7 @@ export default {
           }
         }
 
-        // With Instagram Login, /me IS the IG user — no accounts lookup needed
+        // With Instagram Login, /me IS the IG user, no accounts lookup needed
         const igUserId = shortIgUserId;
         let igUsername = null;
         if (igUserId) {
@@ -1215,7 +1215,7 @@ export default {
             if (!/(^|\.)creatorclaw\.co$/.test(u.hostname)) returnTo = null;
           } catch { returnTo = null; }
         }
-        // Helpers — redirect to the app when return_to is set, otherwise
+        // Helpers, redirect to the app when return_to is set, otherwise
         // serve the legacy HTML page that postMessages back to the opener.
         const sendError = (errCode, errDesc) => {
           if (returnTo) {
@@ -1338,7 +1338,7 @@ export default {
     // ── Telegram webhook ─────────────────────────────────────────────────
     // Inbound updates from Telegram. Origin won't match our ALLOWED_ORIGINS
     // (api.telegram.org), so this must run BEFORE the CORS allowlist check.
-    // Auth is via the X-Telegram-Bot-Api-Secret-Token header — set when we
+    // Auth is via the X-Telegram-Bot-Api-Secret-Token header, set when we
     // call /setWebhook with secret_token=<random>.
     if (path === '/telegram/webhook') {
       const sig = request.headers.get('X-Telegram-Bot-Api-Secret-Token') || '';
@@ -1379,7 +1379,7 @@ export default {
     }
 
     // ── Agents SDK spike: validates @openai/agents on Workers ──────────────
-    // Isolated route — does NOT use the existing tool-call loop. Remove once
+    // Isolated route, does NOT use the existing tool-call loop. Remove once
     // Phase 1 of the migration replaces that loop with SDK-driven agents.
     if (path === '/v1/agents/test') {
       return handleAgentsSpike(request, env, cors(origin, allowed));
@@ -1427,7 +1427,7 @@ export default {
         niche: rates[0]?.niche || null,
         engagement_band: rates[0]?.engagement_band || null,
         rates,
-        disclaimer: 'Industry benchmarks, adjusted for your tier, engagement, and niche. Treat as a negotiation floor — aim for the upper end of each range.',
+        disclaimer: 'Industry benchmarks, adjusted for your tier, engagement, and niche. Treat as a negotiation floor, aim for the upper end of each range.',
       }, 200, origin, allowed);
     }
 
@@ -1447,7 +1447,7 @@ export default {
     let res;
 
     if (isWebSearch) {
-      // Legacy path — kept as fallback
+      // Legacy path, kept as fallback
       const input = (body.messages || []).map(m => ({
         role: m.role === 'system' ? 'developer' : m.role,
         content: m.content,
@@ -1468,7 +1468,7 @@ export default {
       });
     }
 
-    // Streaming chat — routes through the Agents SDK (handleAgentChat).
+    // Streaming chat, routes through the Agents SDK (handleAgentChat).
     // executeToolByName lets SDK tools delegate to the existing per-tool
     // implementations in executeRateToolCall (rate math, peer aggregates,
     // sub-LLM JSON generation) instead of duplicating logic.
@@ -1519,7 +1519,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     return json({ error: { message: 'No handle provided' } }, 400, origin, allowed);
   }
 
-  // 1. Scrape profile + reels via Apify (parallel — reel scraper is best-effort).
+  // 1. Scrape profile + reels via Apify (parallel, reel scraper is best-effort).
   // Total latency stays ~the same as the profile call alone. Reel data unlocks
   // music/audio detection and on-camera transcripts for richer persona inference.
   const [profileRes, reelRes] = await Promise.all([
@@ -1531,7 +1531,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     fetch(`${APIFY_REEL_URL}?token=${env.APIFY_TOKEN}&timeout=90`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // Note: reel scraper uses `username` (singular) — different from
+      // Note: reel scraper uses `username` (singular), different from
       // profile scraper which uses `usernames` (plural).
       body: JSON.stringify({ username: [handle], resultsLimit: 15 }),
     }).catch(e => { console.log('[scrape] reel actor errored:', e && e.message); return null; }),
@@ -1548,7 +1548,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     return json({ error: { message: 'Profile not found or is private' } }, 404, origin, allowed);
   }
 
-  // Parse reels — soft fail. Empty list if the scraper errored or the creator has no reels.
+  // Parse reels, soft fail. Empty list if the scraper errored or the creator has no reels.
   let reels = [];
   if (reelRes && reelRes.ok) {
     try {
@@ -1579,7 +1579,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   }
   const topSounds = Object.values(soundCounts).sort((a, b) => b.count - a.count).slice(0, 8);
 
-  // Transcripts — cap each at 600 chars, take up to 10. Keeps the prompt under budget.
+  // Transcripts, cap each at 600 chars, take up to 10. Keeps the prompt under budget.
   const transcripts = reels
     .filter(r => r.transcript && String(r.transcript).trim())
     .slice(0, 10)
@@ -1654,7 +1654,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     };
     topHashtags = tally(hashtagPile).slice(0, 20).map(([name, count]) => ({ name, count }));
     topMentions = tally(mentionPile).slice(0, 15).map(([name, count]) => ({ name, count }));
-    // Locations are case-sensitive labels like "Austin, TX" — preserve original
+    // Locations are case-sensitive labels like "Austin, TX", preserve original
     // casing instead of using the lowercased tally key.
     const locSeen = new Map();
     for (const l of locationPile) {
@@ -1739,8 +1739,8 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
       topLocations.length ? `Locations tagged: ${topLocations.map(l => `${l.city}(${l.count})`).join(', ')}` : null,
       altCaptions.length ? `Image alt-text samples (IG auto-generated, describes visuals): ${altCaptions.slice(0, 6).map(a => `"${String(a).slice(0, 140)}"`).join(' | ')}` : null,
       topPosts.length ? `Top ${topPosts.length} engagement posts:\n${topPosts.map((t, i) => `${i + 1}. [${t.type || 'post'}] ${t.likes} likes, ${t.comments} comments${t.views ? ', ' + t.views + ' views' : ''}\n   Caption: ${String(t.caption).slice(0, 240)}${t.alt ? '\n   Visual: ' + t.alt : ''}`).join('\n')}` : null,
-      transcripts.length ? `Reel transcripts — what the creator actually says on camera (${transcripts.length} reels):\n${transcripts.map((t, i) => `${i + 1}. ${t}`).join('\n---\n')}` : null,
-      topSounds.length ? `Audio they reuse most (excluding original audio): ${topSounds.map(s => `"${s.song_name}" — ${s.artist_name} (${s.count}×)`).join('; ')}` : null,
+      transcripts.length ? `Reel transcripts, what the creator actually says on camera (${transcripts.length} reels):\n${transcripts.map((t, i) => `${i + 1}. ${t}`).join('\n---\n')}` : null,
+      topSounds.length ? `Audio they reuse most (excluding original audio): ${topSounds.map(s => `"${s.song_name}", ${s.artist_name} (${s.count}×)`).join('; ')}` : null,
       captions ? `All recent captions (up to 25):\n${captions}` : null,
     ].filter(Boolean);
     analysisContext = lines.join('\n\n');
@@ -1752,7 +1752,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   // 5. Two LLM calls in parallel: (a) text interpretation from structured
   // signals + captions, (b) vision analysis of top-5 post images for the
   // aesthetic fingerprint. Either can fail independently without breaking
-  // the other — deterministic fields always ship.
+  // the other, deterministic fields always ship.
   let interpretation = { categories: [], vibes: [], topCategory: null, recentThemes: [], audienceHints: null, brandAffinities: [], baseLocation: null };
   let aestheticProfile = null;
 
@@ -1766,7 +1766,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
           model: MODEL,
           temperature: 0.4,
           messages: [
-            { role: 'system', content: 'You analyze Instagram creators from structured profile data + captions + visual alt-text. Ground every answer in the supplied data — do NOT invent details. Return ONLY valid JSON, no markdown.' },
+            { role: 'system', content: 'You analyze Instagram creators from structured profile data + captions + visual alt-text. Ground every answer in the supplied data, do NOT invent details. Return ONLY valid JSON, no markdown.' },
             { role: 'user', content: `Creator profile data:\n\n${analysisContext}\n\nReturn this JSON object (and nothing else):\n{\n  "topCategory": "primary category label, 1-3 words",\n  "categories": [{"name":"","pct":0}],\n  "vibes": ["",""],\n  "recentThemes": ["",""],\n  "audienceHints": "one-sentence read of who their audience likely is",\n  "brandAffinities": ["",""],\n  "baseLocation": {"city":"","region":"","country":"","confidence":"high|medium|low"}\n}\n\nRules:\n- 4-5 categories with pct values summing to 100.\n- Exactly 5 vibes (Title Case adjectives or short phrases).\n- 4-6 recentThemes in plain language.\n- brandAffinities: up to 5 brands the creator mentions or is clearly adjacent to (from mentions/hashtags/captions). Exclude the creator's own brand.\n- audienceHints: 1 sentence, <180 chars.\n- baseLocation: infer creator's home base from bio text first ("// Texas", "Austin TX"), then tagged locations, then location hashtags (#austintx, #nyc), then caption cues. Set fields to "" and confidence "low" if you genuinely can't tell. Do NOT default to LA/NYC/London just because they are common.` }
           ],
         }),
@@ -1817,7 +1817,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
         return;
       }
       const content = [
-        { type: 'text', text: `These are the top ${dataUrls.length} engagement posts from Instagram creator @${handle}. Analyze the aesthetic fingerprint across them — the consistent visual identity a brand manager would see at a glance. Return ONLY valid JSON in this exact shape, no markdown:\n\n{\n  "aesthetic": "2-4 word aesthetic descriptor",\n  "palette": "dominant color palette in plain English",\n  "lighting": "natural|studio|mixed|low-light|golden-hour",\n  "setting": "outdoor|indoor|studio|mixed|on-location",\n  "style": "polished|documentary|raw|curated|candid",\n  "visible_brands": ["",""],\n  "notes": "one sentence summarizing the visual identity"\n}` },
+        { type: 'text', text: `These are the top ${dataUrls.length} engagement posts from Instagram creator @${handle}. Analyze the aesthetic fingerprint across them, the consistent visual identity a brand manager would see at a glance. Return ONLY valid JSON in this exact shape, no markdown:\n\n{\n  "aesthetic": "2-4 word aesthetic descriptor",\n  "palette": "dominant color palette in plain English",\n  "lighting": "natural|studio|mixed|low-light|golden-hour",\n  "setting": "outdoor|indoor|studio|mixed|on-location",\n  "style": "polished|documentary|raw|curated|candid",\n  "visible_brands": ["",""],\n  "notes": "one sentence summarizing the visual identity"\n}` },
         ...dataUrls.map(url => ({ type: 'image_url', image_url: { url, detail: 'low' } }))
       ];
       const visRes = await fetch(CHAT_URL, {
@@ -1877,7 +1877,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     username: '@' + (p.username || handle),
     displayName: p.fullName || p.full_name || p.username || handle,
     profilePicUrl: picUrl,
-    profilePicData, // data URL — use this in <img src="...">, bypasses IG CDN referer checks
+    profilePicData, // data URL, use this in <img src="...">, bypasses IG CDN referer checks
     followers: formatCount(followers),
     following: formatCount(following),
     totalPosts: formatCount(totalPosts),
@@ -1905,7 +1905,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     baseLocation: interpretation.baseLocation || null,
     // Vision analysis of top-5 post thumbnails.
     aestheticProfile,
-    // Reel scraper enrichment (Phase A — backend-only; UI surfaces in Phase B).
+    // Reel scraper enrichment (Phase A, backend-only; UI surfaces in Phase B).
     topSounds,
     avgReelPlays,
     totalReelShares,
@@ -1992,7 +1992,7 @@ async function discoverBrandProgram(domain) {
   const base = `https://${domain}`;
 
   // Tier 1: parallel GETs on known paths. We only accept a hit if the final
-  // URL (after redirects) still contains a non-root path — catches Shopify
+  // URL (after redirects) still contains a non-root path, catches Shopify
   // soft-404s that 200 but redirect to root.
   const tier1 = await Promise.all(
     PROGRAM_PATHS.map(path =>
@@ -2163,7 +2163,7 @@ async function runIGGraphProfile(token, igUserId, env, origin, allowed) {
   const mediaData = mediaRes.ok ? await mediaRes.json() : { data: [] };
   const posts = mediaData.data || [];
 
-  // Fetch account insights (reach, impressions) — last 30 days
+  // Fetch account insights (reach, impressions), last 30 days
   const insightsRes = await fetch(
     base + '/insights?metric=reach,impressions,follower_count&period=day&since=' +
     Math.floor((Date.now() - 30 * 86400000) / 1000) +
@@ -2288,7 +2288,7 @@ function oauthSuccessPage(token, expiresIn, igUserId, igUsername) {
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Connected — CreatorClaw</title>
+<title>Connected, CreatorClaw</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
@@ -2329,7 +2329,7 @@ function oauthErrorPage(error, description) {
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Connection Failed — CreatorClaw</title>
+<title>Connection Failed, CreatorClaw</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
@@ -2392,9 +2392,9 @@ async function getGoogleAccessToken(userId, sbAccessToken, env) {
   if (expiresAt > Date.now()) {
     return { accessToken: row.access_token, email: row.email };
   }
-  // Expired (or near it) — refresh.
+  // Expired (or near it), refresh.
   if (!row.refresh_token) {
-    console.warn('[google] expired token, no refresh_token available — user must reconnect');
+    console.warn('[google] expired token, no refresh_token available, user must reconnect');
     return null;
   }
   const refreshForm = new URLSearchParams({
@@ -2438,7 +2438,7 @@ function googleOauthSuccessPage(email) {
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Google Connected — CreatorClaw</title>
+<title>Google Connected, CreatorClaw</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
@@ -2472,7 +2472,7 @@ function googleOauthErrorPage(error, description) {
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Connection Failed — CreatorClaw</title>
+<title>Connection Failed, CreatorClaw</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
@@ -2503,7 +2503,7 @@ function googleOauthErrorPage(error, description) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Telegram bot — Phase 1 (text chat only, linked accounts)
+// Telegram bot, Phase 1 (text chat only, linked accounts)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TG_API = 'https://api.telegram.org';
@@ -2511,7 +2511,7 @@ const TG_MAX_MSG = 4000;  // Telegram caps at 4096; leave headroom
 
 // ── Supabase JWT mint (HS256) ────────────────────────────────────────────────
 // Mints a short-lived user-scoped JWT so the Worker can call Supabase REST
-// with the user's RLS context. Same identity model as the web — auth.uid()
+// with the user's RLS context. Same identity model as the web, auth.uid()
 // resolves to the linked user_id.
 async function mintSupabaseJwt(userId, env, ttlSec = 300) {
   if (!env.SUPABASE_JWT_SECRET) throw new Error('SUPABASE_JWT_SECRET not configured');
@@ -2626,7 +2626,7 @@ function generateLinkCode() {
 }
 
 async function consumeTelegramLinkCode(env, code, userId, userJwt) {
-  // Look up the code (service-role — pre-link, RLS doesn't apply).
+  // Look up the code (service-role, pre-link, RLS doesn't apply).
   const lookup = await sbServiceFetch(env,
     `/telegram_link_codes?code=eq.${encodeURIComponent(code)}&select=*`);
   if (!lookup.ok) throw new Error('lookup failed: ' + lookup.status);
@@ -2675,7 +2675,7 @@ async function handleTelegramUpdate(update, env) {
 }
 
 async function handleTelegramMessage(msg, env) {
-  // Reject group chats — auth model is 1:1.
+  // Reject group chats, auth model is 1:1.
   const chat = msg.chat || {};
   if (chat.type !== 'private') {
     await tgSendMessage(env, chat.id, "I only work in direct messages right now. Let's chat 1:1.");
@@ -2691,7 +2691,7 @@ async function handleTelegramMessage(msg, env) {
     return;
   }
 
-  // Look up link (service-role — we don't have a JWT until we know who they are).
+  // Look up link (service-role, we don't have a JWT until we know who they are).
   const linkRes = await sbServiceFetch(env,
     `/user_telegram_links?telegram_id=eq.${fromId}&select=user_id,telegram_username,telegram_first_name`);
   const linkRows = linkRes.ok ? await linkRes.json() : [];
@@ -2705,7 +2705,7 @@ async function handleTelegramMessage(msg, env) {
     if (cmd === 'start') return handleStart(msg, link, env);
     if (cmd === 'help')  return handleHelp(chat.id, !!link, env);
     if (cmd === 'unlink') return handleUnlink(msg, link, env);
-    // Phase 2 commands — require a link.
+    // Phase 2 commands, require a link.
     if (['refresh','pipeline','connect_google','bug'].includes(cmd)) {
       if (!link) {
         await tgSendMessage(env, chat.id, "Tap /start to link your CreatorClaw account first.");
@@ -2763,7 +2763,7 @@ async function handleStart(msg, link, env) {
 async function handleHelp(chatId, isLinked, env) {
   if (!isLinked) {
     await tgSendMessage(env, chatId,
-      `Tap /start to link your CreatorClaw account first.\n\nOnce linked, you can chat naturally — *find brands for me*, *draft a pitch to Gymshark*, *what should I charge for a reel?*, etc.`);
+      `Tap /start to link your CreatorClaw account first.\n\nOnce linked, you can chat naturally, *find brands for me*, *draft a pitch to Gymshark*, *what should I charge for a reel?*, etc.`);
     return;
   }
   const lines = [
@@ -2776,12 +2776,12 @@ async function handleHelp(chatId, isLinked, env) {
     "• _give me 5 content ideas for next week_",
     "",
     "*Commands*",
-    "/help — this menu",
-    "/refresh — pull latest Instagram data _(soon)_",
-    "/pipeline — show your deals _(soon)_",
-    "/connect\\_google — link Gmail + Calendar _(soon)_",
-    "/bug — report a bug _(soon)_",
-    "/unlink — disconnect from CreatorClaw",
+    "/help, this menu",
+    "/refresh, pull latest Instagram data _(soon)_",
+    "/pipeline, show your deals _(soon)_",
+    "/connect\\_google, link Gmail + Calendar _(soon)_",
+    "/bug, report a bug _(soon)_",
+    "/unlink, disconnect from CreatorClaw",
   ];
   await tgSendMessage(env, chatId, lines.join('\n'));
 }
@@ -2796,7 +2796,7 @@ async function handleUnlink(msg, link, env) {
   const delRes = await sbUserFetch(jwt,
     `/user_telegram_links?telegram_id=eq.${msg.from.id}`, { method: 'DELETE' });
   if (!delRes.ok) {
-    await tgSendMessage(env, chatId, "Couldn't unlink — try again in a sec.");
+    await tgSendMessage(env, chatId, "Couldn't unlink, try again in a sec.");
     return;
   }
   await tgSendMessage(env, chatId,
@@ -2813,7 +2813,7 @@ async function handleAgentMessage(msg, link, env) {
   try { jwt = await mintSupabaseJwt(link.user_id, env); }
   catch (e) {
     console.error('[telegram] jwt mint failed', e);
-    await tgSendMessage(env, chatId, "Auth hiccup — try again in a sec.");
+    await tgSendMessage(env, chatId, "Auth hiccup, try again in a sec.");
     return;
   }
 
@@ -2882,7 +2882,7 @@ async function handleAgentMessage(msg, link, env) {
   // Buffer-and-send: agent runs to completion, then we send one cohesive
   // message (or several if cards / pitch shape detected). Typing indicator
   // already fired above tells the user the agent is working. Tried live
-  // editMessageText streaming in Phase 2.5 — Telegram's whole-message
+  // editMessageText streaming in Phase 2.5, Telegram's whole-message
   // redraw on every edit feels jumpier than buffered, so we kept the
   // streaming hooks in worker-agents.js but no longer pass them.
   let result;
@@ -2892,7 +2892,7 @@ async function handleAgentMessage(msg, link, env) {
     }, { executeToolByName, googleAccessToken });
   } catch (e) {
     console.error('[telegram] agent turn failed', e);
-    await tgSendMessage(env, chatId, "Hit a snag working through that — try rephrasing.");
+    await tgSendMessage(env, chatId, "Hit a snag working through that, try rephrasing.");
     return;
   }
 
@@ -2993,7 +2993,7 @@ function buildSharedAgentContextServer(personaRow) {
   if (Array.isArray(ig.recentThemes) && ig.recentThemes.length) parts.push(`Recent content themes: ${ig.recentThemes.join(', ')}`);
   if (ig.bio) parts.push(`Bio: "${ig.bio}"`);
   parts.push(`\n--- Style ---`);
-  parts.push(`Use the data above freely when answering questions about their audience, performance, or strategy. Cite specific numbers and themes rather than speaking generically. Keep responses concise — Telegram messages should fit on a phone screen unless the user asks for detail.`);
+  parts.push(`Use the data above freely when answering questions about their audience, performance, or strategy. Cite specific numbers and themes rather than speaking generically. Keep responses concise, Telegram messages should fit on a phone screen unless the user asks for detail.`);
   return parts.join('\n');
 }
 
@@ -3014,12 +3014,12 @@ function parseEngStr(raw) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Telegram Phase 2 — inline keyboards, send-confirm flow, slash commands
+// Telegram Phase 2, inline keyboards, send-confirm flow, slash commands
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TG_BOT_USERNAME = 'creatorclawagent_bot';
 
-// ── Pitch (Subject:/body) detection — port of frontend detectPitchInText ────
+// ── Pitch (Subject:/body) detection, port of frontend detectPitchInText ────
 function detectPitchInTextServer(text) {
   if (!text) return null;
   const m = String(text).match(/^\s*(?:\*\*)?Subject:(?:\*\*)?\s*(.+?)\s*\n\s*\n([\s\S]+?)\s*$/i);
@@ -3031,7 +3031,7 @@ function detectPitchInTextServer(text) {
 }
 
 // Find a likely email recipient from the recent conversation history. Used
-// when we render the [Send] button for a drafted pitch — we want to know
+// when we render the [Send] button for a drafted pitch, we want to know
 // who the pitch is going to without asking.
 function guessRecipientFromHistory(history) {
   const re = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
@@ -3099,7 +3099,7 @@ function tgEscapeHtml(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// ── Card renderers — one Telegram message per item, with inline keyboard ────
+// ── Card renderers, one Telegram message per item, with inline keyboard ────
 async function renderBrandCardsTelegram(env, chatId, userId, jwt, brands) {
   const intro = brands.length === 1
     ? `Found 1 brand that fits your audience:`
@@ -3350,7 +3350,7 @@ async function handleRefreshCommand(msg, link, env) {
   try { jwt = await mintSupabaseJwt(link.user_id, env); }
   catch (e) {
     console.error('[telegram] /refresh jwt mint failed', e);
-    await tgSendMessage(env, chatId, "Auth hiccup — try /refresh again in a sec.");
+    await tgSendMessage(env, chatId, "Auth hiccup, try /refresh again in a sec.");
     return;
   }
   // Pull the saved persona to get the handle.
@@ -3377,7 +3377,7 @@ async function handleRefreshCommand(msg, link, env) {
     scraped = JSON.parse(data.choices?.[0]?.message?.content || '{}');
   } catch (e) {
     console.error('[telegram] /refresh scrape failed', e);
-    await tgSendMessage(env, chatId, "Couldn't refresh — Instagram scrape failed. Try again in a few minutes.");
+    await tgSendMessage(env, chatId, "Couldn't refresh, Instagram scrape failed. Try again in a few minutes.");
     return;
   }
   if (!scraped?.username || !scraped?.followers) {
@@ -3397,7 +3397,7 @@ async function handleRefreshCommand(msg, link, env) {
       }),
     });
   await tgSendMessage(env, chatId,
-    `✓ Refreshed *@${handle}*\n\n• Followers: *${scraped.followers}*\n• Engagement: *${scraped.engagementRate || '—'}*\n• Recent themes: ${scraped.recentThemes?.slice(0, 3).join(', ') || '—'}`);
+    `✓ Refreshed *@${handle}*\n\n• Followers: *${scraped.followers}*\n• Engagement: *${scraped.engagementRate || 'N/A'}*\n• Recent themes: ${scraped.recentThemes?.slice(0, 3).join(', ') || 'N/A'}`);
 }
 
 async function handlePipelineCommand(msg, link, env) {
@@ -3414,7 +3414,7 @@ async function handlePipelineCommand(msg, link, env) {
   const deals = await res.json();
   if (!deals.length) {
     await tgSendMessage(env, chatId,
-      "Pipeline is empty. Pitch a brand and I'll start tracking the deal — try _draft a pitch to Gymshark_.");
+      "Pipeline is empty. Pitch a brand and I'll start tracking the deal, try _draft a pitch to Gymshark_.");
     return;
   }
   const stages = ['inbound','outreach','in_progress','negotiating','producing','awaiting_payment','closed'];
@@ -3442,7 +3442,7 @@ async function handlePipelineCommand(msg, link, env) {
     const list = byStage[s];
     if (!list.length) continue;
     const total = list.reduce((sum, d) => sum + (Number(d.amount_usd) || 0), 0);
-    lines.push(`*${labels[s]}* — ${list.length}${total ? '  ·  ' + fmt(total) : ''}`);
+    lines.push(`*${labels[s]}*, ${list.length}${total ? '  ·  ' + fmt(total) : ''}`);
     for (const d of list.slice(0, 3)) {
       const amt = Number(d.amount_usd) || 0;
       lines.push(`  • ${d.brand_name}${amt ? '  ·  ' + fmt(amt) : ''}`);
@@ -3479,10 +3479,10 @@ async function handleBugCommand(msg, link, env, bugText) {
     }),
   });
   if (!res.ok) {
-    await tgSendMessage(env, chatId, "Couldn't log that — try again in a sec.");
+    await tgSendMessage(env, chatId, "Couldn't log that, try again in a sec.");
     return;
   }
-  await tgSendMessage(env, chatId, "Thanks — bug logged. We see it.");
+  await tgSendMessage(env, chatId, "Thanks, bug logged. We see it.");
 }
 
 async function handleConnectGoogleCommand(msg, link, env) {
@@ -3497,12 +3497,12 @@ async function handleConnectGoogleCommand(msg, link, env) {
     const rows = await connRes.json();
     if (rows.length) {
       await tgSendMessage(env, chatId,
-        `Google Workspace already connected as *${rows[0].email}*.\n\nGmail and Calendar tools are available — just ask me to draft or send.`);
+        `Google Workspace already connected as *${rows[0].email}*.\n\nGmail and Calendar tools are available, just ask me to draft or send.`);
       return;
     }
   }
   const returnTo = encodeURIComponent('https://creatorclaw.co/?from_telegram=1');
   const authUrl = `https://creatorclaw-proxy.creatorclaw.workers.dev/google/auth?t=${encodeURIComponent(jwt)}&return_to=${returnTo}`;
   await tgSendMessage(env, chatId,
-    `Connect your Gmail + Calendar so I can send pitches and book calls on your behalf:\n\n[Tap here to connect Google](${authUrl})\n\nAfter you authorize, you'll land back on creatorclaw.co — then come back here and ask me to draft an email.`);
+    `Connect your Gmail + Calendar so I can send pitches and book calls on your behalf:\n\n[Tap here to connect Google](${authUrl})\n\nAfter you authorize, you'll land back on creatorclaw.co, then come back here and ask me to draft an email.`);
 }

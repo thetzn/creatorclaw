@@ -3,8 +3,8 @@
  *
  * PURPOSE
  *   Produce a defensible RANGE estimate for what a brand deal should
- *   cost, based on public industry benchmarks. NOT a "your rate" —
- *   this is what brand managers would expect to quote at each tier.
+ *   cost, based on public industry benchmarks. NOT a "your rate".
+ *   This is what brand managers would expect to quote at each tier.
  *
  * DATA SOURCE
  *   Seeded from Influencer Marketing Hub's "State of Influencer
@@ -14,7 +14,7 @@
  *
  *   These are INDUSTRY AVERAGES with wide brand-by-brand variance.
  *   Refresh quarterly against the newest IMH report. Version pinned
- *   at the bottom — bump it on every update.
+ *   at the bottom, bump it on every update.
  *
  * USAGE (future)
  *   import { computeRateRange } from './rate-benchmarks.js';
@@ -77,12 +77,12 @@ export const PLATFORM_BASE = {
 // Applied on top of platform base. Engagement is IG's strongest trust signal;
 // brands discount heavily for low-ER accounts (suspected bot follows).
 export const ENGAGEMENT_BANDS = [
-  { maxPct: 1,   multiplier: 0.5, label: 'Below 1% — red flag' },
+  { maxPct: 1,   multiplier: 0.5, label: 'Below 1%, red flag' },
   { maxPct: 2,   multiplier: 0.8, label: '1-2%' },
-  { maxPct: 4,   multiplier: 1.0, label: '2-4% — baseline' },
+  { maxPct: 4,   multiplier: 1.0, label: '2-4%, baseline' },
   { maxPct: 6,   multiplier: 1.3, label: '4-6%' },
   { maxPct: 10,  multiplier: 1.6, label: '6-10%' },
-  { maxPct: 999, multiplier: 2.0, label: '10%+ — premium' },
+  { maxPct: 999, multiplier: 2.0, label: '10%+, premium' },
 ];
 
 // ── NICHE MULTIPLIER ─────────────────────────────────────────────────────────
@@ -175,7 +175,7 @@ export function computeRateRange(opts) {
   const count = platform === 'youtube' ? Math.max(views, 1000) : Math.max(followers, 1000);
   const units = count / 1000;
 
-  // Engagement multiplier (skip for YouTube — base is per-view already).
+  // Engagement multiplier (skip for YouTube, base is per-view already).
   const engMult = platform === 'youtube' ? 1 : engagementBand(engagementPct).multiplier;
 
   // Niche multiplier.
@@ -218,7 +218,7 @@ export function computeRateRange(opts) {
       deliverableMultiplier: delivMult,
       addonMultiplier: Number(addonMult.toFixed(2)),
     },
-    caveat: 'Industry benchmark based on IMH 2024 + Modash 2024 + cross-referenced. Your actual rate depends on brand budget, creative scope, and negotiation. Treat as a quote range — aim for the high end, accept the low only if scope is truly minimal.',
+    caveat: 'Industry benchmark based on IMH 2024 + Modash 2024 + cross-referenced. Your actual rate depends on brand budget, creative scope, and negotiation. Treat as a quote range, aim for the high end, accept the low only if scope is truly minimal.',
   };
 }
 
@@ -323,21 +323,21 @@ function parseEngagement(persona) {
 export const BENCHMARKS_VERSION = '2024.1';
 export const BENCHMARKS_UPDATED_AT = '2026-04-23';
 export const BENCHMARKS_SOURCES = [
-  'Influencer Marketing Hub — State of Influencer Marketing 2024',
-  'Modash — Instagram Rate Card 2024',
+  'Influencer Marketing Hub, State of Influencer Marketing 2024',
+  'Modash, Instagram Rate Card 2024',
   'Passionfruit / Creator Economy Report cross-reference Q4 2024',
 ];
 
 // ── SMOKE TEST (run with: node rate-benchmarks.js) ───────────────────────────
 // Sanity-check the output against known creators so we can spot obviously
-// wrong numbers. Amanda Nelson — 203K / 6.4% ER / lifestyle / Austin.
+// wrong numbers. Amanda Nelson, 203K / 6.4% ER / lifestyle / Austin.
 if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('rate-benchmarks.js')) {
   const cases = [
     { name: 'Nano (5K, 8% ER, beauty, static)',
       opts: { followers: 5_000, engagementPct: 8, niche: 'beauty', deliverable: 'static' } },
     { name: 'Micro (50K, 5% ER, fitness, reel)',
       opts: { followers: 50_000, engagementPct: 5, niche: 'fitness', deliverable: 'reel' } },
-    { name: 'Mid — Amanda (203K, 6.4% ER, lifestyle, reel)',
+    { name: 'Mid, Amanda (203K, 6.4% ER, lifestyle, reel)',
       opts: { followers: 203_000, engagementPct: 6.4, niche: 'lifestyle', deliverable: 'reel' } },
     { name: 'Mid w/ bundle + rights (203K, 6.4%, lifestyle, full-bundle, 3mo rights)',
       opts: { followers: 203_000, engagementPct: 6.4, niche: 'lifestyle', deliverable: 'full-bundle', usageRightsMonths: 3 } },

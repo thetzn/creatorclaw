@@ -218,7 +218,7 @@ body.logged-out #chat-view #chat-input{cursor:not-allowed}
 .chat-msg-body .inline-preview .brand-card,
 .chat-msg-body .inline-preview .pulse-card{padding:14px}
 .chat-msg-body .inline-preview .is-locked{filter:blur(6px);pointer-events:none;user-select:none}
-/* Tighter pulse cards in chat — strip dead-space margins and oversized padding */
+/* Tighter pulse cards in chat, strip dead-space margins and oversized padding */
 .chat-msg-body .inline-pulse-grid{margin-top:8px}
 .chat-msg-body .inline-pulse-grid .pulse-card{padding:14px 14px 12px}
 .chat-msg-body .inline-pulse-grid .pulse-trend-badge{top:12px;right:12px}
@@ -231,7 +231,7 @@ body.logged-out #chat-view #chat-input{cursor:not-allowed}
 .chat-msg-body .inline-pulse-grid .pulse-actions{gap:6px}
 .chat-msg-body .inline-pulse-grid .pulse-save-btn,
 .chat-msg-body .inline-pulse-grid .pulse-draft-btn{padding:7px 12px;font-size:9px}
-/* Tighter brand cards when rendered inline in chat — default 28px padding is too airy here */
+/* Tighter brand cards when rendered inline in chat, default 28px padding is too airy here */
 .chat-msg-body .inline-brand-grid{margin-top:8px}
 .chat-msg-body .inline-brand-grid .brand-card{padding:14px;display:flex;flex-direction:column}
 .chat-msg-body .inline-brand-grid .brand-footer{margin-top:auto}
@@ -356,7 +356,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 .center-cta-meta{color:var(--muted2,#666);font-size:11px;margin-top:18px;letter-spacing:0.02em}
 .gen-btn{background:transparent;border:1px solid var(--gold);border-radius:8px;padding:16px 40px;color:var(--gold);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:10px;letter-spacing:0.15em;text-transform:uppercase;transition:all 0.3s}
 .gen-btn:hover{background:var(--gold);color:var(--bg)}
-/* Tool start card — Create/Pitch chat first impression. Sits inside an
+/* Tool start card, Create/Pitch chat first impression. Sits inside an
    assistant message bubble, so background contrast is built relative to
    .chat-msg-body, not .main. */
 .tool-start-card{display:flex;flex-direction:column;gap:12px;padding:20px 22px;background:var(--card2);border:1px solid var(--border2);border-radius:12px;max-width:520px}
@@ -367,7 +367,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 /* Mobile-only title in main + chat headers. Replaces logo-text + nav once
    we're inside a tool/chat view on phones. */
 .mobile-title{display:none;font-size:14px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:center;padding:0 8px}
-/* :focus-visible — keyboard users see clear focus rings everywhere we
+/* :focus-visible, keyboard users see clear focus rings everywhere we
    take input. Pointer users still get the existing hover/active styles. */
 button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:6px}
 input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
@@ -464,7 +464,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .pipeline-stat-val{font-size:22px;font-weight:700;color:var(--text);letter-spacing:-0.01em}
 .pipeline-board{display:grid;grid-template-columns:repeat(7,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:8px}
 .pipeline-col{position:relative;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:280px;overflow:hidden}
-/* Stage accent — top gradient line, color-coded per stage so the board
+/* Stage accent, top gradient line, color-coded per stage so the board
    reads as a progression instead of seven identical grey boxes. */
 .pipeline-col::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold-dim)}
 .pipeline-col[data-stage="inbound"]::before{background:linear-gradient(90deg,transparent,rgba(139,169,250,0.55),transparent)}
@@ -614,7 +614,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   .logo-text{font-size:14px}
   .nav-btn{padding:10px 14px;font-size:10px;min-height:40px}
   .avatar{display:none}
-  /* Mobile header consolidation — hamburger | mobile-title | theme.
+  /* Mobile header consolidation, hamburger | mobile-title | theme.
      Hide logo text, bug button, and inline nav inside tool/chat views
      so the header stops feeling like a desktop port. */
   body.in-tool .logo-text,
@@ -624,7 +624,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   body.in-tool #bug-report-btn{display:none}
   body.in-tool .mobile-title,
   #chat-view .mobile-title{display:block}
-  /* Reduce excessive letter-spacing on small screens — uppercase labels
+  /* Reduce excessive letter-spacing on small screens, uppercase labels
      need tighter tracking to stay readable at 10-12px. */
   .pulse-trend-badge,.brand-cat,.center-cta-meta,.tool-start-card .tool-start-label,
   .chat-context-badge,.match-meter-lbl,.stat-card-label{letter-spacing:0.08em}
@@ -632,10 +632,10 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   .main{display:flex;flex-direction:column;justify-content:center;min-height:calc(100vh - 52px)}
   .page-title{font-size:22px}
   .page-sub{font-size:13px;margin-bottom:28px}
-  /* Keep stats as 2x2 on mobile — reads as a dashboard at a glance */
+  /* Keep stats as 2x2 on mobile, reads as a dashboard at a glance */
   .grid-4{grid-template-columns:1fr 1fr!important;gap:10px}
   .grid-2,.grid-3{grid-template-columns:1fr!important;gap:12px}
-  /* Brand matches become a horizontal swipe carousel — native app feel */
+  /* Brand matches become a horizontal swipe carousel, native app feel */
   .brand-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;padding:4px 0 12px;margin:0 -16px;padding-left:16px;padding-right:16px;-webkit-overflow-scrolling:touch}
   .brand-grid::-webkit-scrollbar{display:none}
   .brand-grid{scrollbar-width:none}
@@ -838,7 +838,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
         <span>Continue with Instagram</span>
         <span class="intro-auth-soon">Soon</span>
       </button>
-      <div class="intro-divider"><span>or try it first — no account needed</span></div>
+      <div class="intro-divider"><span>or try it first, no account needed</span></div>
       <div class="intro-form">
         <input id="intro-ig-input" type="text" placeholder="@yourhandle" onkeydown="if(event.key==='Enter')introAnalyze()">
         <button onclick="introAnalyze()">Analyze</button>
@@ -980,7 +980,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
     <div class="teaser-gate" id="brands-gate" style="top:auto;bottom:-20px;padding:60px 24px 40px">
       <div class="teaser-gate-icon">♢</div>
       <h3>See all your brand matches</h3>
-      <p>Sign in to unlock the full list of brands ranked by audience fit — plus AI-drafted pitch emails in your voice.</p>
+      <p>Sign in to unlock the full list of brands ranked by audience fit, plus AI-drafted pitch emails in your voice.</p>
       <div class="gate-actions">
         <button class="google-btn" onclick="signInWithGoogle()">
           <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>
@@ -1000,7 +1000,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   <div class="pipeline-header">
     <div>
       <h1 class="pipeline-title">Pipeline</h1>
-      <div class="pipeline-sub">Your deal flow — from inbound DMs to closed checks.</div>
+      <div class="pipeline-sub">Your deal flow, from inbound DMs to closed checks.</div>
     </div>
     <button class="pipeline-add-btn" onclick="openDealModal()"><span style="font-size:14px;line-height:1">+</span> New deal</button>
   </div>
@@ -1024,7 +1024,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   <p class="page-sub">Content ideas matched to your persona and what's trending right now.</p>
   <div id="pulse-cta" class="center-cta"><div class="center-icon">◎</div><h2>Generate ideas matched to your audience</h2><p>Turn your persona and current trend signals into post ideas, hooks, formats, and draftable scripts.</p><button class="gen-btn" onclick="generatePulse()">Create Ideas</button></div>
   <div id="pulse-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Scanning trends across platforms…</div><div class="loading-sub" id="pulse-loading-sub">Analyzing 50K+ trending posts…</div><div class="loading-progress"><div class="loading-progress-fill" id="pulse-loading-bar"></div></div></div>
-  <div id="pulse-result" class="hidden"><div class="pulse-filters" id="pulse-filters"></div><div class="pulse-section-label"><span class="dot" style="background:var(--gold)"></span> Trending Now — Matched to Your Persona</div><div style="position:relative"><div class="pulse-grid" id="pulse-grid"></div><div class="teaser-gate" id="pulse-gate" style="top:auto;bottom:-20px;padding:60px 24px 40px"><div class="teaser-gate-icon">◎</div><h3>Unlock all 10 content ideas</h3><p>Sign in to see the full list of AI-generated ideas, save them to your calendar, and auto-draft scripts in your voice.</p><div class="gate-actions"><button class="google-btn" onclick="signInWithGoogle()"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>Sign in with Google</button><button class="ig-btn" onclick="connectInstagram()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></svg>Connect Instagram</button></div></div></div></div>
+  <div id="pulse-result" class="hidden"><div class="pulse-filters" id="pulse-filters"></div><div class="pulse-section-label"><span class="dot" style="background:var(--gold)"></span> Trending Now, Matched to Your Persona</div><div style="position:relative"><div class="pulse-grid" id="pulse-grid"></div><div class="teaser-gate" id="pulse-gate" style="top:auto;bottom:-20px;padding:60px 24px 40px"><div class="teaser-gate-icon">◎</div><h3>Unlock all 10 content ideas</h3><p>Sign in to see the full list of AI-generated ideas, save them to your calendar, and auto-draft scripts in your voice.</p><div class="gate-actions"><button class="google-btn" onclick="signInWithGoogle()"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>Sign in with Google</button><button class="ig-btn" onclick="connectInstagram()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></svg>Connect Instagram</button></div></div></div></div>
 </div>
 
 <!-- SETTINGS TAB -->
@@ -1089,8 +1089,8 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
       <div class="st-profile-row" id="st-profile-summary">
         <div class="st-avatar" id="st-profile-avatar">CC</div>
         <div>
-          <div class="st-profile-name" id="st-profile-name">—</div>
-          <div class="st-profile-handle" id="st-profile-handle">—</div>
+          <div class="st-profile-name" id="st-profile-name">N/A</div>
+          <div class="st-profile-handle" id="st-profile-handle">N/A</div>
         </div>
       </div>
       <div id="st-profile-vibes" class="st-vibes" style="margin-bottom:20px"></div>
@@ -1100,7 +1100,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
     <!-- Memory Summary -->
     <div id="st-panel-memory" class="hidden">
       <div class="st-section-title">What your agent knows</div>
-      <div class="st-section-sub">Your agent builds a picture of you as you chat. Review and correct anything here — edits take effect immediately.</div>
+      <div class="st-section-sub">Your agent builds a picture of you as you chat. Review and correct anything here, edits take effect immediately.</div>
       <div id="st-memory-body">
         <div class="st-fact-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>Loading…</div>
       </div>
@@ -1118,7 +1118,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
     <!-- Agent Style -->
     <div id="st-panel-agent-persona" class="hidden">
       <div class="st-section-title">Agent style</div>
-      <div class="st-section-sub">How your agent communicates — tone, focus, and voice. Pre-filled from your profile. Edit freely.</div>
+      <div class="st-section-sub">How your agent communicates, tone, focus, and voice. Pre-filled from your profile. Edit freely.</div>
       <div class="st-label">Name</div>
       <input id="st-agent-name" class="st-input" type="text" maxlength="40" placeholder="CreatorClaw">
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -1172,7 +1172,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
             </div>
             <div class="connection-info">
               <div class="connection-name">Telegram</div>
-              <div class="connection-desc" id="connect-telegram-desc">Chat with your agent on the go — same persona and pipeline. Sends drafts, pitches, and pipeline summaries to your phone.</div>
+              <div class="connection-desc" id="connect-telegram-desc">Chat with your agent on the go, same persona and pipeline. Sends drafts, pitches, and pipeline summaries to your phone.</div>
             </div>
           </div>
           <button class="connection-btn" id="connect-telegram-btn" onclick="connectTelegram()">Connect</button>
@@ -1209,7 +1209,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
     </div>
     <div class="chat-sidebar-footer">
       <div class="avatar" id="chat-avatar">CC</div>
-      <div class="chat-user-name" id="chat-user-name">—</div>
+      <div class="chat-user-name" id="chat-user-name">N/A</div>
       <button class="chat-signout-btn" onclick="signOut()" title="Sign out">↩</button>
     </div>
 </aside>
@@ -1267,7 +1267,7 @@ function runIntro(){
     byVault?.classList.add('visible');
   });
   // Phase 2: hold 1.5s, then fade auth/handle controls in below the splash.
-  // Splash and byline stay visible — no replacement, just additive reveal.
+  // Splash and byline stay visible, no replacement, just additive reveal.
   setTimeout(()=>{
     connect.classList.add('visible');
     const inp = document.getElementById('intro-ig-input');
@@ -1302,7 +1302,7 @@ async function introSignInGoogle(){
 }
 
 function introSignInInstagramSoon(){
-  // Visual placeholder — IG-as-auth requires Worker-side Supabase session
+  // Visual placeholder, IG-as-auth requires Worker-side Supabase session
   // minting which we haven't built yet. Show a friendly toast and steer
   // users to Google or try-first.
   showIntroToast("Instagram sign-in is launching soon. For now, sign in with Google or try the public-handle option below.");
@@ -1321,7 +1321,7 @@ function showIntroToast(msg){
 
 function dismissIntro(){
   document.getElementById('intro-screen')?.classList.add('done');
-  // Remove from DOM after animation. Guarded — showChatView() also removes
+  // Remove from DOM after animation. Guarded, showChatView() also removes
   // this element on the chat-first onboarding path, which can fire first.
   setTimeout(()=>{document.getElementById('intro-screen')?.remove()},700);
 }
@@ -1394,7 +1394,7 @@ const LOADING_MESSAGES={
   ]
 };
 // Viral-trend gerunds rotated in the chat bubble while waiting for the first
-// streaming token. Pure verbs only — no nouns/objects — so they read sensibly
+// streaming token. Pure verbs only, no nouns/objects, so they read sensibly
 // regardless of what the user actually asked for.
 const CHAT_THINKING_VERBS=[
   'Yeeting…','Dabbing…','Flossing…','Whipping…','Nae-Nae-ing…',
@@ -1549,7 +1549,7 @@ function startThinkingVerb(targetEl){
       verbText.textContent=cleanVerb(CHAT_THINKING_VERBS[i]);
       span.style.opacity='1';
     },220);
-  },4427);  // chat-thinking verb cycle (slowed 35% on top of original 10% — 4427ms total)
+  },4427);  // chat-thinking verb cycle (slowed 35% on top of original 10%, 4427ms total)
   return { span, interval, dotInterval };
 }
 // Same as startThinkingVerb but pairs each verb with a random activity object
@@ -1586,7 +1586,7 @@ function startVerbActivity(targetEl, activities){
       verbText.textContent = pickPair();
       span.style.opacity = '1';
     }, 220);
-  }, 4427);  // onboarding verb+activity cycle — matches chat-thinking cadence
+  }, 4427);  // onboarding verb+activity cycle, matches chat-thinking cadence
   return { span, interval, dotInterval };
 }
 function stopThinkingVerb(handle){
@@ -1614,7 +1614,7 @@ function startLoading(key, estSec){
   if(bar) bar.style.width='0%';
   const barInterval=setInterval(()=>{
     const elapsed=(Date.now()-start)/1000;
-    // Asymptotic growth — feels fast early, never quite reaches 100%
+    // Asymptotic growth, feels fast early, never quite reaches 100%
     const pct=Math.min(92, 100*(1-Math.exp(-elapsed/(estSec*0.5))));
     if(bar) bar.style.width=pct+'%';
   },180);
@@ -1651,7 +1651,7 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
 function openBugReport(){
   showModal(`
     <div class="modal-title">Report a bug</div>
-    <div class="modal-sub">Quick note about what broke or felt off — we'll see what page you were on, your viewport, and current tool automatically.</div>
+    <div class="modal-sub">Quick note about what broke or felt off, we'll see what page you were on, your viewport, and current tool automatically.</div>
     <div class="modal-label">Category</div>
     <select id="bug-category" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;margin-bottom:18px;appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat">
       <option value="ui">UI / layout glitch</option>
@@ -1662,7 +1662,7 @@ function openBugReport(){
     </select>
     <div class="modal-label">What happened?</div>
     <textarea id="bug-description" rows="5" maxlength="4000" placeholder="The Pitch agent's brand cards overlap on mobile when I swipe…" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;line-height:1.55;outline:none;resize:vertical;margin-bottom:6px" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:18px">Up to 4000 characters. Sensitive content goes into the report — don't paste anything you wouldn't want us to see.</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:18px">Up to 4000 characters. Sensitive content goes into the report, don't paste anything you wouldn't want us to see.</div>
     <div class="modal-row">
       <button class="modal-cancel-btn" type="button" onclick="closeModal()">Cancel</button>
       <button class="modal-save-btn" type="button" id="bug-submit-btn" onclick="submitBugReport()">Send</button>
@@ -1710,11 +1710,11 @@ async function submitBugReport(){
     console.error('Bug submit failed', error);
     if(btn){ btn.disabled = false; btn.textContent = 'Send'; }
     descEl.style.borderColor = 'var(--red)';
-    showIntroToast("Couldn't send — " + (error.message || 'try again'));
+    showIntroToast("Couldn't send, " + (error.message || 'try again'));
     return;
   }
   closeModal();
-  showIntroToast('Thanks — bug logged. We see it.');
+  showIntroToast('Thanks, bug logged. We see it.');
 }
 
 function agentPersonaSuggestion(){
@@ -1726,7 +1726,7 @@ function agentPersonaSuggestion(){
   lines.push('You are a candid, warm, strategic creative partner.');
   if(vibes) lines.push('Match this voice: ' + vibes + '.');
   if(pillars) lines.push('Stay grounded in these content pillars: ' + pillars + '.');
-  lines.push('Be concise. Offer specifics over generalities. When drafting, write in the creator’s own register — not corporate, not breathless.');
+  lines.push('Be concise. Offer specifics over generalities. When drafting, write in the creator’s own register, not corporate, not breathless.');
   lines.push('Push back politely if an idea dilutes their brand. Never invent metrics.');
   return lines.join(' ');
 }
@@ -1785,7 +1785,7 @@ async function connectGoogleWorkspace(){
 }
 
 // Picks up ?google_connected=<email> / ?google_error=<code> after the
-// OAuth round-trip and updates UI. Idempotent — clears the query
+// OAuth round-trip and updates UI. Idempotent, clears the query
 // params via history.replaceState so a refresh doesn't re-fire.
 function handleGoogleOauthReturn(){
   const params = new URLSearchParams(location.search);
@@ -1889,8 +1889,8 @@ function stRenderProfile(){
   const handleEl = document.getElementById('st-profile-handle');
   const avatarEl = document.getElementById('st-profile-avatar');
   const vibesEl = document.getElementById('st-profile-vibes');
-  const fullName = p.name || d.full_name || '—';
-  const handle = d.username ? '@' + d.username : (d.handle ? '@' + d.handle : '—');
+  const fullName = p.name || d.full_name || 'N/A';
+  const handle = d.username ? '@' + d.username : (d.handle ? '@' + d.handle : 'N/A');
   if(nameEl) nameEl.textContent = fullName;
   if(handleEl) handleEl.textContent = handle;
   const initials = fullName.split(' ').filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase() || 'CC';
@@ -2099,7 +2099,7 @@ async function showTelegramLinkConfirm(code){
   }
   showModal(`
     <div class="modal-title">Link Telegram</div>
-    <div class="modal-sub">Connect this CreatorClaw account to the Telegram chat that sent you here? You'll be able to chat with your agent on the go — same persona, same pipeline.</div>
+    <div class="modal-sub">Connect this CreatorClaw account to the Telegram chat that sent you here? You'll be able to chat with your agent on the go, same persona, same pipeline.</div>
     <div class="modal-row" style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
       <button class="modal-cancel-btn" type="button" onclick="cancelTelegramLink()">Cancel</button>
       <button class="modal-save-btn" type="button" id="tg-confirm-btn" onclick="confirmTelegramLink()">Link Telegram</button>
@@ -2241,7 +2241,7 @@ async function streamAgentAcknowledgement(){
 
   const isMidConversation = chatState.messages.length > 0;
   const metaPrompt = isMidConversation
-    ? 'The creator just updated your name and/or persona. In one short sentence, acknowledge the change in your new voice. Do not greet as if this is the first meeting — we are already chatting.'
+    ? 'The creator just updated your name and/or persona. In one short sentence, acknowledge the change in your new voice. Do not greet as if this is the first meeting, we are already chatting.'
     : 'The creator just named you and defined your persona. Introduce yourself in one or two short sentences, fully in character. Skip generic greeting clichés.';
 
   const apiMessages = [
@@ -2305,7 +2305,7 @@ async function streamAgentAcknowledgement(){
     }
   } catch(e){
     cursor.remove();
-    bodyEl.textContent = '(agent updated — couldn\'t fetch intro)';
+    bodyEl.textContent = '(agent updated, couldn\'t fetch intro)';
     bodyEl.style.color = 'var(--muted)';
     console.error('Agent ack error:', e);
   } finally {
@@ -2382,7 +2382,7 @@ async function savePersona(igHandle, scrapedData, aiAnalysis){
 // (recent posts, follower count, themes) goes stale fast. Re-scrape on app
 // open if the saved row is older than a week. Persona analysis stays put;
 // we only sync recentThemes so the agent knows what's new. Fire-and-forget
-// so it never blocks the UI — failures fall back to the cached data and
+// so it never blocks the UI, failures fall back to the cached data and
 // retry next session.
 const PERSONA_REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 let _refreshIgInFlight = false;
@@ -2407,13 +2407,13 @@ async function refreshIgData(handle){
     if(!res.ok) throw new Error('scrape ' + res.status);
     const data = await res.json();
     const profile = parseJSON(data.choices[0].message.content);
-    // Sanity guard — don't overwrite with empty data (private / banned / 404).
+    // Sanity guard, don't overwrite with empty data (private / banned / 404).
     if(!profile?.username || !profile?.followers) {
       console.warn('[refresh] empty profile, keeping stale data');
       return;
     }
     state.igData = profile;
-    // Persona stays — only sync recentThemes so the agent's system prompt
+    // Persona stays, only sync recentThemes so the agent's system prompt
     // picks up new content themes without losing the locked-in voice.
     if(state.persona && Array.isArray(profile.recentThemes)){
       state.persona = { ...state.persona, recentThemes: profile.recentThemes };
@@ -2477,7 +2477,7 @@ async function saveAgentIdentity(name, persona){
 function refreshAgentUI(){
   const name = state.agent.name || DEFAULT_AGENT_NAME;
   const greet = document.getElementById('chat-empty-greeting');
-  if(greet) greet.textContent = name + ' here — how can I help?';
+  if(greet) greet.textContent = name + ' here, how can I help?';
   const emptySub = document.getElementById('chat-empty-sub');
   if(emptySub){
     emptySub.textContent = state.agent.persona
@@ -2545,7 +2545,7 @@ function updateAuthUI(user){
     if(saved) saved.classList.add('hidden');
     applyAvatar(avatar, null, 'CC');
     applyAvatar(chatAvatar, null, 'CC');
-    if(chatName) chatName.textContent = '—';
+    if(chatName) chatName.textContent = 'N/A';
   }
 }
 
@@ -2553,7 +2553,7 @@ async function initAuth(){
   // Pick up the OAuth return params first so the toast fires before any
   // tab/connection-state UI churn from the rest of the bootstrap.
   handleGoogleOauthReturn();
-  // Telegram link param — captures ?telegram_link=<code> into sessionStorage
+  // Telegram link param, captures ?telegram_link=<code> into sessionStorage
   // (survives sign-in redirect) and shows a confirm modal once the user
   // session is established.
   handleTelegramLinkParam();
@@ -2588,10 +2588,10 @@ async function initAuth(){
       const savedText = document.getElementById('saved-banner-text');
       if(savedText) savedText.textContent = 'Loaded saved persona for @' + saved.ig_handle;
       // Kick off a background re-scrape if the cached data is over a week
-      // old. Non-blocking — UI uses cached data until fresh data lands.
+      // old. Non-blocking, UI uses cached data until fresh data lands.
       refreshIgDataIfStale(saved);
     } else {
-      // Signed in but no persona — save pending if exists
+      // Signed in but no persona, save pending if exists
       const pending = sessionStorage.getItem('pendingPersona');
       if(pending){
         try{
@@ -2607,7 +2607,7 @@ async function initAuth(){
           renderPersona(p.analysis);
         }catch(e){ console.error('pending save failed', e); }
       } else {
-        // Truly no persona yet — soft-prompt for handle in chat.
+        // Truly no persona yet, soft-prompt for handle in chat.
         state._needsHandlePrompt = true;
       }
     }
@@ -2655,7 +2655,7 @@ async function initAuth(){
 
 window.addEventListener('DOMContentLoaded', initAuth);
 
-// ── Instagram Graph API connection (beta — dev-mode test users only) ─────────
+// ── Instagram Graph API connection (beta, dev-mode test users only) ─────────
 const ALLOWED_IG_CONNECT_EMAILS = ['austin@vaultmgt.com'];
 let igConnection = null;  // { token, igUserId, igUsername, insights }
 
@@ -2695,7 +2695,7 @@ function connectInstagram(){
   const left = (screen.width - w) / 2;
   const top = (screen.height - h) / 2;
   const popup = window.open(`${PROXY_URL}/auth`, 'cc_ig_auth', `width=${w},height=${h},left=${left},top=${top}`);
-  if(!popup){ showError('Popup blocked — please allow popups for creatorclaw.co'); return; }
+  if(!popup){ showError('Popup blocked, please allow popups for creatorclaw.co'); return; }
 }
 
 window.addEventListener('message', async (e) => {
@@ -2764,14 +2764,14 @@ const chatState = {
   messages: [],
   streaming: false,
   conversations: [],
-  activeTool: 'main',  // 'main' | 'create' | 'pitch' — drives system prompt, greeting, conversation scope
+  activeTool: 'main',  // 'main' | 'create' | 'pitch', drives system prompt, greeting, conversation scope
   followBottom: true,  // sticky-scroll: follow streaming content unless user scrolls up
 };
 
-// Tool agent configs — UI surface only (greeting, suggestion chips,
+// Tool agent configs, UI surface only (greeting, suggestion chips,
 // placeholder text). All role-specific routing/format/tool-use rules live
 // in worker-agents.js (AGENT_INSTRUCTION_FALLBACKS) so a delegated agent
-// uses the SAME prompt as when it's the active agent — single source of
+// uses the SAME prompt as when it's the active agent, single source of
 // truth.
 const TOOL_CONFIG = {
   main: {
@@ -2894,7 +2894,7 @@ function useToolChip(text){
   const input = document.getElementById('chat-input');
   if(!input) return;
   input.value = text;
-  // Don't focus the input — on iOS that pops the on-screen keyboard
+  // Don't focus the input, on iOS that pops the on-screen keyboard
   // and shifts the viewport, jumping the user to the bottom of the
   // chat. Chips are one-tap prompts; the keyboard isn't needed.
   sendChatMessage();
@@ -3050,7 +3050,7 @@ function appendMessage(role, content, scroll=true){
   const body = document.createElement('div');
   body.className = 'chat-msg-body';
   // Assistant messages may include Markdown (bold/italic/links). User messages
-  // are plain text — render escaped so any incidental ** or backticks display
+  // are plain text, render escaped so any incidental ** or backticks display
   // verbatim instead of being parsed.
   if(role === 'assistant'){
     body.innerHTML = renderMarkdown(content);
@@ -3093,7 +3093,7 @@ function appendMessage(role, content, scroll=true){
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', attach);
   else attach();
-  // Re-attempt — chat-messages may not be in DOM at script load
+  // Re-attempt, chat-messages may not be in DOM at script load
   setTimeout(attach, 500);
 })();
 
@@ -3107,7 +3107,7 @@ function isNearBottom(container, threshold=80){
 function revealBubble(bodyEl, offsetFromTop=20){
   const container = document.getElementById('chat-messages');
   if(!container || !bodyEl) return;
-  // Find the bubble wrapper (.chat-msg) — scroll so its top sits near the top of the scroller.
+  // Find the bubble wrapper (.chat-msg), scroll so its top sits near the top of the scroller.
   const wrap = bodyEl.closest('.chat-msg') || bodyEl;
   const containerRect = container.getBoundingClientRect();
   const elRect = wrap.getBoundingClientRect();
@@ -3116,7 +3116,7 @@ function revealBubble(bodyEl, offsetFromTop=20){
   container.scrollBy({ top: delta, behavior: 'smooth' });
 }
 
-// Onboarding/agent status bubble — assistant message with the crab avatar
+// Onboarding/agent status bubble, assistant message with the crab avatar
 // spinning while a phase runs, then settled to its final text via finish().
 // The .is-loading class on .chat-msg drives the avatar spin animation.
 function appendStatusBubble(text){
@@ -3152,7 +3152,7 @@ function escapeHtml(s){
 }
 
 // Tiny safe Markdown renderer for chat messages. Escape first, then apply
-// inline substitutions (bold, italic, code, links). Intentionally narrow —
+// inline substitutions (bold, italic, code, links). Intentionally narrow:
 // we don't run the LLM through a full Markdown parser; pre-wrap CSS handles
 // line breaks and lists already.
 function renderMarkdown(text){
@@ -3162,7 +3162,7 @@ function renderMarkdown(text){
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, body) =>
     `<pre class="md-code"><code>${body.replace(/^\n+|\n+$/g,'')}</code></pre>`
   );
-  // Headers — line-anchored; rendered as bold blocks (no oversized H tags
+  // Headers, line-anchored; rendered as bold blocks (no oversized H tags
   // since chat messages already have a constrained type scale).
   html = html.replace(/^###\s+(.+)$/gm, '<div class="md-h3">$1</div>');
   html = html.replace(/^##\s+(.+)$/gm, '<div class="md-h2">$1</div>');
@@ -3179,7 +3179,7 @@ function renderMarkdown(text){
   html = html.replace(/`([^`\n]+)`/g, '<code class="md-inline-code">$1</code>');
   // Links: [label](http(s)://url)
   html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-  // Block elements have their own spacing — strip the surrounding newlines
+  // Block elements have their own spacing, strip the surrounding newlines
   // so they don't compound with `white-space: pre-wrap` and create big gaps.
   html = html.replace(/\n+(<div class="md-(?:h[1-3]|bullet)")/g, '$1');
   html = html.replace(/(<\/div>)\n(?=<div class="md-(?:h[1-3]|bullet)")/g, '$1');
@@ -3235,7 +3235,7 @@ function startInlineLoading(bodyEl, key, estSec){
 // their IG yet. Appears as the first chat bubble with a small handle input.
 function pushOnboardingHandlePrompt(){
   const body = appendInlineCard('assistant', `
-    <div style="margin-bottom:10px">Welcome — I'll be your AI agent. To get started, what's your Instagram handle?</div>
+    <div style="margin-bottom:10px">Welcome, I'll be your AI agent. To get started, what's your Instagram handle?</div>
     <div class="onb-handle-form">
       <input id="onb-handle-input" type="text" placeholder="@yourhandle" autocomplete="off" />
       <button onclick="submitOnboardingHandle()">Analyze</button>
@@ -3262,7 +3262,7 @@ async function startOnboardingChat(handle){
 
   // Open chat view immediately and narrate the analysis as inline status
   // bubbles. If we came from the public-handle intro screen, .main is
-  // showing — swap to chat. If we came from the post-signin inline handle
+  // showing, swap to chat. If we came from the post-signin inline handle
   // prompt, chat is already visible (these branches are no-ops).
   const chatView = document.getElementById('chat-view');
   if(chatView?.classList.contains('hidden')){
@@ -3317,7 +3317,7 @@ async function startOnboardingChat(handle){
     state.igConnected = true;
     refreshUserAvatars();
     // Quietly populate Connect tab so it reflects reality if user navigates back post-signin
-    const setText = (id,v)=>{ const e=document.getElementById(id); if(e) e.textContent = v||'—'; };
+    const setText = (id,v)=>{ const e=document.getElementById(id); if(e) e.textContent = v||'N/A'; };
     setText('ig-val-followers', profile.followers);
     setText('ig-val-engagement', profile.engagementRate);
     setText('ig-val-posts', profile.totalPosts);
@@ -3359,18 +3359,18 @@ async function startOnboardingChat(handle){
     `);
     await sleep(900);
 
-    // 4. Stream in-character welcome — fire and forget so the picker
+    // 4. Stream in-character welcome, fire and forget so the picker
     //    can render immediately. The welcome bubble lands above the picker
     //    (it appends first), then continues streaming while the user reads
     //    or starts clicking. Saves 3-5s of perceived wait.
     streamOnboardingWelcome();
 
-    // 5. Push picker (Create / Pitch) — visible right away
+    // 5. Push picker (Create / Pitch), visible right away
     pushOnboardingPicker();
   } catch(e){
     stopThinkingVerb(scanVerbHandle);
     console.error('Onboarding error:', e);
-    status1.finish(`Hit a snag analyzing @${cleanHandle} — ${e.message || 'unknown error'}. Try a different handle?`);
+    status1.finish(`Hit a snag analyzing @${cleanHandle}, ${e.message || 'unknown error'}. Try a different handle?`);
     pushOnboardingHandlePrompt();
   }
 }
@@ -3382,11 +3382,11 @@ function renderInlinePersonaCard(persona, igData){
   const name = p.name || d.displayName || d.username || 'the creator';
   const handle = d.username ? '@' + String(d.username).replace(/^@/,'') : '';
   const vibes = (p.vibes||[]).slice(0,5);
-  const followers = p.totalReach || d.followers || '—';
-  const engagement = p.avgEngagement || d.engagementRate || '—';
+  const followers = p.totalReach || d.followers || 'N/A';
+  const engagement = p.avgEngagement || d.engagementRate || 'N/A';
   const tier = p.tier || '';
-  const topAge = (p.age||[]).slice().sort((a,b)=>(b.pct||0)-(a.pct||0))[0]?.age || '—';
-  const topCity = (p.locations||[])[0]?.city || '—';
+  const topAge = (p.age||[]).slice().sort((a,b)=>(b.pct||0)-(a.pct||0))[0]?.age || 'N/A';
+  const topCity = (p.locations||[])[0]?.city || 'N/A';
   const audienceHints = String(d.audienceHints || '').trim();
   return `
     <div class="inline-persona">
@@ -3429,7 +3429,7 @@ async function streamOnboardingWelcome(){
   ].filter(Boolean).join('\n');
 
   const messages = [
-    { role: 'system', content: `You are ${state.agent.name || DEFAULT_AGENT_NAME}, a personal AI agent for Instagram creators. You have just analyzed a new creator. Greet them warmly and in character. Mention one or two specific details from their persona so they know the analysis is real. Offer a one-line tease of what you can help with next (content ideas, brand pitches, drafting). 3 sentences max. No generic greetings ("Hello!" etc) — dive in with a hook.` },
+    { role: 'system', content: `You are ${state.agent.name || DEFAULT_AGENT_NAME}, a personal AI agent for Instagram creators. You have just analyzed a new creator. Greet them warmly and in character. Mention one or two specific details from their persona so they know the analysis is real. Offer a one-line tease of what you can help with next (content ideas, brand pitches, drafting). 3 sentences max. No generic greetings ("Hello!" etc), dive in with a hook.` },
     { role: 'user', content: `Creator profile:\n${personaSummary}\n\nIntroduce yourself and welcome them.` }
   ];
 
@@ -3472,7 +3472,7 @@ async function streamOnboardingWelcome(){
     if(full) chatState.messages.push({ role: 'assistant', content: full });
   } catch(e){
     cursor.remove();
-    bodyEl.textContent = `Welcome — I've got your persona. Want to see what you should create next, or which brands to pitch?`;
+    bodyEl.textContent = `Welcome, I've got your persona. Want to see what you should create next, or which brands to pitch?`;
     chatState.messages.push({ role: 'assistant', content: bodyEl.textContent });
   } finally {
     wrap?.classList.remove('is-loading');
@@ -3583,7 +3583,7 @@ async function runInlinePulsePreview(){
         <div class="pulse-idea-hook">${escapeHtml(idea.hook||'')}</div>
         <div class="pulse-persona-match">
           <div class="match-score">${escapeHtml(String(idea.match||''))}%</div>
-          <div class="match-text">persona match${(idea.persona||[]).length?` — aligns with <strong style="color:var(--text)">${escapeHtml((idea.persona||[]).join(' + '))}</strong>`:''}</div>
+          <div class="match-text">persona match${(idea.persona||[]).length?`, aligns with <strong style="color:var(--text)">${escapeHtml((idea.persona||[]).join(' + '))}</strong>`:''}</div>
         </div>
         <div class="pulse-meta">
           <div class="pulse-meta-item">Format: <span class="val">${escapeHtml(idea.format||'')}</span></div>
@@ -3598,7 +3598,7 @@ async function runInlinePulsePreview(){
     requestAnimationFrame(()=>revealBubble(body));
   } catch(e){
     loader.stop();
-    body.textContent = 'Couldn\'t generate ideas right now — let\'s come back to that.';
+    body.textContent = 'Couldn\'t generate ideas right now, let\'s come back to that.';
     console.error('Pulse preview error:', e);
   }
 }
@@ -3654,7 +3654,7 @@ async function runInlineBrandsPreview(){
     requestAnimationFrame(()=>revealBubble(body));
   } catch(e){
     loader.stop();
-    body.textContent = 'Couldn\'t pull brand matches right now — we can revisit.';
+    body.textContent = 'Couldn\'t pull brand matches right now, we can revisit.';
     console.error('Brands preview error:', e);
   }
 }
@@ -3689,7 +3689,7 @@ function pushInlineSignin(){
 
 // Identity + custom persona + creator facts + style. Sent separately to the
 // Worker so every specialist agent (active or delegated-as-tool) gets the
-// same grounding — without it, delegated specialists fall back to bare
+// same grounding, without it, delegated specialists fall back to bare
 // one-liner instructions and lose the creator context entirely.
 function buildSharedAgentContext(){
   const p = state.persona || {};
@@ -3737,7 +3737,7 @@ function buildSharedAgentContext(){
   return parts.join('\n');
 }
 
-// Backwards-compat alias — the system message we send is now just the
+// Backwards-compat alias, the system message we send is now just the
 // shared context; per-role rules live in worker-agents.js. Cached browsers
 // running pre-refactor code still send the longer prompt; the worker reads
 // body.sharedAgentContext first and falls back to messages[0] if absent.
@@ -3793,7 +3793,7 @@ async function sendChatMessage(){
   autoResizeChat(input);
 
   chatState.streaming = true;
-  chatState.followBottom = true;  // user just submitted — re-engage sticky-bottom
+  chatState.followBottom = true;  // user just submitted, re-engage sticky-bottom
   chatState.abortController = new AbortController();
   document.getElementById('chat-send-btn').disabled = true;
 
@@ -3863,7 +3863,7 @@ async function sendChatMessage(){
     userId = session?.user?.id || null;
     accessToken = session?.access_token || null;
   } catch {}
-  // Browser timezone — used by Gmail/Calendar tool calls. Without this the
+  // Browser timezone, used by Gmail/Calendar tool calls. Without this the
   // Google Calendar API rejects events with "Missing time zone definition".
   let timezone = 'UTC';
   try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch {}
@@ -3872,7 +3872,7 @@ async function sendChatMessage(){
     engagementPct: parseEng(d.engagementRate || p.avgEngagement),
     niche: p.topCategory || d.topCategory || (p.pillars||[])[0]?.l || 'lifestyle',
     brandAffinities: Array.isArray(d.brandAffinities) ? d.brandAffinities.slice(0,8) : [],
-    // Reels music history — the chat-driven generate_content_ideas tool uses
+    // Reels music history, the chat-driven generate_content_ideas tool uses
     // this to suggest real songs from the creator's own library instead of
     // hallucinating "trending audio" names.
     topSounds: Array.isArray(d.topSounds) ? d.topSounds.slice(0,8) : [],
@@ -3900,7 +3900,7 @@ async function sendChatMessage(){
     while(true){
       const { done, value } = await reader.read();
       if(done) break;
-      resetWatchdog();  // got data — reset the stall timer
+      resetWatchdog();  // got data, reset the stall timer
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop();
@@ -3941,21 +3941,21 @@ async function sendChatMessage(){
       // an "Open in Gmail" button so the user can ship it in one tap.
       try { maybeAttachGmailCta(bodyEl, fullText); } catch(e){ console.warn('gmail cta', e); }
     } else {
-      bodyEl.textContent = '(no response — try again)';
+      bodyEl.textContent = '(no response, try again)';
       bodyEl.style.color = 'var(--muted)';
     }
   } catch(e){
     if(verbHandle){ stopThinkingVerb(verbHandle); verbHandle = null; }
     cursor.remove();
     const isAbort = e.name === 'AbortError';
-    bodyEl.textContent = isAbort ? '(request timed out — try again)' : '(error: '+e.message+')';
+    bodyEl.textContent = isAbort ? '(request timed out, try again)' : '(error: '+e.message+')';
     bodyEl.style.color = 'var(--red)';
     console.error('Chat error:', e);
   } finally {
     if(verbHandle){ stopThinkingVerb(verbHandle); verbHandle = null; }
     wrap?.classList.remove('is-loading');
     resetChatSend();
-    // Skip auto-refocus on mobile — re-popping the iOS keyboard after
+    // Skip auto-refocus on mobile, re-popping the iOS keyboard after
     // every message turn fights the user when they want to read the
     // response. Desktop users still get the convenience refocus.
     if(!matchMedia('(max-width: 768px)').matches){
@@ -4001,7 +4001,7 @@ async function downloadMediaKit(opts = {}){
   }
   const lib = window.jspdf;
   if(!lib || !lib.jsPDF){
-    showError('PDF library still loading — try again in a sec.');
+    showError('PDF library still loading, try again in a sec.');
     return;
   }
   const doc = new lib.jsPDF({ unit: 'mm', format: 'letter' });
@@ -4015,7 +4015,7 @@ async function downloadMediaKit(opts = {}){
   doc.setFillColor(...GOLD);
   doc.rect(0, 0, W, 4, 'F');
 
-  // Avatar (top-right) — embed if we have a data URL from the IG scrape.
+  // Avatar (top-right), embed if we have a data URL from the IG scrape.
   const avatar = d.profilePicData || null;
   if(avatar){
     try {
@@ -4079,10 +4079,10 @@ async function downloadMediaKit(opts = {}){
   doc.text('STATS', M, y);
   y += 5;
   const stats = [
-    { label: 'FOLLOWERS', val: p.totalReach || d.followers || '—' },
-    { label: 'ENGAGEMENT', val: p.avgEngagement || d.engagementRate || '—' },
-    { label: 'POSTS', val: d.totalPosts || '—' },
-    { label: 'TIER', val: p.tier || '—' },
+    { label: 'FOLLOWERS', val: p.totalReach || d.followers || 'N/A' },
+    { label: 'ENGAGEMENT', val: p.avgEngagement || d.engagementRate || 'N/A' },
+    { label: 'POSTS', val: d.totalPosts || 'N/A' },
+    { label: 'TIER', val: p.tier || 'N/A' },
   ];
   const colW = (W - 2*M) / 2;
   for(let i = 0; i < stats.length; i++){
@@ -4175,7 +4175,7 @@ async function downloadMediaKit(opts = {}){
   const slug = String(name || 'creator').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   const filename = (slug || 'creator') + '-media-kit.pdf';
   doc.save(filename);
-  if(opts.toast){ showIntroToast('Media kit downloaded — attach it from your email compose window.'); }
+  if(opts.toast){ showIntroToast('Media kit downloaded, attach it from your email compose window.'); }
 }
 
 function showError(msg){
@@ -4205,7 +4205,7 @@ function getConnectedStats(){
   if(state.igConnected){
     if(state.igData){
       const d=state.igData;
-      // Build a clean summary — skip null/empty values so the AI doesn't see "null followers"
+      // Build a clean summary, skip null/empty values so the AI doesn't see "null followers"
       const bits=[];
       if(d.username) bits.push('@'+String(d.username).replace(/^@/,''));
       if(d.followers) bits.push(d.followers+' followers');
@@ -4216,7 +4216,7 @@ function getConnectedStats(){
       if(d.bio) bits.push('bio: "'+d.bio+'"');
       if((d.recentThemes||[]).length) bits.push('recent themes: '+d.recentThemes.join(', '));
       if((d.vibes||[]).length) bits.push('observed vibes: '+d.vibes.join(', '));
-      parts.push('Instagram — '+bits.join('; '));
+      parts.push('Instagram, '+bits.join('; '));
     } else {
       parts.push('Instagram: connected');
     }
@@ -4229,7 +4229,7 @@ function switchTab(id){
   document.querySelectorAll('#nav .nav-btn').forEach(b=>{b.classList.toggle('active',b.dataset.tab===id)});
   ['persona','brands','pulse','pipeline','accounts','settings'].forEach(t=>{document.getElementById('tab-'+t)?.classList.toggle('hidden',t!==id)});
   if(id === 'settings') openSettingsSection(stCurrentSection || 'profile');
-  // Mobile header title — replaces the hidden logo text + nav so the user
+  // Mobile header title, replaces the hidden logo text + nav so the user
   // always knows which surface they're on. Desktop uses the inline nav.
   const TAB_TITLES = { persona: 'Analytics', pulse: 'Create', brands: 'Pitch', pipeline: 'Pipeline', accounts: 'Connect', settings: 'Settings' };
   const mt = document.getElementById('mobile-title');
@@ -4363,7 +4363,7 @@ async function deleteDealRemote(id){
 
 function fmtUsdShort(n){
   const v = Number(n) || 0;
-  if(!v) return '—';
+  if(!v) return 'N/A';
   if(v >= 1000) return '$' + (v/1000).toFixed(v >= 10000 ? 0 : 1).replace(/\.0$/,'') + 'K';
   return '$' + v.toLocaleString();
 }
@@ -4407,7 +4407,7 @@ async function renderPipeline(){
   if(pipelineEl) pipelineEl.textContent = fmtUsdShort(r.pipelineVal);
   if(countEl) countEl.textContent = String(r.active);
 
-  // Empty state — hide BOTH the rollup and the board so $0/$0/0 cards don't
+  // Empty state, hide BOTH the rollup and the board so $0/$0/0 cards don't
   // dominate the first-use experience. The empty hero gets to do its job.
   if(!deals.length){
     if(board){ board.innerHTML = ''; board.classList.add('hidden'); }
@@ -4493,7 +4493,7 @@ function openMoveDealMenu(ev, id){
     .join('');
   showModal(
     `<div class="modal-title">Move deal</div>` +
-    `<div class="modal-sub">${escapeHtml(deal.brand_name || 'Untitled')} — currently in ${escapeHtml(stageLabel(deal.status))}</div>` +
+    `<div class="modal-sub">${escapeHtml(deal.brand_name || 'Untitled')}, currently in ${escapeHtml(stageLabel(deal.status))}</div>` +
     `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">${opts}</div>` +
     `<div style="display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid var(--border)">` +
       `<button class="modal-cancel-btn" type="button" onclick="if(confirm('Delete this deal? This cannot be undone.')){deleteDeal('${id}');closeModal();}" style="color:var(--red);border-color:var(--red)">Delete deal</button>` +
@@ -4513,7 +4513,7 @@ async function moveDeal(id, newStatus){
   const user = await getCurrentUser();
   if(user){
     const ok = await updateDealStatusRemote(id, newStatus);
-    if(!ok){ deal.status = prevStatus; renderPipeline(); showError('Could not save move — please try again.'); }
+    if(!ok){ deal.status = prevStatus; renderPipeline(); showError('Could not save move, please try again.'); }
   } else {
     saveLocalDeals();
   }
@@ -4526,14 +4526,14 @@ async function deleteDeal(id){
   const user = await getCurrentUser();
   if(user){
     const ok = await deleteDealRemote(id);
-    if(!ok){ state.deals = prev; renderPipeline(); showError('Could not delete — please try again.'); }
+    if(!ok){ state.deals = prev; renderPipeline(); showError('Could not delete, please try again.'); }
   } else {
     saveLocalDeals();
   }
 }
 
 function stageLabel(id){
-  return (PIPELINE_STAGES.find(s=>s.id===id) || {}).label || id || '—';
+  return (PIPELINE_STAGES.find(s=>s.id===id) || {}).label || id || 'N/A';
 }
 
 function openDealModal(id){
@@ -4607,7 +4607,7 @@ async function submitDealModal(id){
   if(user){
     // Optimistic local apply, then server upsert. On failure, roll back UI.
     const remote = await upsertDealRemote(id ? { id, ...fields } : fields);
-    if(!remote){ showError('Could not save deal — please try again.'); return; }
+    if(!remote){ showError('Could not save deal, please try again.'); return; }
     if(id){
       const idx = state.deals.findIndex(d => d.id === id);
       if(idx >= 0) state.deals[idx] = remote;
@@ -4640,7 +4640,7 @@ async function analyzeIGProfile(){
   const btn=document.getElementById('ig-analyze-btn');
   btn.disabled=true;
 
-  // Jump to Persona tab immediately — user sees one continuous crab spinner through analysis + persona gen
+  // Jump to Persona tab immediately, user sees one continuous crab spinner through analysis + persona gen
   switchTab('persona');
   document.getElementById('persona-cta').classList.add('hidden');
   document.getElementById('persona-result').classList.add('hidden');
@@ -4668,16 +4668,16 @@ async function analyzeIGProfile(){
     refreshUserAvatars();
 
     // Quietly populate the Connect tab so it reflects reality if user navigates back
-    document.getElementById('ig-val-followers').textContent=profile.followers||'—';
-    document.getElementById('ig-val-engagement').textContent=profile.engagementRate||'—';
-    document.getElementById('ig-val-posts').textContent=profile.totalPosts||'—';
-    document.getElementById('ig-val-category').textContent=profile.topCategory||profile.categories?.[0]?.name||'—';
+    document.getElementById('ig-val-followers').textContent=profile.followers||'N/A';
+    document.getElementById('ig-val-engagement').textContent=profile.engagementRate||'N/A';
+    document.getElementById('ig-val-posts').textContent=profile.totalPosts||'N/A';
+    document.getElementById('ig-val-category').textContent=profile.topCategory||profile.categories?.[0]?.name||'N/A';
     document.getElementById('ig-connect').classList.add('hidden');
     document.getElementById('ig-stats').classList.remove('hidden');
     document.getElementById('ig-badge').innerHTML=`✓ Analyzed`;
     document.getElementById('ig-badge').classList.remove('hidden');
 
-    // Kick off persona — spinner keeps running, no visible "handoff"
+    // Kick off persona, spinner keeps running, no visible "handoff"
     generatePersona();
 
   } catch(e){
@@ -4794,7 +4794,7 @@ pillars p must sum to 100. Keep 4-5 pillars.`;
     if(!inlineMode){
       stopLoading('persona');
       document.getElementById('persona-loading').classList.add('hidden');
-      showContinueCTA('persona-result','Persona ready — discover what to <span class="hl">create</span> next.','Continue to Create',advanceToPulse);
+      showContinueCTA('persona-result','Persona ready, discover what to <span class="hl">create</span> next.','Continue to Create',advanceToPulse);
     }
     renderPersona(data);
   } catch(e){
@@ -4813,7 +4813,7 @@ pillars p must sum to 100. Keep 4-5 pillars.`;
 function expandPersona(c, igData){
   const icons=['◆','◇','✦','▸','○','●'];
   const pillars=(c.pillars||[]).map((p,i)=>({l:p.l,p:p.p,e:p.e||icons[i]||'•'}));
-  // Estimate age distribution based on niche (still heuristic — IG profile scrape
+  // Estimate age distribution based on niche (still heuristic, IG profile scrape
   // doesn't return audience demographics, only IG Graph Insights does).
   const isFitness=pillars.some(p=>/fitness|gym|sport/i.test(p.l)&&p.p>20);
   const isBeauty=pillars.some(p=>/beauty|fashion|style/i.test(p.l)&&p.p>15);
@@ -4824,8 +4824,8 @@ function expandPersona(c, igData){
     :[{age:'13-17',pct:8},{age:'18-24',pct:30},{age:'25-34',pct:36},{age:'35-44',pct:18},{age:'45+',pct:8}];
   // Locations: prefer tagged-location data (need at least 2 distinct tags to
   // trust it as a distribution). Otherwise fall back to LLM-inferred base city
-  // (from bio / hashtags / captions). If neither, return empty — the card
-  // will show "—" instead of faking Los Angeles for everyone.
+  // (from bio / hashtags / captions). If neither, return empty, the card
+  // will show "-" instead of faking Los Angeles for everyone.
   const scrapedLocs = igData && Array.isArray(igData.topLocations) ? igData.topLocations : [];
   const base = igData && igData.baseLocation && (igData.baseLocation.city || igData.baseLocation.region) ? igData.baseLocation : null;
   let locations = [];
@@ -4853,7 +4853,7 @@ function expandPersona(c, igData){
 
 function renderPersona(d){
   // Fallback any missing / zero / null values to em dash
-  const fmt=v=>{ if(v==null||v===''||v===0||v==='0'||v==='0%') return '—'; return String(v); };
+  const fmt=v=>{ if(v==null||v===''||v===0||v==='0'||v==='0%') return 'N/A'; return String(v); };
   const score=Number(d.score)>0?Number(d.score):80;
   // Profile picture from Apify (data URL preferred, falls back to URL, then initials)
   const avatarEl=document.querySelector('.persona-avatar');
@@ -4947,11 +4947,11 @@ async function renderRateCard(){
       if(data.tier_label) parts.push(`${data.tier_label} tier`);
       if(data.engagement_band) parts.push(data.engagement_band + ' engagement');
       if(data.niche) parts.push(data.niche + ' niche');
-      meta.textContent = parts.length ? `Industry benchmark — ${parts.join(' · ')}.` : 'Industry benchmark based on your profile.';
+      meta.textContent = parts.length ? `Industry benchmark, ${parts.join(' · ')}.` : 'Industry benchmark based on your profile.';
     }
 
     const fmtUSD = n => {
-      if(n == null || isNaN(n)) return '—';
+      if(n == null || isNaN(n)) return 'N/A';
       if(n >= 1000) return '$' + (n/1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/,'') + 'K';
       return '$' + Math.round(n).toLocaleString();
     };
@@ -5029,13 +5029,13 @@ async function generateBrands(){
 
   // Pull existing brand orbit (creators they already @-mention or that
   // appeared as past partners in the persona). Use these as exclusion +
-  // tier signal — brands they already work with are existing relationships,
+  // tier signal, brands they already work with are existing relationships,
   // not new leads.
   const existingBrands = Array.isArray(state.igData?.brandAffinities)
     ? state.igData.brandAffinities.slice(0,8).map(b=>String(b).replace(/^@/,'')).filter(Boolean)
     : [];
   const excludeLine = existingBrands.length
-    ? `\n\nBrands the creator already mentions / has worked with (DO NOT recommend any of these — they are existing relationships, not new leads): ${existingBrands.join(', ')}.\nUse them only as a TIER + AESTHETIC reference: recommend brands of similar size, niche, and brand sensibility — peers, complements, and step-ups, not the same brands.`
+    ? `\n\nBrands the creator already mentions / has worked with (DO NOT recommend any of these, they are existing relationships, not new leads): ${existingBrands.join(', ')}.\nUse them only as a TIER + AESTHETIC reference: recommend brands of similar size, niche, and brand sensibility, peers, complements, and step-ups, not the same brands.`
     : '';
 
   const system=`Brand matchmaker. Return ONLY a JSON array of 8 brands, no markdown. Structure:
@@ -5171,9 +5171,9 @@ function toggleSent(btn,name){
 // Phase 0 of Gmail integration: no OAuth, no verification. Draft a pitch in
 // the creator's voice, then open Gmail compose in a new tab pre-filled with
 // subject + body. Creator reviews and hits Send themselves. Counts as their
-// own outgoing email — no data passes through us.
+// own outgoing email, no data passes through us.
 
-// Official Gmail mark — Google's 2020 5-panel multicolor envelope, sourced
+// Official Gmail mark, Google's 2020 5-panel multicolor envelope, sourced
 // from the Google Brand Resource Center (same path data Wikipedia uses).
 // Reused on every email-action button in the app for consistent branding.
 const GMAIL_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="52 42 88 66" aria-hidden="true" style="width:18px;height:14px;flex-shrink:0"><path fill="#4285f4" d="M58 108h14V74L52 59v43c0 3.32 2.69 6 6 6"/><path fill="#34a853" d="M120 108h14c3.32 0 6-2.69 6-6V59l-20 15"/><path fill="#fbbc04" d="M120 48v26l20-15v-8c0-7.42-8.47-11.65-14.4-7.2"/><path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92"/><path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2C60.47 39.35 52 43.58 52 51"/></svg>`;
@@ -5234,7 +5234,7 @@ function maybeAttachGmailCta(bodyEl, fullText){
   const pitch = detectPitchInText(fullText);
   if(!pitch) return;
 
-  // Drop the loose subject/body text — we'll render it inside the frame.
+  // Drop the loose subject/body text, we'll render it inside the frame.
   // Element children (e.g. brand-match grids) are preserved.
   Array.from(bodyEl.childNodes).forEach(n => {
     if(n.nodeType === Node.TEXT_NODE || (n.nodeType === Node.ELEMENT_NODE && !n.className)) n.remove();
@@ -5272,7 +5272,7 @@ function maybeAttachGmailCta(bodyEl, fullText){
   row.className = 'chat-gmail-cta';
   row.style.cssText = 'display:flex;gap:8px;padding:10px 14px;background:var(--card);border-top:1px solid var(--border2);flex-wrap:wrap';
 
-  // Send via CreatorClaw — fires send_gmail_message through the agent.
+  // Send via CreatorClaw, fires send_gmail_message through the agent.
   // Confirmation modal first so the user can review + set recipient.
   const sendBtn = document.createElement('button');
   sendBtn.className = 'copy-btn';
@@ -5280,14 +5280,14 @@ function maybeAttachGmailCta(bodyEl, fullText){
   sendBtn.innerHTML = GMAIL_ICON_SVG + '<span>Send</span>';
   sendBtn.onclick = () => confirmAndSendPitchInline(pitch);
 
-  // Open in Gmail compose UI — review-and-send-yourself path.
+  // Open in Gmail compose UI, review-and-send-yourself path.
   const gmailBtn = document.createElement('button');
   gmailBtn.className = 'copy-btn';
   gmailBtn.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:10px 16px;flex:0 1 auto;font-size:11px';
   gmailBtn.innerHTML = GMAIL_ICON_SVG + '<span>Open in Gmail</span>';
   gmailBtn.onclick = () => openGmailCompose({ subject: pitch.subject, body: pitch.body, to: '' });
 
-  // Attach media kit — generates the PDF locally and toasts the user to
+  // Attach media kit, generates the PDF locally and toasts the user to
   // attach it from their Gmail compose window. send_gmail_message via MCP
   // doesn't currently support attachments; this is the pragmatic path.
   const attachBtn = document.createElement('button');
@@ -5315,7 +5315,7 @@ function maybeAttachGmailCta(bodyEl, fullText){
 }
 
 // Best-effort: pull a recipient email out of recent conversation context.
-// Looks at the last user message — if it contains an email address, use it.
+// Looks at the last user message, if it contains an email address, use it.
 function guessRecipientFromConversation(){
   const msgs = chatState.messages || [];
   for(let i = msgs.length - 1; i >= 0; i--){
@@ -5335,7 +5335,7 @@ function confirmAndSendPitchInline(pitch){
   const guessed = guessRecipientFromConversation();
   const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   // Single statement + single authorize button. The email frame above
-  // already shows the full subject/body — no need to re-render it here.
+  // already shows the full subject/body, no need to re-render it here.
   // Fallback inline input only when we couldn't infer a recipient.
   const statement = guessed
     ? `Sending to <span style="color:var(--text);font-weight:600">${esc(guessed)}</span> via your connected Gmail. There is no undo.`
@@ -5385,7 +5385,7 @@ function executePitchSend(){
   sendChatMessage();
 }
 
-// Tool side-channel renderer — handles structured payloads emitted by the
+// Tool side-channel renderer, handles structured payloads emitted by the
 // Worker after the LLM's text turn (e.g. content idea cards from
 // generate_content_ideas). Dispatches by type.
 function renderToolMetadata(bodyEl, metadata){
@@ -5468,7 +5468,7 @@ function renderInlineIdeasIntoBody(bodyEl, ideas){
       <div class="pulse-idea-hook">${escapeHtml(idea.hook||'')}</div>
       <div class="pulse-persona-match">
         <div class="match-score">${escapeHtml(String(idea.match||''))}%</div>
-        <div class="match-text">persona match${persona?` — aligns with <strong style="color:var(--text)">${escapeHtml(persona)}</strong>`:''}</div>
+        <div class="match-text">persona match${persona?`, aligns with <strong style="color:var(--text)">${escapeHtml(persona)}</strong>`:''}</div>
       </div>
       <div class="pulse-meta">
         ${idea.format?`<div class="pulse-meta-item">Format: <span class="val">${escapeHtml(idea.format)}</span></div>`:''}
@@ -5533,7 +5533,7 @@ function renderInlineBrandsIntoBody(bodyEl, brands){
     btn.addEventListener('click', () => moreBrandMatches(btn.dataset.more));
   });
   bodyEl.appendChild(actions);
-  // Background-enrich top brands (program URL, IG signal) — same path as the
+  // Background-enrich top brands (program URL, IG signal), same path as the
   // grid view used to take. Cards self-decorate as enrichment lands.
   try {
     const personaSummary = state.persona
@@ -5588,7 +5588,7 @@ async function draftPitch(i){
     '<div class="pitch-loading"><div class="spinner" data-crab></div><div class="loading-title">Writing in your voice…</div></div>'
   );
 
-  // Prior partnerships as social proof — pulled from brandAffinities
+  // Prior partnerships as social proof, pulled from brandAffinities
   // (creators the persona already @-mentions).
   const partnerships = Array.isArray(d.brandAffinities)
     ? d.brandAffinities.slice(0,3).map(b=>String(b).replace(/^@/,'')).filter(Boolean)
@@ -5601,7 +5601,7 @@ async function draftPitch(i){
   const followers = p.totalReach || d.followers || '';
   const engagement = p.avgEngagement || d.engagementRate || '';
 
-  const sys = `You are writing a cold outreach email from an Instagram creator to a brand's partnerships team. The creator wants to be considered for a paid collab. Write in the creator's authentic voice — match their vibes. Be direct, specific, confident, and short. No sycophancy, no "I love your brand" filler. One concrete idea tied to the brand's known program if possible.
+  const sys = `You are writing a cold outreach email from an Instagram creator to a brand's partnerships team. The creator wants to be considered for a paid collab. Write in the creator's authentic voice, match their vibes. Be direct, specific, confident, and short. No sycophancy, no "I love your brand" filler. One concrete idea tied to the brand's known program if possible.
 
 Return ONLY JSON, no markdown:
 {
@@ -5656,7 +5656,7 @@ function showPitchModal(brand, pitch){
   showModal(
     '<div class="modal-title">Pitch: '+esc(brand.name)+'</div>'+
     '<div class="modal-sub">Review, tweak, and open in Gmail.</div>'+
-    '<div class="modal-label">To (best guess — overwrite in Gmail if wrong)</div>'+
+    '<div class="modal-label">To (best guess, overwrite in Gmail if wrong)</div>'+
     '<input id="pitch-to-input" type="text" value="'+esc(toGuess)+'" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--text);font-family:\'Inter\',sans-serif;font-size:13px;outline:none;margin-bottom:14px">'+
     '<div class="modal-label">Subject</div>'+
     '<div class="pitch-subject-val">'+subjectEsc+'</div>'+
@@ -5682,7 +5682,7 @@ function sendPitchViaGmail(){
   openGmailCompose({ to, subject, body });
 
   // Mark the brand as "Sent" on any visible brand cards so the creator
-  // has a visual trail. Does not confirm the email actually sent — just
+  // has a visual trail. Does not confirm the email actually sent, just
   // that they opened Gmail with it.
   if(pending.brand && pending.brand.name){
     state.sent[pending.brand.name] = true;
@@ -5725,14 +5725,14 @@ async function generatePulse(){
   startLoading('pulse', 10);
 
   const system=`Content strategist. Return ONLY a JSON array of 10 ideas, no markdown. Structure:
-[{"title":"Title","hook":"Why this works.","trend":"hot","match":96,"format":"Reel / TikTok","platform":"Both","estReach":"45K – 80K","tags":["#tag1","#tag2","#tag3"],"persona":["Trait1","Trait2"],"cat":"fitness","sound":"Song Name — Artist"}]
+[{"title":"Title","hook":"Why this works.","trend":"hot","match":96,"format":"Reel / TikTok","platform":"Both","estReach":"45K – 80K","tags":["#tag1","#tag2","#tag3"],"persona":["Trait1","Trait2"],"cat":"fitness","sound":"Song Name, Artist"}]
 trend: hot/rising/steady/new. platform: Both/Instagram/TikTok/YouTube. cat: fitness/lifestyle/beauty/tech/wellness/other. Mix categories. Order by match desc.
 
-For the \`sound\` field: prefer suggesting an audio the creator has actually used before (listed below if any) — write the exact name as "Song Name — Artist". Their reuse signals it works for their audience. Don't invent songs you can't verify exist; leave \`sound\` empty if nothing from their library fits the idea.`;
+For the \`sound\` field: prefer suggesting an audio the creator has actually used before (listed below if any), write the exact name as "Song Name, Artist". Their reuse signals it works for their audience. Don't invent songs you can't verify exist; leave \`sound\` empty if nothing from their library fits the idea.`;
 
   const topSounds = (state.igData && Array.isArray(state.igData.topSounds)) ? state.igData.topSounds : [];
   const soundsLine = topSounds.length
-    ? `\nAudios they've used before (prefer suggesting these by exact name when natural):\n${topSounds.slice(0,8).map(s=>`- "${s.song_name||'Untitled'}" — ${s.artist_name||'Unknown'} (used ${s.count||1}× in their reels)`).join('\n')}`
+    ? `\nAudios they've used before (prefer suggesting these by exact name when natural):\n${topSounds.slice(0,8).map(s=>`- "${s.song_name||'Untitled'}", ${s.artist_name||'Unknown'} (used ${s.count||1}× in their reels)`).join('\n')}`
     : '';
   const personaSummary=state.persona
     ? `${state.persona.name}: ${state.persona.bio} Pillars: ${state.persona.pillars.map(p=>p.l).join(', ')}. Vibes: ${state.persona.vibes.join(', ')}`
@@ -5745,7 +5745,7 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
     stopLoading('pulse');
     document.getElementById('pulse-loading').classList.add('hidden');
     renderPulse(ideas);
-    showContinueCTA('pulse-result','Ideas locked in — now <span class="hl">pitch</span> brands that fit your persona.','Continue to Pitch',advanceToBrands);
+    showContinueCTA('pulse-result','Ideas locked in, now <span class="hl">pitch</span> brands that fit your persona.','Continue to Pitch',advanceToBrands);
   } catch(e){
     stopLoading('pulse');
     document.getElementById('pulse-loading').classList.add('hidden');
@@ -5791,7 +5791,7 @@ function renderPulseCards(cat){
       <div class="pulse-idea-hook">${idea.hook}</div>
       <div class="pulse-persona-match">
         <div class="match-score">${idea.match}%</div>
-        <div class="match-text">persona match — aligns with your <strong style="color:var(--text)">${(idea.persona||[]).join(' + ')}</strong> pillars</div>
+        <div class="match-text">persona match, aligns with your <strong style="color:var(--text)">${(idea.persona||[]).join(' + ')}</strong> pillars</div>
       </div>
       <div class="pulse-meta">
         <div class="pulse-meta-item">Format: <span class="val">${idea.format}</span></div>
@@ -5900,7 +5900,7 @@ function downloadICSEvent(title, date, time, plat){
     const pad = n => String(n).padStart(2,'0');
     const fmt = d => d.getUTCFullYear() + pad(d.getUTCMonth()+1) + pad(d.getUTCDate()) + 'T' + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + '00Z';
     const uid = 'cc-' + Date.now() + '-' + Math.random().toString(36).slice(2,10) + '@creatorclaw.co';
-    const summary = icsEscape(title + ' — ' + plat);
+    const summary = icsEscape(title + ', ' + plat);
     const desc = icsEscape('Post on ' + plat + ': ' + title + '\nScheduled via CreatorClaw.');
     const ics = [
       'BEGIN:VCALENDAR',
@@ -5942,8 +5942,8 @@ async function draftScript(encodedTitle){
     '<div class="modal-sub">"'+esc(title)+'"</div>'+
     '<div class="pitch-loading"><div class="spinner" data-crab></div><div class="loading-title">Writing your script…</div></div>'
   );
-  const sys='Short-form video scriptwriter. Return ONLY JSON: {"hook":"...","body":"...","cta":"...","length":"..."} No markdown. The hook is the first 3 seconds (must stop the scroll). The body is the main content (25-40 seconds of spoken content). The cta is the closing line. Length is an estimated duration string like "45 seconds". Write in the creator\'s voice — use their vibes and tone.';
-  const personaLine=`Creator voice: ${p.name||''} — ${p.bio||''}. Vibes: ${(p.vibes||[]).join(', ')}. Content pillars: ${(p.pillars||[]).map(x=>x.l).join(', ')}.`;
+  const sys='Short-form video scriptwriter. Return ONLY JSON: {"hook":"...","body":"...","cta":"...","length":"..."} No markdown. The hook is the first 3 seconds (must stop the scroll). The body is the main content (25-40 seconds of spoken content). The cta is the closing line. Length is an estimated duration string like "45 seconds". Write in the creator\'s voice, use their vibes and tone.';
+  const personaLine=`Creator voice: ${p.name||''}, ${p.bio||''}. Vibes: ${(p.vibes||[]).join(', ')}. Content pillars: ${(p.pillars||[]).map(x=>x.l).join(', ')}.`;
   const user=`${personaLine}\nContent idea: "${idea.title}". Format: ${idea.format||''}. Platform: ${idea.platform||''}. Hook context: ${idea.hook||''}. Tags: ${(idea.tags||[]).join(' ')}${idea.sound?`. Suggested audio: ${idea.sound}`:''}.\n\nScript JSON:`;
   try {
     const raw=await chatLLM(sys,user);
@@ -5952,7 +5952,7 @@ async function draftScript(encodedTitle){
     const copyText=fullText.replace(/\\/g,'\\\\').replace(/`/g,'\\`').replace(/\$/g,'\\$');
     cardBody.innerHTML=
       '<div class="modal-title">Script: '+esc(idea.title)+'</div>'+
-      '<div class="modal-sub">Written in your voice — '+esc(p.name||'the creator')+'. '+esc(script.length||'')+'.</div>'+
+      '<div class="modal-sub">Written in your voice, '+esc(p.name||'the creator')+'. '+esc(script.length||'')+'.</div>'+
       '<div class="modal-label">Hook (first 3 seconds)</div>'+
       '<div class="pitch-subject-val">'+esc(script.hook)+'</div>'+
       '<div class="modal-label">Body</div>'+
