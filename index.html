@@ -3146,6 +3146,23 @@ async function startOnboardingChat(handle){
   const cleanHandle = String(handle||'').trim().replace(/^@/,'').replace(/^(https?:\/\/)?(www\.)?instagram\.com\//,'');
 
   const status1 = appendStatusBubble(`Got it — looking up @${cleanHandle}…`);
+  // Scrape now takes ~10-12s (profile + reels in parallel + AI persona inference).
+  // Cycle through value-conveying status messages so the wait feels productive
+  // rather than dead. Pure UX shim — the underlying scrape is one HTTP call,
+  // so we can't true-stream progress without a worker rewrite.
+  const scanMessages = [
+    `Pulling 25 of their most recent posts and reels…`,
+    `Reading reel transcripts and audios they've used…`,
+    `Detecting engagement patterns…`,
+    `Reading captions for tone and vibes…`,
+    `Mapping their content pillars…`,
+    `Almost ready…`,
+  ];
+  let scanCycleIdx = 0;
+  const scanCycle = setInterval(() => {
+    status1.update(scanMessages[scanCycleIdx % scanMessages.length]);
+    scanCycleIdx++;
+  }, 1700);
 
   try {
     // 1. Scrape IG profile
@@ -3170,11 +3187,13 @@ async function startOnboardingChat(handle){
     setText('ig-val-posts', profile.totalPosts);
     setText('ig-val-category', profile.topCategory || profile.categories?.[0]?.name);
 
+    clearInterval(scanCycle);
     const postsCount = Number(profile.totalPosts) || 0;
     const postsLabel = postsCount ? `your ${Math.min(25, postsCount)} most-recent posts` : 'your recent posts';
     const followersBit = profile.followers ? ` ${profile.followers} followers,` : '';
     const engagementBit = profile.engagementRate ? ` ${profile.engagementRate} engagement` : '';
-    status1.finish(`Scanned ${postsLabel}.${followersBit}${engagementBit}`.trim().replace(/,$/,'.') || `Scanned ${postsLabel}.`);
+    const reelsBit = profile.reelsScraped ? ` · ${profile.reelsScraped} reels analyzed` : '';
+    status1.finish(`${(`Scanned ${postsLabel}.${followersBit}${engagementBit}`.trim().replace(/,$/,'.') || `Scanned ${postsLabel}.`)}${reelsBit}`);
     await sleep(450);
 
     // 2. Generate persona inline (no full-screen panel)
@@ -3197,6 +3216,7 @@ async function startOnboardingChat(handle){
     // 5. Push picker (Create / Pitch)
     pushOnboardingPicker();
   } catch(e){
+    clearInterval(scanCycle);
     console.error('Onboarding error:', e);
     status1.finish(`Hit a snag analyzing @${cleanHandle} — ${e.message || 'unknown error'}. Try a different handle?`);
     pushOnboardingHandlePrompt();
