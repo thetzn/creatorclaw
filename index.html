@@ -4021,7 +4021,7 @@ async function sendChatMessage(options = {}){
 
 
 // ── LLM call via Worker proxy (model selected server-side: gpt-4o-mini) ─────
-async function chatLLM(systemPrompt, userPrompt){
+async function chatLLM(systemPrompt, userPrompt, options = {}){
   const res=await fetch(PROXY_URL,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
@@ -4030,7 +4030,8 @@ async function chatLLM(systemPrompt, userPrompt){
       messages:[
         {role:'system',content:systemPrompt},
         {role:'user',content:userPrompt}
-      ]
+      ],
+      ...(options.response_format ? { response_format: options.response_format } : {})
     })
   });
   if(!res.ok){
@@ -4039,6 +4040,13 @@ async function chatLLM(systemPrompt, userPrompt){
   }
   const data=await res.json();
   return data.choices[0].message.content;
+}
+
+function asArrayPayload(raw, key){
+  const parsed = parseJSON(raw);
+  if(Array.isArray(parsed)) return parsed;
+  if(parsed && Array.isArray(parsed[key])) return parsed[key];
+  return [];
 }
 
 // ── Media kit PDF export ─────────────────────────────────────────────────────
@@ -5093,8 +5101,8 @@ async function generateBrands(){
     ? `\n\nBrands the creator already mentions / has worked with (DO NOT recommend any of these, they are existing relationships, not new leads): ${existingBrands.join(', ')}.\nUse them only as a TIER + AESTHETIC reference: recommend brands of similar size, niche, and brand sensibility, peers, complements, and step-ups, not the same brands.`
     : '';
 
-  const system=`Brand matchmaker. Return ONLY a JSON array of 8 brands, no markdown. Structure:
-[{"name":"Gymshark","domain":"gymshark.com","match":96,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"}]
+  const system=`Brand matchmaker. Return ONLY JSON, no markdown. Structure:
+{"brands":[{"name":"Gymshark","domain":"gymshark.com","match":96,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"}]}
 Real brands. domain is the primary website (no https:// or trailing slash). match 60-99. reasons exactly 3. deal is dollar range. Order by match desc.
 
 Use the scraped Instagram recommendation context like retrieval evidence: match the creator's actual themes, top-performing post formats, visual style, audience/location signals, and brand orbit. Do not recommend brands already listed as existing affinities. Prefer less-obvious brands that fit the same audience and aesthetic tier.`;
@@ -5106,8 +5114,9 @@ Use the scraped Instagram recommendation context like retrieval evidence: match 
   const user=`${personaSummary}${excludeLine}${recommendationContext?`\n\nScraped recommendation context:\n${recommendationContext}`:''}\n\n8 brand matches:`;
 
   try {
-    const raw=await chatLLM(system,user);
-    const brands=parseJSON(raw);
+    const raw=await chatLLM(system,user,{ response_format:{ type:'json_object' } });
+    const brands=asArrayPayload(raw,'brands');
+    if(!brands.length) throw new Error('No brand matches returned');
     stopLoading('brands');
     document.getElementById('brands-loading').classList.add('hidden');
     renderBrands(brands);
@@ -5117,7 +5126,8 @@ Use the scraped Instagram recommendation context like retrieval evidence: match 
     stopLoading('brands');
     document.getElementById('brands-loading').classList.add('hidden');
     document.getElementById('brands-cta').classList.remove('hidden');
-    showError(e.message);
+    showError('Could not generate brand matches. Try again.');
+    console.error('Brand generation failed:', e);
   } finally { state._brandsLoading=false; }
 }
 
@@ -5791,8 +5801,8 @@ async function generatePulse(){
   document.getElementById('pulse-loading').classList.remove('hidden');
   startLoading('pulse', 10);
 
-  const system=`Content strategist. Return ONLY a JSON array of 10 ideas, no markdown. Structure:
-[{"title":"Title","hook":"Why this works.","trend":"hot","match":96,"format":"Reel / TikTok","platform":"Both","estReach":"45K – 80K","tags":["#tag1","#tag2","#tag3"],"persona":["Trait1","Trait2"],"cat":"fitness","sound":"Song Name, Artist"}]
+  const system=`Content strategist. Return ONLY JSON, no markdown. Structure:
+{"ideas":[{"title":"Title","hook":"Why this works.","trend":"hot","match":96,"format":"Reel / TikTok","platform":"Both","estReach":"45K – 80K","tags":["#tag1","#tag2","#tag3"],"persona":["Trait1","Trait2"],"cat":"fitness","sound":"Song Name, Artist"}]}
 trend: hot/rising/steady/new. platform: Both/Instagram/TikTok/YouTube. cat: fitness/lifestyle/beauty/tech/wellness/other. Mix categories. Order by match desc.
 
 Use the scraped Instagram recommendation context like retrieval evidence: riff from the creator's best-performing recent posts, repeated themes, visual style, format mix, hashtags, and reused audio. Ideas should feel like only this creator would post them, not generic niche templates. Avoid bland titles like "Morning Routine" unless tied to a specific observed pattern.
@@ -5810,8 +5820,9 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
   const user=`${personaSummary}${soundsLine}${recommendationContext?`\n\nScraped recommendation context:\n${recommendationContext}`:''}\n\n10 content ideas:`;
 
   try {
-    const raw=await chatLLM(system,user);
-    const ideas=parseJSON(raw);
+    const raw=await chatLLM(system,user,{ response_format:{ type:'json_object' } });
+    const ideas=asArrayPayload(raw,'ideas');
+    if(!ideas.length) throw new Error('No content ideas returned');
     stopLoading('pulse');
     document.getElementById('pulse-loading').classList.add('hidden');
     renderPulse(ideas);

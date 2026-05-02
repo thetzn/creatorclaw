@@ -179,8 +179,8 @@ async function executeRateToolCall(toolCall, creatorContext, env) {
     if (name === 'generate_content_ideas') {
       const count = Math.max(1, Math.min(Number(args.count) || 4, 6));
       const theme = String(args.theme || '').trim();
-      const sys = `You generate Instagram/TikTok content ideas for individual creators. Return ONLY a JSON array (no markdown), each item shaped:
-{"title":"...","hook":"first 3-second hook","format":"reel|carousel|static|story-series","platform":"Instagram|TikTok","trend":"hot|rising|steady|new","match":85,"persona":["Authentic","Relatable"],"estReach":"50K-150K","tags":["#tag1","#tag2"],"sound":"Song Name, Artist (or empty string)"}
+      const sys = `You generate Instagram/TikTok content ideas for individual creators. Return ONLY JSON (no markdown), shaped:
+{"ideas":[{"title":"...","hook":"first 3-second hook","format":"reel|carousel|static|story-series","platform":"Instagram|TikTok","trend":"hot|rising|steady|new","match":85,"persona":["Authentic","Relatable"],"estReach":"50K-150K","tags":["#tag1","#tag2"],"sound":"Song Name, Artist (or empty string)"}]}
 Real, specific, and shippable. Each idea distinct. match is 60-99 reflecting fit to this creator. trend reflects timeliness.
 
 Use the scraped Instagram recommendation context like retrieval evidence: riff from the creator's best-performing recent posts, repeated themes, visual style, format mix, hashtags, and reused audio. Ideas should feel like only this creator would post them, not generic niche templates. Avoid bland titles like "Morning Routine" unless tied to a specific observed pattern.
@@ -205,12 +205,13 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
         body: JSON.stringify({
           model: MODEL,
           temperature: 0.8,
-          messages: [
-            { role: 'system', content: sys },
-            { role: 'user', content: userPrompt },
-          ],
-        }),
-      });
+	          messages: [
+	            { role: 'system', content: sys },
+	            { role: 'user', content: userPrompt },
+	          ],
+	          response_format: { type: 'json_object' },
+	        }),
+	      });
       if (!r.ok) {
         const errText = await r.text().catch(() => r.statusText);
         return { error: 'idea_generation_failed', status: r.status, details: errText.slice(0, 200) };
@@ -220,10 +221,10 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
       txt = txt.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
       let ideas = [];
       try {
-        const m = txt.match(/\[[\s\S]*\]/);
-        ideas = m ? JSON.parse(m[0]) : JSON.parse(txt);
-        if (!Array.isArray(ideas)) ideas = [];
-      } catch { ideas = []; }
+	        const parsed = JSON.parse(txt);
+	        ideas = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.ideas) ? parsed.ideas : []);
+	        if (!Array.isArray(ideas)) ideas = [];
+	      } catch { ideas = []; }
       return { ideas: ideas.slice(0, count), count: ideas.length, theme };
     }
 
@@ -232,8 +233,8 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
       const count = Math.max(1, Math.min(Number(args.count) || 4, 6));
       const theme = String(args.theme || '').trim();
       const exclude = Array.isArray(args.exclude) ? args.exclude.filter(Boolean).map(String).slice(0, 20) : [];
-      const sys = `Brand matchmaker for individual creators. Return ONLY a JSON array of ${count} brands, no markdown. Schema:
-[{"name":"Gymshark","domain":"gymshark.com","match":92,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"}]
+      const sys = `Brand matchmaker for individual creators. Return ONLY JSON, no markdown. Schema:
+{"brands":[{"name":"Gymshark","domain":"gymshark.com","match":92,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"}]}
 domain has no protocol or trailing slash. match 60-99. Exactly 3 reasons each. Order by match desc. Real, currently-active brands; avoid generic ones the creator already mentioned (those are existing relationships, not new leads).
 
 Use the scraped Instagram recommendation context like retrieval evidence: match the creator's actual themes, top-performing post formats, visual style, audience/location signals, and brand orbit. Prefer less-obvious brands that fit the same audience and aesthetic tier.`;
@@ -258,12 +259,13 @@ Use the scraped Instagram recommendation context like retrieval evidence: match 
         body: JSON.stringify({
           model: MODEL,
           temperature: 0.7,
-          messages: [
-            { role: 'system', content: sys },
-            { role: 'user', content: userPrompt },
-          ],
-        }),
-      });
+	          messages: [
+	            { role: 'system', content: sys },
+	            { role: 'user', content: userPrompt },
+	          ],
+	          response_format: { type: 'json_object' },
+	        }),
+	      });
       if (!r.ok) {
         const errText = await r.text().catch(() => r.statusText);
         return { error: 'brand_match_failed', status: r.status, details: errText.slice(0, 200) };
@@ -273,9 +275,9 @@ Use the scraped Instagram recommendation context like retrieval evidence: match 
       txt = txt.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
       let brands = [];
       try {
-        const m = txt.match(/\[[\s\S]*\]/);
-        brands = m ? JSON.parse(m[0]) : JSON.parse(txt);
-        if (!Array.isArray(brands)) brands = [];
+	        const parsed = JSON.parse(txt);
+	        brands = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.brands) ? parsed.brands : []);
+	        if (!Array.isArray(brands)) brands = [];
       } catch { brands = []; }
       return { brands: brands.slice(0, count), count: brands.length, theme };
     }
@@ -1501,15 +1503,16 @@ export default {
     }
 
     // Regular Chat Completions (non-streaming)
-    res = await fetch(CHAT_URL, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model: MODEL,
-        temperature: body.temperature || 0.7,
-        messages: body.messages || [],
-      }),
-    });
+	    res = await fetch(CHAT_URL, {
+	      method: 'POST',
+	      headers,
+	      body: JSON.stringify({
+	        model: MODEL,
+	        temperature: body.temperature || 0.7,
+	        messages: body.messages || [],
+	        ...(body.response_format ? { response_format: body.response_format } : {}),
+	      }),
+	    });
     const data = await res.json();
     return new Response(JSON.stringify(data), {
       status: res.status,
