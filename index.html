@@ -352,9 +352,25 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 .center-cta{text-align:center;padding:80px 0}
 .center-icon{width:64px;height:64px;border-radius:16px;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:24px;color:var(--gold)}
 .center-cta h2{font-size:28px;font-weight:300;margin-bottom:12px;letter-spacing:-0.01em}
-.center-cta p{color:var(--muted);margin-bottom:36px;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.7;font-size:13px}
+.center-cta p{color:var(--muted);margin-bottom:24px;max-width:420px;margin-left:auto;margin-right:auto;line-height:1.7;font-size:13px}
+.center-cta-meta{color:var(--muted2,#666);font-size:11px;margin-top:18px;letter-spacing:0.02em}
 .gen-btn{background:transparent;border:1px solid var(--gold);border-radius:8px;padding:16px 40px;color:var(--gold);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:10px;letter-spacing:0.15em;text-transform:uppercase;transition:all 0.3s}
 .gen-btn:hover{background:var(--gold);color:var(--bg)}
+/* Tool start card — Create/Pitch chat first impression. Sits inside an
+   assistant message bubble, so background contrast is built relative to
+   .chat-msg-body, not .main. */
+.tool-start-card{display:flex;flex-direction:column;gap:12px;padding:20px 22px;background:var(--card2);border:1px solid var(--border2);border-radius:12px;max-width:520px}
+.tool-start-card .tool-start-label{font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold)}
+.tool-start-card .tool-start-headline{font-size:20px;font-weight:500;line-height:1.25;letter-spacing:-0.01em;color:var(--text);margin:0}
+.tool-start-card .tool-start-body{font-size:13px;line-height:1.6;color:var(--muted);margin:0}
+.tool-start-card .tool-chips{margin-top:6px}
+/* Mobile-only title in main + chat headers. Replaces logo-text + nav once
+   we're inside a tool/chat view on phones. */
+.mobile-title{display:none;font-size:14px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:center;padding:0 8px}
+/* :focus-visible — keyboard users see clear focus rings everywhere we
+   take input. Pointer users still get the existing hover/active styles. */
+button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:6px}
+input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
 
 .loading{text-align:center;padding:100px 0}
 .loading-progress{margin:28px auto 0;max-width:320px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
@@ -603,6 +619,20 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
   .logo-text{font-size:14px}
   .nav-btn{padding:10px 14px;font-size:10px;min-height:40px}
   .avatar{display:none}
+  /* Mobile header consolidation — hamburger | mobile-title | theme.
+     Hide logo text, bug button, and inline nav inside tool/chat views
+     so the header stops feeling like a desktop port. */
+  body.in-tool .logo-text,
+  #chat-view .logo-text{display:none}
+  body.in-tool .nav,
+  #chat-view .nav{display:none}
+  body.in-tool #bug-report-btn{display:none}
+  body.in-tool .mobile-title,
+  #chat-view .mobile-title{display:block}
+  /* Reduce excessive letter-spacing on small screens — uppercase labels
+     need tighter tracking to stay readable at 10-12px. */
+  .pulse-trend-badge,.brand-cat,.center-cta-meta,.tool-start-card .tool-start-label,
+  .chat-context-badge,.match-meter-lbl,.stat-card-label{letter-spacing:0.08em}
   .main{padding:24px 16px 60px}
   .main{display:flex;flex-direction:column;justify-content:center;min-height:calc(100vh - 52px)}
   .page-title{font-size:22px}
@@ -814,6 +844,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <img class="logo-mark" data-crab-img alt="CreatorClaw">
       <span class="logo-text gold-text">CreatorClaw</span>
     </div>
+    <div class="mobile-title" id="mobile-title"></div>
     <div class="nav" id="nav">
       <button class="nav-btn" id="nav-back-to-chat" onclick="showChatView()" style="display:none;color:var(--gold)">← Chat</button>
       <button class="nav-btn active" data-tab="persona" onclick="switchTab('persona')">Analytics</button>
@@ -861,7 +892,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 
 <!-- PERSONA TAB -->
 <div id="tab-persona" class="hidden">
-  <div id="persona-cta" class="center-cta"><div class="center-icon">✦</div><h2>Ready to build your persona</h2><p>We'll analyze your content across platforms to create a comprehensive media kit.</p><button class="gen-btn" onclick="generatePersona()">Generate Persona</button></div>
+  <div id="persona-cta" class="center-cta"><div class="center-icon">✦</div><h2>Build your creator brief</h2><p>Analyze a public Instagram profile to generate your persona, content pillars, rate card, and pitch context. Usually takes 10-15 seconds.</p><button class="gen-btn" onclick="generatePersona()">Analyze Profile</button><div class="center-cta-meta">Uses public profile data. Audience estimates are labeled clearly.</div></div>
   <div id="persona-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Analyzing your content…</div><div class="loading-sub" id="persona-loading-sub">Scanning your recent posts…</div><div class="loading-progress"><div class="loading-progress-fill" id="persona-loading-bar"></div></div></div>
   <div id="persona-result" class="hidden">
     <div id="saved-banner" class="hidden" style="background:var(--green-dim);border:1px solid rgba(107,158,107,0.3);border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--text)">
@@ -935,7 +966,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 <div id="tab-brands" class="hidden">
   <h1 class="page-title">Your <span class="gold-text">Pitch</span> matches</h1>
   <p class="page-sub">Brands aligned with your persona, ranked by audience fit and content compatibility.</p>
-  <div id="brands-cta" class="center-cta"><div class="center-icon">♢</div><h2>Find brands worth pitching</h2><p>We'll match you with brands that align with your audience, content style, and niche — and draft pitches for each.</p><button class="gen-btn" onclick="generateBrands()">Find Pitches</button></div>
+  <div id="brands-cta" class="center-cta"><div class="center-icon">♢</div><h2>Find brands that fit</h2><p>Match your audience and content style to brands, then draft outreach in your voice.</p><button class="gen-btn" onclick="generateBrands()">Find Brands</button></div>
   <div id="brands-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Matching brands to your persona…</div><div class="loading-sub" id="brands-loading-sub">Scanning 12,000+ brand profiles…</div><div class="loading-progress"><div class="loading-progress-fill" id="brands-loading-bar"></div></div></div>
   <div style="position:relative">
     <div id="brands-result" class="brand-grid hidden"></div>
@@ -966,17 +997,17 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
     </div>
     <button class="pipeline-add-btn" onclick="openDealModal()"><span style="font-size:14px;line-height:1">+</span> New deal</button>
   </div>
-  <div class="pipeline-rollup" id="pipeline-rollup">
+  <div class="pipeline-rollup hidden" id="pipeline-rollup">
     <div class="pipeline-stat"><div class="pipeline-stat-label">Total Earned</div><div class="pipeline-stat-val" id="pipeline-stat-earned">$0</div></div>
     <div class="pipeline-stat"><div class="pipeline-stat-label">Pipeline Value</div><div class="pipeline-stat-val" id="pipeline-stat-pipeline">$0</div></div>
     <div class="pipeline-stat"><div class="pipeline-stat-label">Active Deals</div><div class="pipeline-stat-val" id="pipeline-stat-count">0</div></div>
   </div>
-  <div class="pipeline-board" id="pipeline-board"></div>
+  <div class="pipeline-board hidden" id="pipeline-board"></div>
   <div class="pipeline-empty hidden" id="pipeline-empty">
     <div class="pipeline-empty-icon">◇</div>
-    <h2>No deals yet</h2>
-    <p>Track every brand conversation from first DM to final payment. Add your first deal to get started.</p>
-    <button class="pipeline-empty-btn" onclick="openDealModal()">+ Add your first deal</button>
+    <h2>Track every deal from first DM to paid</h2>
+    <p>Add brand conversations, deal value, deliverables, and payment status in one clean board.</p>
+    <button class="pipeline-empty-btn" onclick="openDealModal()">Add First Deal</button>
   </div>
 </div>
 
@@ -984,7 +1015,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 <div id="tab-pulse" class="hidden">
   <h1 class="page-title">What to <span class="gold-text">Create</span></h1>
   <p class="page-sub">Content ideas matched to your persona and what's trending right now.</p>
-  <div id="pulse-cta" class="center-cta"><div class="center-icon">◎</div><h2>Discover what to create next</h2><p>We'll scan trending topics, sounds, and formats — then match them to your persona for high-engagement ideas.</p><button class="gen-btn" onclick="generatePulse()">Generate Ideas</button></div>
+  <div id="pulse-cta" class="center-cta"><div class="center-icon">◎</div><h2>Generate ideas matched to your audience</h2><p>Turn your persona and current trend signals into post ideas, hooks, formats, and draftable scripts.</p><button class="gen-btn" onclick="generatePulse()">Create Ideas</button></div>
   <div id="pulse-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Scanning trends across platforms…</div><div class="loading-sub" id="pulse-loading-sub">Analyzing 50K+ trending posts…</div><div class="loading-progress"><div class="loading-progress-fill" id="pulse-loading-bar"></div></div></div>
   <div id="pulse-result" class="hidden"><div class="pulse-filters" id="pulse-filters"></div><div class="pulse-section-label"><span class="dot" style="background:var(--gold)"></span> Trending Now — Matched to Your Persona</div><div style="position:relative"><div class="pulse-grid" id="pulse-grid"></div><div class="teaser-gate" id="pulse-gate" style="top:auto;bottom:-20px;padding:60px 24px 40px"><div class="teaser-gate-icon">◎</div><h3>Unlock all 10 content ideas</h3><p>Sign in to see the full list of AI-generated ideas, save them to your calendar, and auto-draft scripts in your voice.</p><div class="gate-actions"><button class="google-btn" onclick="signInWithGoogle()"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>Sign in with Google</button><button class="ig-btn" onclick="connectInstagram()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></svg>Connect Instagram</button></div></div></div></div>
 </div>
@@ -1167,6 +1198,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <button class="chat-tool-btn" onclick="openTool('brands')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6"/><path d="M15 15l3 3-3 3"/><path d="M18 18h-4"/></svg>Pitch</button>
       <button class="chat-tool-btn" onclick="openTool('pipeline')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="10" rx="1"/><rect x="17" y="4" width="4" height="6" rx="1"/></svg>Pipeline</button>
       <button class="chat-tool-btn" onclick="openTool('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</button>
+      <button class="chat-tool-btn" onclick="openBugReport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2l1.5 1.5"/><path d="M16 2l-1.5 1.5"/><rect x="6" y="7" width="12" height="13" rx="6"/><path d="M12 7v13"/><path d="M3 13h3"/><path d="M3 9l3 1"/><path d="M3 17l3-1"/><path d="M21 13h-3"/><path d="M21 9l-3 1"/><path d="M21 17l-3-1"/></svg>Report a bug</button>
     </div>
     <div class="chat-sidebar-footer">
       <div class="avatar" id="chat-avatar">CC</div>
@@ -1182,7 +1214,6 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
       <button class="chat-hamburger" onclick="openChatSidebar()" aria-label="Open menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
       <div class="chat-context-badge" id="chat-context-badge" style="display:none"></div>
       <div class="chat-title" id="chat-active-title">New chat</div>
-      <button class="chat-theme-toggle" onclick="openBugReport()" aria-label="Report a bug" title="Report a bug" style="margin-right:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2l1.5 1.5"/><path d="M16 2l-1.5 1.5"/><rect x="6" y="7" width="12" height="13" rx="6"/><path d="M12 7v13"/><path d="M3 13h3"/><path d="M3 9l3 1"/><path d="M3 17l3-1"/><path d="M21 13h-3"/><path d="M21 9l-3 1"/><path d="M21 17l-3-1"/></svg></button>
       <button class="chat-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><svg id="chat-theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>
     </div>
     <div class="chat-messages" id="chat-messages">
@@ -2740,19 +2771,22 @@ const TOOL_CONFIG = {
     label: 'Main',
     placeholder: 'Ask anything…',
     greeting: null,
+    headline: null,
     chips: [],
   },
   create: {
     label: 'Create',
     placeholder: 'Ask Create…',
-    greeting: "Ready to plan what's next? I can pull trending formats matched to your pillars, riff on a topic, or just brainstorm. What are you in the mood to make?",
-    chips: ['Trending now', 'Quick wins this week', 'Ideas in my niche'],
+    headline: 'Plan the next thing worth posting.',
+    greeting: 'I can turn trends, audience signals, and your content pillars into ideas you can actually shoot.',
+    chips: ['Find ideas for this week', 'Give me Reel hooks', 'Use my persona'],
   },
   pitch: {
     label: 'Pitch',
     placeholder: 'Ask Pitch…',
-    greeting: "Looking for brand matches, drafting outreach, or analyzing an offer? I can find brands that fit your audience and pitch them in your voice.",
-    chips: ['Find new brand matches', 'Draft a cold pitch', 'Analyze an offer'],
+    headline: 'Find the brands worth your time.',
+    greeting: 'I can match brands, draft outreach, and pressure-test offers against your audience.',
+    chips: ['Find brand matches', 'Draft a cold pitch', 'Review an offer'],
   },
 };
 
@@ -2804,6 +2838,10 @@ function setActiveTool(tool){
   // Header context label + active title
   const titleEl = document.getElementById('chat-active-title');
   if(titleEl) titleEl.textContent = tool === 'main' ? 'New chat' : (cfg.label + ' · new');
+  // Mobile header (main app shell) reflects the chat surface so the
+  // hamburger | title | theme triad reads correctly when chat is active.
+  const mt = document.getElementById('mobile-title');
+  if(mt) mt.textContent = tool === 'main' ? 'Chat' : cfg.label;
   const badge = document.getElementById('chat-context-badge');
   if(badge){
     if(tool === 'main'){ badge.textContent = ''; badge.style.display = 'none'; }
@@ -2828,10 +2866,17 @@ function renderToolGreeting(){
   const chipsHtml = (cfg.chips || []).map(c =>
     `<button class="tool-chip" type="button" data-chip="${escapeHtml(c)}">${escapeHtml(c)}</button>`
   ).join('');
-  const body = appendInlineCard('assistant', `
-    <div>${escapeHtml(cfg.greeting)}</div>
-    ${chipsHtml ? `<div class="tool-chips">${chipsHtml}</div>` : ''}
-  `);
+  // Structured premium card for Create/Pitch first impression. Falls back
+  // to a plain greeting paragraph if a tool ever skips the headline field.
+  const cardHtml = cfg.headline
+    ? `<div class="tool-start-card">
+         <div class="tool-start-label">${escapeHtml(cfg.label)}</div>
+         <h3 class="tool-start-headline">${escapeHtml(cfg.headline)}</h3>
+         <p class="tool-start-body">${escapeHtml(cfg.greeting)}</p>
+         ${chipsHtml ? `<div class="tool-chips">${chipsHtml}</div>` : ''}
+       </div>`
+    : `<div>${escapeHtml(cfg.greeting)}</div>${chipsHtml ? `<div class="tool-chips">${chipsHtml}</div>` : ''}`;
+  const body = appendInlineCard('assistant', cardHtml);
   // Wire chips after insertion (avoids quoting headaches in onclick attrs)
   body?.querySelectorAll('.tool-chip').forEach(btn => {
     btn.addEventListener('click', () => useToolChip(btn.dataset.chip || ''));
@@ -4177,6 +4222,11 @@ function switchTab(id){
   document.querySelectorAll('#nav .nav-btn').forEach(b=>{b.classList.toggle('active',b.dataset.tab===id)});
   ['persona','brands','pulse','pipeline','accounts','settings'].forEach(t=>{document.getElementById('tab-'+t)?.classList.toggle('hidden',t!==id)});
   if(id === 'settings') openSettingsSection(stCurrentSection || 'profile');
+  // Mobile header title — replaces the hidden logo text + nav so the user
+  // always knows which surface they're on. Desktop uses the inline nav.
+  const TAB_TITLES = { persona: 'Analytics', pulse: 'Create', brands: 'Pitch', pipeline: 'Pipeline', accounts: 'Connect', settings: 'Settings' };
+  const mt = document.getElementById('mobile-title');
+  if(mt) mt.textContent = TAB_TITLES[id] || '';
 }
 
 // ── Pipeline (deal tracker) ───────────────────────────────────────────────────
@@ -4338,6 +4388,7 @@ async function renderPipeline(){
   if(!state.deals) await loadDeals();
   const board = document.getElementById('pipeline-board');
   const empty = document.getElementById('pipeline-empty');
+  const rollup = document.getElementById('pipeline-rollup');
   const earnedEl = document.getElementById('pipeline-stat-earned');
   const pipelineEl = document.getElementById('pipeline-stat-pipeline');
   const countEl = document.getElementById('pipeline-stat-count');
@@ -4349,15 +4400,17 @@ async function renderPipeline(){
   if(pipelineEl) pipelineEl.textContent = fmtUsdShort(r.pipelineVal);
   if(countEl) countEl.textContent = String(r.active);
 
-  // Empty state
+  // Empty state — hide BOTH the rollup and the board so $0/$0/0 cards don't
+  // dominate the first-use experience. The empty hero gets to do its job.
   if(!deals.length){
-    if(board) board.innerHTML = '';
-    if(board) board.style.display = 'none';
+    if(board){ board.innerHTML = ''; board.classList.add('hidden'); }
+    if(rollup) rollup.classList.add('hidden');
     if(empty) empty.classList.remove('hidden');
     return;
   }
   if(empty) empty.classList.add('hidden');
-  if(board) board.style.display = '';
+  if(rollup) rollup.classList.remove('hidden');
+  if(board) board.classList.remove('hidden');
 
   // Group by stage
   const byStage = {};
