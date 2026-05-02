@@ -2891,13 +2891,11 @@ function renderToolGreeting(){
 }
 
 function useToolChip(text){
-  const input = document.getElementById('chat-input');
-  if(!input) return;
-  input.value = text;
+  if(!text) return;
   // Don't focus the input, on iOS that pops the on-screen keyboard
   // and shifts the viewport, jumping the user to the bottom of the
   // chat. Chips are one-tap prompts; the keyboard isn't needed.
-  sendChatMessage();
+  sendChatMessage({ text, visible: false, displayText: text });
 }
 
 function openTool(tab){
@@ -3001,7 +2999,8 @@ function newChat(){
 function renderMessages(){
   const container = document.getElementById('chat-messages');
   container.innerHTML = '';
-  if(chatState.messages.length === 0){
+  const visibleMessages = chatState.messages.filter(m => !m.hidden);
+  if(visibleMessages.length === 0){
     container.innerHTML = `
       <div class="chat-empty" id="chat-empty">
         <div class="chat-empty-icon"><img data-crab-img alt=""></div>
@@ -3018,7 +3017,7 @@ function renderMessages(){
     refreshAgentUI();
     return;
   }
-  chatState.messages.forEach(m => appendMessage(m.role, m.content, false));
+  visibleMessages.forEach(m => appendMessage(m.role, m.displayContent || m.content, false));
 }
 
 function appendMessage(role, content, scroll=true){
@@ -3784,13 +3783,15 @@ function resetChatSend(){
   if(btn) btn.disabled = false;
 }
 
-async function sendChatMessage(){
+async function sendChatMessage(options = {}){
   if(chatState.streaming) return;
   const input = document.getElementById('chat-input');
-  const text = input.value.trim();
+  const text = String(options.text ?? input.value).trim();
   if(!text) return;
   input.value = '';
   autoResizeChat(input);
+  const visible = options.visible !== false;
+  const displayText = String(options.displayText || text).trim();
 
   chatState.streaming = true;
   chatState.followBottom = true;  // user just submitted, re-engage sticky-bottom
@@ -3808,12 +3809,12 @@ async function sendChatMessage(){
   resetWatchdog();
 
   // Append user message
-  chatState.messages.push({ role: 'user', content: text });
-  appendMessage('user', text);
+  chatState.messages.push({ role: 'user', content: text, hidden: !visible, displayContent: displayText });
+  if(visible) appendMessage('user', displayText);
 
   // Ensure conversation + save user message
-  await ensureConversation(text);
-  await saveMessage('user', text);
+  await ensureConversation(displayText || text);
+  if(visible) await saveMessage('user', displayText);
 
   // Placeholder for assistant
   const bodyEl = appendMessage('assistant', '');
@@ -5553,11 +5554,10 @@ function moreBrandMatches(mode){
     : `Show me 4 more brand matches in the same vein as the last set.${excludeStr}`;
   const input = document.getElementById('chat-input');
   if(!input) return;
-  input.value = text;
-  if(typeof autoResizeChat === 'function') autoResizeChat(input);
   // Disable the originating buttons so they can't spam the worker
   document.querySelectorAll('.inline-brand-actions button[data-more]').forEach(b => { b.disabled = true; b.style.opacity = '0.5'; });
-  sendChatMessage();
+  const displayText = mode === 'different' ? 'Try a different angle' : 'Show 4 more like these';
+  sendChatMessage({ text, visible: false, displayText });
 }
 
 // Inline pitch flow used from chat brand cards. Routes through the normal
