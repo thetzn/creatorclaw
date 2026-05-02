@@ -1532,7 +1532,7 @@ function startThinkingVerb(targetEl){
       verbText.textContent=cleanVerb(CHAT_THINKING_VERBS[i]);
       span.style.opacity='1';
     },220);
-  },3279);  // chat-thinking verb cycle (slowed 10% from 2981)
+  },4427);  // chat-thinking verb cycle (slowed 35% on top of original 10% — 4427ms total)
   return { span, interval, dotInterval };
 }
 // Same as startThinkingVerb but pairs each verb with a random activity object
@@ -1569,7 +1569,7 @@ function startVerbActivity(targetEl, activities){
       verbText.textContent = pickPair();
       span.style.opacity = '1';
     }, 220);
-  }, 2640);  // onboarding verb+activity cycle (slowed 10% from 2400)
+  }, 3564);  // onboarding verb+activity cycle (slowed 35% on top of original 10% — 3564ms total)
   return { span, interval, dotInterval };
 }
 function stopThinkingVerb(handle){
@@ -1592,7 +1592,7 @@ function startLoading(key, estSec){
     if(!sub) return;
     sub.style.opacity='0';
     setTimeout(()=>{ sub.textContent=msgs[i]; sub.style.opacity='1'; },180);
-  },3080);
+  },4158);  // legacy panel rotation (slowed 35% from 3080)
   const start=Date.now();
   if(bar) bar.style.width='0%';
   const barInterval=setInterval(()=>{
@@ -3195,7 +3195,7 @@ function startInlineLoading(bodyEl, key, estSec){
     i = (i + 1) % msgs.length;
     sub.style.opacity = '0';
     setTimeout(()=>{ sub.textContent = msgs[i]; sub.style.opacity = '1'; }, 180);
-  }, 3080);
+  }, 4158);  // inline preview rotation (slowed 35% from 3080)
   const start = Date.now();
   if(bar) bar.style.width = '0%';
   const barInterval = setInterval(()=>{
