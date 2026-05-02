@@ -12,6 +12,7 @@ import { handleAgentsSpike, handleAgentChat, handleTelegramAgentTurn } from './w
 const CHAT_URL = 'https://api.openai.com/v1/chat/completions';
 const RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const APIFY_IG_URL = 'https://api.apify.com/v2/acts/apify~instagram-profile-scraper/run-sync-get-dataset-items';
+const APIFY_REEL_URL = 'https://api.apify.com/v2/acts/apify~instagram-reel-scraper/run-sync-get-dataset-items';
 const MODEL = 'gpt-4o-mini';
 const MODEL_SEARCH = 'gpt-4o';
 
@@ -179,12 +180,18 @@ async function executeRateToolCall(toolCall, creatorContext, env) {
       const count = Math.max(1, Math.min(Number(args.count) || 4, 6));
       const theme = String(args.theme || '').trim();
       const sys = `You generate Instagram/TikTok content ideas for individual creators. Return ONLY a JSON array (no markdown), each item shaped:
-{"title":"...","hook":"first 3-second hook","format":"reel|carousel|static|story-series","platform":"Instagram|TikTok","trend":"hot|rising|steady|new","match":85,"persona":["Authentic","Relatable"],"estReach":"50K-150K","tags":["#tag1","#tag2"],"sound":"optional audio cue or empty string"}
-Real, specific, and shippable. Each idea distinct. match is 60-99 reflecting fit to this creator. trend reflects timeliness.`;
+{"title":"...","hook":"first 3-second hook","format":"reel|carousel|static|story-series","platform":"Instagram|TikTok","trend":"hot|rising|steady|new","match":85,"persona":["Authentic","Relatable"],"estReach":"50K-150K","tags":["#tag1","#tag2"],"sound":"Song Name — Artist (or empty string)"}
+Real, specific, and shippable. Each idea distinct. match is 60-99 reflecting fit to this creator. trend reflects timeliness.
+
+For the \`sound\` field: prefer suggesting an audio the creator has actually used before (provided in context if any) — write the exact name as "Song Name — Artist". Their reuse signals it works for their audience. Don't invent songs you can't verify exist; leave \`sound\` as an empty string if nothing from their library fits the idea.`;
+      const topSoundsLines = Array.isArray(creator.topSounds) && creator.topSounds.length
+        ? creator.topSounds.slice(0, 8).map(s => `- "${s.song_name || 'Untitled'}" — ${s.artist_name || 'Unknown'} (used ${s.count || 1}× in their reels)`).join('\n')
+        : null;
       const ctxLines = [
         creator.niche ? `Niche: ${creator.niche}` : null,
         creator.followers ? `Followers: ${creator.followers}` : null,
         creator.engagementPct ? `Engagement: ${creator.engagementPct}%` : null,
+        topSoundsLines ? `Audios this creator has used before (use one of these by exact name when it fits the idea):\n${topSoundsLines}` : null,
         theme ? `Requested theme/angle: ${theme}` : null,
       ].filter(Boolean).join('\n');
       const userPrompt = `${ctxLines}\n\nReturn ${count} ideas:`;
@@ -1512,23 +1519,71 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     return json({ error: { message: 'No handle provided' } }, 400, origin, allowed);
   }
 
-  // 1. Scrape profile + recent posts via Apify
-  const apifyRes = await fetch(`${APIFY_IG_URL}?token=${env.APIFY_TOKEN}&timeout=90`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usernames: [handle], resultsLimit: 25 }),
-  });
+  // 1. Scrape profile + reels via Apify (parallel — reel scraper is best-effort).
+  // Total latency stays ~the same as the profile call alone. Reel data unlocks
+  // music/audio detection and on-camera transcripts for richer persona inference.
+  const [profileRes, reelRes] = await Promise.all([
+    fetch(`${APIFY_IG_URL}?token=${env.APIFY_TOKEN}&timeout=90`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usernames: [handle], resultsLimit: 25 }),
+    }),
+    fetch(`${APIFY_REEL_URL}?token=${env.APIFY_TOKEN}&timeout=90`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // Note: reel scraper uses `username` (singular) — different from
+      // profile scraper which uses `usernames` (plural).
+      body: JSON.stringify({ username: [handle], resultsLimit: 15 }),
+    }).catch(e => { console.log('[scrape] reel actor errored:', e && e.message); return null; }),
+  ]);
 
-  if (!apifyRes.ok) {
-    const errText = await apifyRes.text();
-    return json({ error: { message: 'Apify scrape failed: ' + errText.slice(0, 200) } }, apifyRes.status, origin, allowed);
+  if (!profileRes.ok) {
+    const errText = await profileRes.text();
+    return json({ error: { message: 'Apify scrape failed: ' + errText.slice(0, 200) } }, profileRes.status, origin, allowed);
   }
 
-  const items = await apifyRes.json();
+  const items = await profileRes.json();
   const p = Array.isArray(items) ? items[0] : null;
   if (!p) {
     return json({ error: { message: 'Profile not found or is private' } }, 404, origin, allowed);
   }
+
+  // Parse reels — soft fail. Empty list if the scraper errored or the creator has no reels.
+  let reels = [];
+  if (reelRes && reelRes.ok) {
+    try {
+      const data = await reelRes.json();
+      if (Array.isArray(data)) reels = data;
+    } catch (e) { console.log('[scrape] reel parse failed:', e && e.message); }
+  } else if (reelRes) {
+    // Loud-log non-2xx so a misnamed input field or wrong actor slug doesn't
+    // silently degrade to "0 reels" again.
+    const errBody = await reelRes.text().catch(() => '');
+    console.log('[scrape] reel actor non-ok:', reelRes.status, errBody.slice(0, 300));
+  }
+  console.log('[scrape] reels parsed:', reels.length);
+
+  // Reel-derived metrics
+  const reelPlays = reels.map(r => Number(r.videoPlayCount || r.videoViewCount || 0)).filter(n => n > 0);
+  const avgReelPlays = reelPlays.length ? Math.round(reelPlays.reduce((s, n) => s + n, 0) / reelPlays.length) : 0;
+  const totalReelShares = reels.reduce((s, r) => s + Number(r.sharesCount || 0), 0);
+
+  // Top sounds: group by audio_id, exclude original audio (which is per-creator and has no trend value).
+  const soundCounts = {};
+  for (const r of reels) {
+    const m = r.musicInfo;
+    if (!m || m.uses_original_audio || !m.audio_id) continue;
+    const k = String(m.audio_id);
+    if (!soundCounts[k]) soundCounts[k] = { audio_id: m.audio_id, song_name: m.song_name || '', artist_name: m.artist_name || '', count: 0 };
+    soundCounts[k].count++;
+  }
+  const topSounds = Object.values(soundCounts).sort((a, b) => b.count - a.count).slice(0, 8);
+
+  // Transcripts — cap each at 600 chars, take up to 10. Keeps the prompt under budget.
+  const transcripts = reels
+    .filter(r => r.transcript && String(r.transcript).trim())
+    .slice(0, 10)
+    .map(r => String(r.transcript).slice(0, 600).trim());
 
   // 2. Compute real engagement rate from recent posts
   const posts = (p.latestPosts || p.posts || []).filter(x => typeof x.likesCount === 'number' || typeof x.likes === 'number');
@@ -1684,6 +1739,8 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
       topLocations.length ? `Locations tagged: ${topLocations.map(l => `${l.city}(${l.count})`).join(', ')}` : null,
       altCaptions.length ? `Image alt-text samples (IG auto-generated, describes visuals): ${altCaptions.slice(0, 6).map(a => `"${String(a).slice(0, 140)}"`).join(' | ')}` : null,
       topPosts.length ? `Top ${topPosts.length} engagement posts:\n${topPosts.map((t, i) => `${i + 1}. [${t.type || 'post'}] ${t.likes} likes, ${t.comments} comments${t.views ? ', ' + t.views + ' views' : ''}\n   Caption: ${String(t.caption).slice(0, 240)}${t.alt ? '\n   Visual: ' + t.alt : ''}`).join('\n')}` : null,
+      transcripts.length ? `Reel transcripts — what the creator actually says on camera (${transcripts.length} reels):\n${transcripts.map((t, i) => `${i + 1}. ${t}`).join('\n---\n')}` : null,
+      topSounds.length ? `Audio they reuse most (excluding original audio): ${topSounds.map(s => `"${s.song_name}" — ${s.artist_name} (${s.count}×)`).join('; ')}` : null,
       captions ? `All recent captions (up to 25):\n${captions}` : null,
     ].filter(Boolean);
     analysisContext = lines.join('\n\n');
@@ -1848,7 +1905,12 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     baseLocation: interpretation.baseLocation || null,
     // Vision analysis of top-5 post thumbnails.
     aestheticProfile,
-    _raw: { followers, following, posts: totalPosts, avgLikes, avgComments, private: !!p.private, actorFields: Object.keys(p).slice(0, 30) },
+    // Reel scraper enrichment (Phase A — backend-only; UI surfaces in Phase B).
+    topSounds,
+    avgReelPlays,
+    totalReelShares,
+    reelsScraped: reels.length,
+    _raw: { followers, following, posts: totalPosts, reels: reels.length, avgLikes, avgComments, private: !!p.private, actorFields: Object.keys(p).slice(0, 30) },
   };
 
   // Return in the same shape the frontend expects from chatLLM

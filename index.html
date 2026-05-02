@@ -584,6 +584,9 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 .pulse-meta{display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap}
 .pulse-meta-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);letter-spacing:0.03em}
 .pulse-meta-item .val{color:var(--text);font-weight:600}
+.pulse-sound-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;margin-bottom:14px;background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:6px;font-size:11px;color:var(--gold);font-weight:500;max-width:100%}
+.pulse-sound-icon{font-size:12px;line-height:1;flex-shrink:0}
+.pulse-sound-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pulse-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:18px}
 .pulse-tag{font-size:9px;padding:3px 10px;border-radius:4px;background:transparent;color:var(--muted);border:1px solid var(--border);font-weight:500;letter-spacing:0.05em}
 .pulse-tag.persona{background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border)}
@@ -1279,9 +1282,10 @@ function showIntroToast(msg){
 }
 
 function dismissIntro(){
-  document.getElementById('intro-screen').classList.add('done');
-  // Remove from DOM after animation
-  setTimeout(()=>{document.getElementById('intro-screen').remove()},700);
+  document.getElementById('intro-screen')?.classList.add('done');
+  // Remove from DOM after animation. Guarded — showChatView() also removes
+  // this element on the chat-first onboarding path, which can fire first.
+  setTimeout(()=>{document.getElementById('intro-screen')?.remove()},700);
 }
 
 // Run on load
@@ -3698,6 +3702,10 @@ async function sendChatMessage(){
     engagementPct: parseEng(d.engagementRate || p.avgEngagement),
     niche: p.topCategory || d.topCategory || (p.pillars||[])[0]?.l || 'lifestyle',
     brandAffinities: Array.isArray(d.brandAffinities) ? d.brandAffinities.slice(0,8) : [],
+    // Reels music history — the chat-driven generate_content_ideas tool uses
+    // this to suggest real songs from the creator's own library instead of
+    // hallucinating "trending audio" names.
+    topSounds: Array.isArray(d.topSounds) ? d.topSounds.slice(0,8) : [],
     userId,
     accessToken,
     timezone,
@@ -5309,6 +5317,7 @@ function renderInlineIdeasIntoBody(bodyEl, ideas){
         ${idea.format?`<div class="pulse-meta-item">Format: <span class="val">${escapeHtml(idea.format)}</span></div>`:''}
         ${idea.estReach?`<div class="pulse-meta-item">Est. reach: <span class="val">${escapeHtml(idea.estReach)}</span></div>`:''}
       </div>
+      ${idea.sound?`<div class="pulse-sound-badge" title="Audio recommendation"><span class="pulse-sound-icon">🎵</span><span class="pulse-sound-text">${escapeHtml(idea.sound)}</span></div>`:''}
       <div class="pulse-actions">
         <button class="pulse-save-btn" onclick="openSchedule('${safeTitle}')">📅 Schedule</button>
         <button class="pulse-draft-btn" onclick="draftScript('${safeTitle}')">Draft Script</button>
@@ -5559,13 +5568,19 @@ async function generatePulse(){
   startLoading('pulse', 10);
 
   const system=`Content strategist. Return ONLY a JSON array of 10 ideas, no markdown. Structure:
-[{"title":"Title","hook":"Why this works.","trend":"hot","match":96,"format":"Reel / TikTok","platform":"Both","estReach":"45K – 80K","tags":["#tag1","#tag2","#tag3"],"persona":["Trait1","Trait2"],"cat":"fitness","sound":"Trending: song — artist"}]
-trend: hot/rising/steady/new. platform: Both/Instagram/TikTok/YouTube. cat: fitness/lifestyle/beauty/tech/wellness/other. sound optional. Mix categories. Order by match desc.`;
+[{"title":"Title","hook":"Why this works.","trend":"hot","match":96,"format":"Reel / TikTok","platform":"Both","estReach":"45K – 80K","tags":["#tag1","#tag2","#tag3"],"persona":["Trait1","Trait2"],"cat":"fitness","sound":"Song Name — Artist"}]
+trend: hot/rising/steady/new. platform: Both/Instagram/TikTok/YouTube. cat: fitness/lifestyle/beauty/tech/wellness/other. Mix categories. Order by match desc.
 
+For the \`sound\` field: prefer suggesting an audio the creator has actually used before (listed below if any) — write the exact name as "Song Name — Artist". Their reuse signals it works for their audience. Don't invent songs you can't verify exist; leave \`sound\` empty if nothing from their library fits the idea.`;
+
+  const topSounds = (state.igData && Array.isArray(state.igData.topSounds)) ? state.igData.topSounds : [];
+  const soundsLine = topSounds.length
+    ? `\nAudios they've used before (prefer suggesting these by exact name when natural):\n${topSounds.slice(0,8).map(s=>`- "${s.song_name||'Untitled'}" — ${s.artist_name||'Unknown'} (used ${s.count||1}× in their reels)`).join('\n')}`
+    : '';
   const personaSummary=state.persona
     ? `${state.persona.name}: ${state.persona.bio} Pillars: ${state.persona.pillars.map(p=>p.l).join(', ')}. Vibes: ${state.persona.vibes.join(', ')}`
     : getConnectedStats();
-  const user=`${personaSummary}\n\n10 content ideas:`;
+  const user=`${personaSummary}${soundsLine}\n\n10 content ideas:`;
 
   try {
     const raw=await chatLLM(system,user);
@@ -5626,7 +5641,7 @@ function renderPulseCards(cat){
         <div class="pulse-meta-item">Est. reach: <span class="val">${idea.estReach}</span></div>
         <div class="pulse-meta-item">Platform: <span class="val">${idea.platform}</span></div>
       </div>
-      ${idea.sound?`<div class="pulse-meta"><div class="pulse-meta-item">Sound: <span class="val">${idea.sound}</span></div></div>`:''}
+      ${idea.sound?`<div class="pulse-sound-badge" title="Audio recommendation"><span class="pulse-sound-icon">🎵</span><span class="pulse-sound-text">${idea.sound}</span></div>`:''}
       <div class="pulse-tags">${(idea.tags||[]).map(t=>`<span class="pulse-tag">${t}</span>`).join('')}${(idea.persona||[]).map(p=>`<span class="pulse-tag persona">${p}</span>`).join('')}</div>
       <div class="pulse-actions">
         <button class="pulse-save-btn" onclick="openSchedule('${safeTitle}')">📅 Schedule</button>
