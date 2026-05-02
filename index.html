@@ -1439,7 +1439,50 @@ const CHAT_THINKING_VERBS=[
   // -er types
   'Doomer-ing…','Bloomer-ing…','Zoomer-ing…',
   // Maxxing variants
-  'Heightmaxxing…','Bonesmashing…','Jaw-clenching…'
+  'Heightmaxxing…','Bonesmashing…','Jaw-clenching…',
+  // ── Round 2: 2024-25 expansions (100 more verbs to keep variety fresh) ──
+  // Dance / challenge crazes
+  'Macarena-ing…','Cha-cha-sliding…','Harlem-shaking…','Gangnam-styling…',
+  'Wobbling…','Cupid-shuffling…','Stanky-legging…','Two-stepping…',
+  'Crank-that-ing…','Watch-me-nae-naing…',
+  // 2024-25 slang waves
+  'Six-seven-ing…','Yapping…','Yapocalypsing…','Underconsuming…',
+  'Aura-pointing…','Mother-mothering…','Pookie-bear-ing…','Bear-or-man-ing…',
+  'Performative-male-ing…','Cooked-ing…','Slay-queening…','Femcel-ing…',
+  // Newer aesthetics
+  'Acubi-ing…','Bubble-coring…','Whimsigoth-ing…','Strawberry-girling…',
+  'Vanilla-girling…','Mocha-moussing…','Latte-summering…','Bow-coring…',
+  'Tube-girling…','Coastal-cowgirling…','Cherry-coding…','Sleepy-luxing…',
+  'Vampy-girling…','Cluttercore-ing…','Boho-renaissancing…',
+  // Career era 2.0
+  'Loud-laboring…','Coffee-badging…','Lazy-girl-jobbing…','Resentment-quitting…',
+  'Rage-applying…','Productivity-theatering…','Career-curating…','Polyworking…',
+  'Naked-quitting…','Boomer-bossing…',
+  // Dating verbs
+  'Microcheating…','Roaching…','Paperclipping…','Curving…','Slowfading…',
+  'Mosting…','R-bombing…','Wokefishing…','Kittenfishing…','Hatfishing…',
+  // Wellness / skincare
+  'Slugging…','Skin-cycling…','Gua-sha-ing…','Lymphatic-draining…',
+  'Castor-oiling…','Glass-skinning…','Snail-mucinning…','Mocktailing…',
+  'Sleepy-girl-mocktailing…','Hot-girl-jogging…',
+  // Inner work
+  'Inner-childing…','Reparenting…','Shadow-working…','Boundary-setting…',
+  'Therapy-speaking…',
+  // Pop culture moments
+  'Cowboy-Carter-ing…','Wicked-defying…','Megan-knees-ing…',
+  'Romantasy-reading…','Tortured-poets-ing…','Espresso-ing…',
+  'Brat-greening…','Hot-priest-ing…','Saltburn-tubbing…',
+  'White-lotus-resorting…',
+  // TikTok mechanics
+  'Carousel-cooking…','Hashtag-stacking…','Audio-baiting…','POV-flipping…',
+  'Algo-gaming…',
+  // Crypto / tech
+  'Apeing-in…','Diamond-handing…','Paper-handing…','Rug-pulling…',
+  'AI-girlfriending…','Doom-prepping…',
+  // Internet drama
+  'West-elm-Caleb-ing…','Couch-guy-ing…','Subway-shirting…','Lone-wolfing…',
+  // Generational
+  'Gen-Alpha-ing…','Skibidi-toilet-ing…','Ohio-ing…'
 ];
 function startThinkingVerb(targetEl){
   if(!targetEl) return null;
@@ -1468,7 +1511,7 @@ function startThinkingVerb(targetEl){
       verbText.textContent=cleanVerb(CHAT_THINKING_VERBS[i]);
       span.style.opacity='1';
     },220);
-  },2981);
+  },3279);  // chat-thinking verb cycle (slowed 10% from 2981)
   return { span, interval, dotInterval };
 }
 // Same as startThinkingVerb but pairs each verb with a random activity object
@@ -1505,7 +1548,7 @@ function startVerbActivity(targetEl, activities){
       verbText.textContent = pickPair();
       span.style.opacity = '1';
     }, 220);
-  }, 2400);  // a bit faster than chat-thinking — more activities to cycle through
+  }, 2640);  // onboarding verb+activity cycle (slowed 10% from 2400)
   return { span, interval, dotInterval };
 }
 function stopThinkingVerb(handle){
@@ -1528,7 +1571,7 @@ function startLoading(key, estSec){
     if(!sub) return;
     sub.style.opacity='0';
     setTimeout(()=>{ sub.textContent=msgs[i]; sub.style.opacity='1'; },180);
-  },2800);
+  },3080);
   const start=Date.now();
   if(bar) bar.style.width='0%';
   const barInterval=setInterval(()=>{
@@ -3117,7 +3160,7 @@ function startInlineLoading(bodyEl, key, estSec){
     i = (i + 1) % msgs.length;
     sub.style.opacity = '0';
     setTimeout(()=>{ sub.textContent = msgs[i]; sub.style.opacity = '1'; }, 180);
-  }, 2800);
+  }, 3080);
   const start = Date.now();
   if(bar) bar.style.width = '0%';
   const barInterval = setInterval(()=>{
