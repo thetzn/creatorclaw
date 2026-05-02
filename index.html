@@ -5949,18 +5949,20 @@ async function draftScript(encodedTitle){
   if(!idea) return;
   const p=state.persona||{};
   const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  // Render the script card inline in chat instead of as a popup modal.
-  const cardBody=appendInlineCard('assistant',
-    '<div class="modal-title">Drafting script…</div>'+
-    '<div class="modal-sub">"'+esc(title)+'"</div>'+
-    '<div class="pitch-loading"><div class="spinner" data-crab></div><div class="loading-title">Writing your script…</div></div>'
-  );
+  const cardBody = appendMessage('assistant', '');
+  const wrap = cardBody.closest('.chat-msg');
+  wrap?.classList.add('is-loading');
+  let verbHandle = startThinkingVerb(cardBody);
+  requestAnimationFrame(()=>revealBubble(cardBody));
   const sys='Short-form video scriptwriter. Return ONLY JSON: {"hook":"...","body":"...","cta":"...","length":"..."} No markdown. The hook is the first 3 seconds (must stop the scroll). The body is the main content (25-40 seconds of spoken content). The cta is the closing line. Length is an estimated duration string like "45 seconds". Write in the creator\'s voice, use their vibes and tone.';
   const personaLine=`Creator voice: ${p.name||''}, ${p.bio||''}. Vibes: ${(p.vibes||[]).join(', ')}. Content pillars: ${(p.pillars||[]).map(x=>x.l).join(', ')}.`;
   const user=`${personaLine}\nContent idea: "${idea.title}". Format: ${idea.format||''}. Platform: ${idea.platform||''}. Hook context: ${idea.hook||''}. Tags: ${(idea.tags||[]).join(' ')}${idea.sound?`. Suggested audio: ${idea.sound}`:''}.\n\nScript JSON:`;
   try {
     const raw=await chatLLM(sys,user);
     const script=parseJSON(raw);
+    if(verbHandle){ stopThinkingVerb(verbHandle); verbHandle = null; }
+    wrap?.classList.remove('is-loading');
+    cardBody.classList.add('has-card');
     const fullText=`HOOK (0-3s):\n${script.hook}\n\nBODY:\n${script.body}\n\nCTA:\n${script.cta}\n\nEstimated length: ${script.length}`;
     const copyText=fullText.replace(/\\/g,'\\\\').replace(/`/g,'\\`').replace(/\$/g,'\\$');
     cardBody.innerHTML=
@@ -5977,6 +5979,8 @@ async function draftScript(encodedTitle){
       '</div>';
     requestAnimationFrame(()=>revealBubble(cardBody));
   } catch(e){
+    if(verbHandle){ stopThinkingVerb(verbHandle); verbHandle = null; }
+    wrap?.classList.remove('is-loading');
     cardBody.innerHTML='<div class="modal-title">Script draft failed</div><div class="modal-sub" style="color:var(--red)">'+esc(e.message||'Unknown error')+'</div>';
   }
 }
