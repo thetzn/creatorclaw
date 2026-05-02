@@ -1471,6 +1471,43 @@ function startThinkingVerb(targetEl){
   },2981);
   return { span, interval, dotInterval };
 }
+// Same as startThinkingVerb but pairs each verb with a random activity object
+// from `activities[]` for a "Yeeting last 25 posts" / "Hawk-tuah-ing engagement
+// patterns" effect. Used during onboarding so the verb stream matches the
+// chat thinking aesthetic but reads as sentences about what we're doing.
+function startVerbActivity(targetEl, activities){
+  if(!targetEl) return null;
+  if(!Array.isArray(activities) || !activities.length) return startThinkingVerb(targetEl);
+  const cleanVerb = (s) => s.replace(/[.…]+\s*$/, '');
+  const pickPair = () => {
+    const v = CHAT_THINKING_VERBS[Math.floor(Math.random() * CHAT_THINKING_VERBS.length)];
+    const a = activities[Math.floor(Math.random() * activities.length)];
+    return cleanVerb(v) + ' ' + a;
+  };
+  const span = document.createElement('span');
+  span.className = 'thinking-verb';
+  const verbText = document.createElement('span');
+  verbText.className = 'thinking-verb-text';
+  const dots = document.createElement('span');
+  dots.className = 'thinking-verb-dots';
+  span.appendChild(verbText);
+  span.appendChild(dots);
+  verbText.textContent = pickPair();
+  targetEl.appendChild(span);
+  let dotCount = 0;
+  const dotInterval = setInterval(() => {
+    dotCount = (dotCount + 1) % 4;
+    dots.textContent = '.'.repeat(dotCount);
+  }, 360);
+  const interval = setInterval(() => {
+    span.style.opacity = '0';
+    setTimeout(() => {
+      verbText.textContent = pickPair();
+      span.style.opacity = '1';
+    }, 220);
+  }, 2400);  // a bit faster than chat-thinking — more activities to cycle through
+  return { span, interval, dotInterval };
+}
 function stopThinkingVerb(handle){
   if(!handle) return;
   clearInterval(handle.interval);
@@ -3145,13 +3182,28 @@ async function startOnboardingChat(handle){
 
   const cleanHandle = String(handle||'').trim().replace(/^@/,'').replace(/^(https?:\/\/)?(www\.)?instagram\.com\//,'');
 
-  const status1 = appendStatusBubble(`Looking up @${cleanHandle} `);
-  // Cycle viral-trend verbs (same pool as chat streaming) as a suffix so
-  // onboarding feels cohesive with the rest of the chat experience. Same
-  // gold-gradient styling + bounce animation as in chat thinking states —
-  // .thinking-verb CSS is scoped to .chat-msg.assistant .chat-msg-body which
-  // is exactly what status1.body is.
-  const scanVerbHandle = startThinkingVerb(status1.body);
+  const status1 = appendStatusBubble('');
+  // Cycle "VERB activity" pairs from the same viral-trend pool used in chat
+  // streaming, e.g. "Yeeting last 25 posts", "Hawk-tuah-ing engagement
+  // patterns". Same gold-gradient + bounce styling as mid-chat thinking.
+  const scanVerbHandle = startVerbActivity(status1.body, [
+    `last 25 posts of @${cleanHandle}`,
+    `engagement patterns`,
+    `reel transcripts`,
+    `the audios they've used`,
+    `tone and vibes`,
+    `comment sentiment`,
+    `hashtag affinities`,
+    `visual aesthetic`,
+    `posting cadence`,
+    `caption patterns`,
+    `audience signals`,
+    `content pillars`,
+    `@-mentions and brand orbit`,
+    `the bio for clues`,
+    `follower trajectory`,
+    `top performing reels`,
+  ]);
 
   try {
     // 1. Scrape IG profile
@@ -3186,8 +3238,17 @@ async function startOnboardingChat(handle){
     await sleep(450);
 
     // 2. Generate persona inline (no full-screen panel)
-    const status2 = appendStatusBubble('Building your persona ');
-    const personaVerbHandle = startThinkingVerb(status2.body);
+    const status2 = appendStatusBubble('');
+    const personaVerbHandle = startVerbActivity(status2.body, [
+      `your voice`,
+      `vibe tags`,
+      `audience hints`,
+      `content pillars`,
+      `your style signature`,
+      `creator DNA`,
+      `tone calibration`,
+      `the persona`,
+    ]);
     try {
       await generatePersona({ inlineMode: true });
     } finally {
