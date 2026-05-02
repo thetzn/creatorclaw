@@ -664,6 +664,23 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   .outreach-btn{padding:12px 16px;font-size:11px;min-height:40px;justify-content:center}
   .pulse-actions{flex-wrap:wrap;gap:8px}
   .pulse-save-btn,.pulse-draft-btn{padding:11px 14px;min-height:40px;flex:1;justify-content:center}
+  /* Chat content cards should read like compact message attachments, not
+     full dashboard panels. Keep tap targets, remove the vertical air. */
+  .chat-msg-body .inline-pulse-grid{grid-template-columns:1fr;gap:8px;margin-top:8px}
+  .chat-msg-body .inline-pulse-grid .pulse-card{padding:16px!important;border-radius:10px}
+  .chat-msg-body .inline-pulse-grid .pulse-trend-badge{top:14px;right:14px;padding:3px 8px;font-size:8px}
+  .chat-msg-body .inline-pulse-grid .pulse-idea-title{font-size:15px;line-height:1.25;margin:0 0 6px;padding-right:54px}
+  .chat-msg-body .inline-pulse-grid .pulse-idea-hook{font-size:12px;line-height:1.45;margin:0 0 10px}
+  .chat-msg-body .inline-pulse-grid .pulse-persona-match{padding:8px 10px;margin:0 0 10px;gap:10px;border-radius:8px}
+  .chat-msg-body .inline-pulse-grid .pulse-persona-match .match-score{font-size:15px;line-height:1}
+  .chat-msg-body .inline-pulse-grid .pulse-persona-match .match-text{font-size:10px;line-height:1.35}
+  .chat-msg-body .inline-pulse-grid .pulse-meta{gap:10px;row-gap:4px;margin:0 0 10px}
+  .chat-msg-body .inline-pulse-grid .pulse-meta-item{font-size:10px;line-height:1.25}
+  .chat-msg-body .inline-pulse-grid .pulse-sound-badge{padding:5px 8px;margin:0 0 10px;font-size:10px}
+  .chat-msg-body .inline-pulse-grid .pulse-tags{display:none}
+  .chat-msg-body .inline-pulse-grid .pulse-actions{gap:8px;flex-wrap:nowrap}
+  .chat-msg-body .inline-pulse-grid .pulse-save-btn,
+  .chat-msg-body .inline-pulse-grid .pulse-draft-btn{min-height:38px;padding:9px 10px;font-size:9px;letter-spacing:0.07em;flex:1}
   .vbar-container{height:90px}
   /* Modal tap targets + content fit */
   .modal-box{padding:28px;max-height:94vh}
