@@ -3352,11 +3352,13 @@ async function startOnboardingChat(handle){
     `);
     await sleep(900);
 
-    // 4. Stream in-character welcome
-    await streamOnboardingWelcome();
-    await sleep(600);
+    // 4. Stream in-character welcome — fire and forget so the picker
+    //    can render immediately. The welcome bubble lands above the picker
+    //    (it appends first), then continues streaming while the user reads
+    //    or starts clicking. Saves 3-5s of perceived wait.
+    streamOnboardingWelcome();
 
-    // 5. Push picker (Create / Pitch)
+    // 5. Push picker (Create / Pitch) — visible right away
     pushOnboardingPicker();
   } catch(e){
     stopThinkingVerb(scanVerbHandle);
