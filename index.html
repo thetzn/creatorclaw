@@ -218,19 +218,28 @@ body.logged-out #chat-view #chat-input{cursor:not-allowed}
 .chat-msg-body .inline-preview .brand-card,
 .chat-msg-body .inline-preview .pulse-card{padding:14px}
 .chat-msg-body .inline-preview .is-locked{filter:blur(6px);pointer-events:none;user-select:none}
-/* Tighter pulse cards in chat, strip dead-space margins and oversized padding */
-.chat-msg-body .inline-pulse-grid{margin-top:8px}
-.chat-msg-body .inline-pulse-grid .pulse-card{padding:14px 14px 12px}
-.chat-msg-body .inline-pulse-grid .pulse-trend-badge{top:12px;right:12px}
-.chat-msg-body .inline-pulse-grid .pulse-idea-title{font-size:14px;margin-bottom:4px;padding-right:60px}
-.chat-msg-body .inline-pulse-grid .pulse-idea-hook{font-size:11.5px;line-height:1.55;margin-bottom:10px}
-.chat-msg-body .inline-pulse-grid .pulse-persona-match{padding:8px 10px;margin-bottom:10px;gap:10px}
-.chat-msg-body .inline-pulse-grid .pulse-persona-match .match-score{font-size:14px}
-.chat-msg-body .inline-pulse-grid .pulse-persona-match .match-text{font-size:9.5px}
-.chat-msg-body .inline-pulse-grid .pulse-meta{margin-bottom:10px;gap:12px}
-.chat-msg-body .inline-pulse-grid .pulse-actions{gap:6px}
+/* Chat idea cards are compact attachments. Reset inherited pre-wrap first,
+   otherwise template indentation renders as dead space inside every card. */
+.chat-msg-body .inline-pulse-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px;white-space:normal;align-items:start}
+.chat-msg-body .inline-pulse-grid .pulse-card{display:grid;gap:9px;padding:14px!important;border-radius:10px;background:linear-gradient(180deg,var(--card),var(--card2));border-color:var(--border2);box-shadow:0 10px 30px -24px rgba(0,0,0,0.35);min-height:0}
+.chat-msg-body .inline-pulse-grid .pulse-trend-badge{top:12px;right:12px;padding:3px 8px;border-radius:5px;font-size:8px;line-height:1.2;letter-spacing:0.12em}
+.chat-msg-body .inline-pulse-grid .pulse-idea-title{font-size:14px;line-height:1.25;margin:0;padding-right:64px;letter-spacing:0;font-weight:650}
+.chat-msg-body .inline-pulse-grid .pulse-idea-hook{font-size:11.5px;line-height:1.4;margin:0;color:var(--muted)}
+.chat-msg-body .inline-pulse-grid .pulse-persona-match{display:grid;grid-template-columns:auto 1fr;align-items:center;padding:7px 9px;margin:0;gap:9px;border-radius:7px;background:var(--gold-dim);border-color:var(--gold-border)}
+.chat-msg-body .inline-pulse-grid .pulse-persona-match .match-score{font-size:14px;line-height:1;font-weight:750;color:var(--gold)}
+.chat-msg-body .inline-pulse-grid .pulse-persona-match .match-text{font-size:9.5px;line-height:1.25;letter-spacing:0;color:var(--muted)}
+.chat-msg-body .inline-pulse-grid .pulse-meta{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;margin:0}
+.chat-msg-body .inline-pulse-grid .pulse-meta-item{font-size:10px;line-height:1.2;min-width:0;color:var(--muted)}
+.chat-msg-body .inline-pulse-grid .pulse-meta-item .val{display:inline;color:var(--text)}
+.chat-msg-body .inline-pulse-grid .pulse-sound-badge{padding:6px 8px;margin:0;border-radius:7px;font-size:10px;line-height:1.2;background:transparent;color:var(--gold);border-color:var(--gold-border)}
+.chat-msg-body .inline-pulse-grid .pulse-sound-icon{display:inline-flex;width:12px;height:12px;align-items:center;color:currentColor}
+.chat-msg-body .inline-pulse-grid .pulse-sound-icon svg{width:12px;height:12px;display:block}
+.chat-msg-body .inline-pulse-grid .pulse-tags{display:none}
+.chat-msg-body .inline-pulse-grid .pulse-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:1px}
 .chat-msg-body .inline-pulse-grid .pulse-save-btn,
-.chat-msg-body .inline-pulse-grid .pulse-draft-btn{padding:7px 12px;font-size:9px}
+.chat-msg-body .inline-pulse-grid .pulse-draft-btn{min-height:34px;padding:8px 9px;border-radius:7px;font-size:9px;line-height:1;letter-spacing:0.07em;justify-content:center;gap:6px}
+.chat-msg-body .inline-pulse-grid .pulse-action-icon{display:inline-flex;width:12px;height:12px;align-items:center;justify-content:center;color:currentColor;flex-shrink:0}
+.chat-msg-body .inline-pulse-grid .pulse-action-icon svg{width:12px;height:12px;display:block}
 /* Tighter brand cards when rendered inline in chat, default 28px padding is too airy here */
 .chat-msg-body .inline-brand-grid{margin-top:8px}
 .chat-msg-body .inline-brand-grid .brand-card{padding:14px;display:flex;flex-direction:column}
@@ -579,32 +588,32 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .pulse-filter.active{color:var(--gold);border-color:var(--gold)}
 .pulse-section-label{font-size:9px;font-weight:600;color:var(--muted2);letter-spacing:0.25em;text-transform:uppercase;margin-bottom:20px;display:flex;align-items:center;gap:10px}
 .pulse-section-label .dot{width:5px;height:5px;border-radius:50%}
-.pulse-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.pulse-card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:28px;position:relative;overflow:hidden}
+.pulse-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+.pulse-card{background:var(--card);border-radius:10px;border:1px solid var(--border);padding:18px;position:relative;overflow:hidden;white-space:normal}
 .pulse-card:hover{border-color:var(--border2)}
-.pulse-trend-badge{position:absolute;top:20px;right:20px;padding:4px 10px;border-radius:4px;font-size:9px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase}
+.pulse-trend-badge{position:absolute;top:14px;right:14px;padding:3px 8px;border-radius:5px;font-size:8px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;line-height:1.2}
 .pulse-trend-badge.hot{background:var(--red-dim);color:var(--red)}
 .pulse-trend-badge.rising{background:var(--gold-dim);color:var(--gold)}
 .pulse-trend-badge.steady{background:var(--green-dim);color:var(--green)}
 .pulse-trend-badge.new{background:var(--plum-dim);color:var(--plum)}
-.pulse-idea-title{font-weight:600;font-size:15px;margin-bottom:8px;padding-right:70px;line-height:1.4;letter-spacing:0.01em}
-.pulse-idea-hook{color:var(--muted);font-size:12px;line-height:1.7;margin-bottom:16px}
-.pulse-persona-match{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card2);border-radius:8px;margin-bottom:16px;border:1px solid var(--border)}
-.pulse-persona-match .match-score{font-weight:700;font-size:16px;color:var(--gold)}
-.pulse-persona-match .match-text{font-size:10px;color:var(--muted);line-height:1.4;letter-spacing:0.02em}
-.pulse-meta{display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap}
-.pulse-meta-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);letter-spacing:0.03em}
+.pulse-idea-title{font-weight:650;font-size:15px;margin:0 0 6px;padding-right:62px;line-height:1.28;letter-spacing:0}
+.pulse-idea-hook{color:var(--muted);font-size:12px;line-height:1.45;margin:0 0 12px}
+.pulse-persona-match{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:10px;padding:8px 10px;background:var(--card2);border-radius:8px;margin:0 0 12px;border:1px solid var(--border)}
+.pulse-persona-match .match-score{font-weight:750;font-size:15px;color:var(--gold);line-height:1}
+.pulse-persona-match .match-text{font-size:10px;color:var(--muted);line-height:1.3;letter-spacing:0}
+.pulse-meta{display:flex;gap:12px;row-gap:5px;margin:0 0 12px;flex-wrap:wrap}
+.pulse-meta-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);letter-spacing:0}
 .pulse-meta-item .val{color:var(--text);font-weight:600}
-.pulse-sound-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;margin-bottom:14px;background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:6px;font-size:11px;color:var(--gold);font-weight:500;max-width:100%}
+.pulse-sound-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;margin:0 0 12px;background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:7px;font-size:10px;color:var(--gold);font-weight:500;max-width:100%}
 .pulse-sound-icon{font-size:12px;line-height:1;flex-shrink:0}
 .pulse-sound-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pulse-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:18px}
+.pulse-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
 .pulse-tag{font-size:9px;padding:3px 10px;border-radius:4px;background:transparent;color:var(--muted);border:1px solid var(--border);font-weight:500;letter-spacing:0.05em}
 .pulse-tag.persona{background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border)}
-.pulse-actions{display:flex;gap:8px}
-.pulse-save-btn{padding:9px 16px;border-radius:6px;font-size:10px;font-weight:600;background:transparent;color:var(--muted);border:1px solid var(--border2);display:flex;align-items:center;gap:5px;letter-spacing:0.08em;text-transform:uppercase;transition:all 0.3s}
+.pulse-actions{display:flex;gap:7px}
+.pulse-save-btn{padding:9px 14px;border-radius:7px;font-size:9px;font-weight:650;background:transparent;color:var(--muted);border:1px solid var(--border2);display:flex;align-items:center;gap:6px;letter-spacing:0.07em;text-transform:uppercase;transition:all 0.3s}
 .pulse-save-btn:hover{color:var(--gold);border-color:var(--gold-border)}
-.pulse-draft-btn{padding:9px 16px;border-radius:6px;font-size:10px;font-weight:600;background:transparent;border:1px solid var(--gold-border);color:var(--gold);display:flex;align-items:center;gap:5px;letter-spacing:0.08em;text-transform:uppercase}
+.pulse-draft-btn{padding:9px 14px;border-radius:7px;font-size:9px;font-weight:650;background:transparent;border:1px solid var(--gold-border);color:var(--gold);display:flex;align-items:center;gap:6px;letter-spacing:0.07em;text-transform:uppercase}
 .pulse-draft-btn:hover{background:var(--gold);color:var(--bg)}
 
 /* Mobile */
@@ -667,20 +676,14 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   /* Chat content cards should read like compact message attachments, not
      full dashboard panels. Keep tap targets, remove the vertical air. */
   .chat-msg-body .inline-pulse-grid{grid-template-columns:1fr;gap:8px;margin-top:8px}
-  .chat-msg-body .inline-pulse-grid .pulse-card{padding:16px!important;border-radius:10px}
-  .chat-msg-body .inline-pulse-grid .pulse-trend-badge{top:14px;right:14px;padding:3px 8px;font-size:8px}
-  .chat-msg-body .inline-pulse-grid .pulse-idea-title{font-size:15px;line-height:1.25;margin:0 0 6px;padding-right:54px}
-  .chat-msg-body .inline-pulse-grid .pulse-idea-hook{font-size:12px;line-height:1.45;margin:0 0 10px}
-  .chat-msg-body .inline-pulse-grid .pulse-persona-match{padding:8px 10px;margin:0 0 10px;gap:10px;border-radius:8px}
-  .chat-msg-body .inline-pulse-grid .pulse-persona-match .match-score{font-size:15px;line-height:1}
-  .chat-msg-body .inline-pulse-grid .pulse-persona-match .match-text{font-size:10px;line-height:1.35}
-  .chat-msg-body .inline-pulse-grid .pulse-meta{gap:10px;row-gap:4px;margin:0 0 10px}
-  .chat-msg-body .inline-pulse-grid .pulse-meta-item{font-size:10px;line-height:1.25}
-  .chat-msg-body .inline-pulse-grid .pulse-sound-badge{padding:5px 8px;margin:0 0 10px;font-size:10px}
-  .chat-msg-body .inline-pulse-grid .pulse-tags{display:none}
-  .chat-msg-body .inline-pulse-grid .pulse-actions{gap:8px;flex-wrap:nowrap}
+  .chat-msg-body .inline-pulse-grid .pulse-card{padding:13px!important;gap:8px}
+  .chat-msg-body .inline-pulse-grid .pulse-trend-badge{top:12px;right:12px}
+  .chat-msg-body .inline-pulse-grid .pulse-idea-title{font-size:14px;padding-right:58px}
+  .chat-msg-body .inline-pulse-grid .pulse-idea-hook{font-size:11.5px}
+  .chat-msg-body .inline-pulse-grid .pulse-meta{grid-template-columns:1fr 1fr}
+  .chat-msg-body .inline-pulse-grid .pulse-actions{grid-template-columns:1fr 1fr}
   .chat-msg-body .inline-pulse-grid .pulse-save-btn,
-  .chat-msg-body .inline-pulse-grid .pulse-draft-btn{min-height:38px;padding:9px 10px;font-size:9px;letter-spacing:0.07em;flex:1}
+  .chat-msg-body .inline-pulse-grid .pulse-draft-btn{min-height:36px;padding:8px 9px}
   .vbar-container{height:90px}
   /* Modal tap targets + content fit */
   .modal-box{padding:28px;max-height:94vh}
@@ -3589,8 +3592,8 @@ async function runInlinePulsePreview(){
           <div class="pulse-meta-item">Est. reach: <span class="val">${escapeHtml(idea.estReach||'')}</span></div>
         </div>
         <div class="pulse-actions">
-          <button class="pulse-save-btn" onclick="openSchedule('${safeTitle}')">📅 Schedule</button>
-          <button class="pulse-draft-btn" onclick="draftScript('${safeTitle}')">Draft Script</button>
+          <button class="pulse-save-btn" onclick="openSchedule('${safeTitle}')">${iconCalendar()}Schedule</button>
+          <button class="pulse-draft-btn" onclick="draftScript('${safeTitle}')">${iconScript()}Script</button>
         </div>`;
       grid.appendChild(card);
     });
@@ -5447,8 +5450,18 @@ function renderAgentThinking(bodyEl, step){
 // Render a batch of content ideas as mini pulse-cards inside the assistant
 // message bubble. Reuses the pulse-card styles + existing schedule/draft
 // global handlers, so click flows are unchanged.
+function iconCalendar(){
+  return '<span class="pulse-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg></span>';
+}
+function iconScript(){
+  return '<span class="pulse-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h3a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2V6a2 2 0 0 1 2-2h3"/><path d="M9 9h6M9 13h6"/></svg></span>';
+}
+function iconMusic(){
+  return '<span class="pulse-sound-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l10-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg></span>';
+}
 function renderInlineIdeasIntoBody(bodyEl, ideas){
   if(bodyEl.querySelector('.inline-pulse-grid')) return;  // already rendered
+  bodyEl.classList.add('has-card');
   // Persist ideas into state.pulseIdeas so draftScript can find them by title.
   if(!Array.isArray(state.pulseIdeas)) state.pulseIdeas = [];
   for(const idea of ideas){
@@ -5475,10 +5488,10 @@ function renderInlineIdeasIntoBody(bodyEl, ideas){
         ${idea.format?`<div class="pulse-meta-item">Format: <span class="val">${escapeHtml(idea.format)}</span></div>`:''}
         ${idea.estReach?`<div class="pulse-meta-item">Est. reach: <span class="val">${escapeHtml(idea.estReach)}</span></div>`:''}
       </div>
-      ${idea.sound?`<div class="pulse-sound-badge" title="Audio recommendation"><span class="pulse-sound-icon">🎵</span><span class="pulse-sound-text">${escapeHtml(idea.sound)}</span></div>`:''}
+      ${idea.sound?`<div class="pulse-sound-badge" title="Audio recommendation">${iconMusic()}<span class="pulse-sound-text">${escapeHtml(idea.sound)}</span></div>`:''}
       <div class="pulse-actions">
-        <button class="pulse-save-btn" onclick="openSchedule('${safeTitle}')">📅 Schedule</button>
-        <button class="pulse-draft-btn" onclick="draftScript('${safeTitle}')">Draft Script</button>
+        <button class="pulse-save-btn" onclick="openSchedule('${safeTitle}')">${iconCalendar()}Schedule</button>
+        <button class="pulse-draft-btn" onclick="draftScript('${safeTitle}')">${iconScript()}Script</button>
       </div>`;
     grid.appendChild(card);
   });
@@ -5798,11 +5811,11 @@ function renderPulseCards(cat){
         <div class="pulse-meta-item">Est. reach: <span class="val">${idea.estReach}</span></div>
         <div class="pulse-meta-item">Platform: <span class="val">${idea.platform}</span></div>
       </div>
-      ${idea.sound?`<div class="pulse-sound-badge" title="Audio recommendation"><span class="pulse-sound-icon">🎵</span><span class="pulse-sound-text">${idea.sound}</span></div>`:''}
+      ${idea.sound?`<div class="pulse-sound-badge" title="Audio recommendation">${iconMusic()}<span class="pulse-sound-text">${idea.sound}</span></div>`:''}
       <div class="pulse-tags">${(idea.tags||[]).map(t=>`<span class="pulse-tag">${t}</span>`).join('')}${(idea.persona||[]).map(p=>`<span class="pulse-tag persona">${p}</span>`).join('')}</div>
       <div class="pulse-actions">
-        <button class="pulse-save-btn" onclick="openSchedule('${safeTitle}')">📅 Schedule</button>
-        <button class="pulse-draft-btn" onclick="draftScript('${safeTitle}')">Draft Script</button>
+        <button class="pulse-save-btn" onclick="openSchedule('${safeTitle}')">${iconCalendar()}Schedule</button>
+        <button class="pulse-draft-btn" onclick="draftScript('${safeTitle}')">${iconScript()}Script</button>
       </div>`;
     frag.appendChild(card);
   });
