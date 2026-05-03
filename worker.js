@@ -180,15 +180,23 @@ async function executeRateToolCall(toolCall, creatorContext, env) {
     // Content ideation tool, generates structured ideas as JSON. Frontend
     // renders the items as inline mini-cards in the chat.
     if (name === 'generate_content_ideas') {
-      const count = Math.max(1, Math.min(Number(args.count) || 4, 10));
+      const stage = String(args.stage || '').trim();
+      const premise = String(args.premise || '').trim();
       const theme = String(args.theme || '').trim();
+      const premiseSignal = /\b(i have a content idea|premise|frame|framing|angle|angles|hook|hooks|sharper|sharp|viral|trend|roman empire|execution|twist|caption punch)\b/i.test(`${premise} ${theme}`);
+      if (stage === 'premise_framing' || (premise && premiseSignal)) {
+        return await generatePremiseFrames(args, creator, env);
+      }
+      const count = Math.max(1, Math.min(Number(args.count) || 4, 10));
       const sys = `You generate Instagram/TikTok content ideas for individual creators. Return ONLY JSON (no markdown), shaped:
 {"ideas":[{"title":"...","hook":"first 3-second hook","format":"reel|carousel|static|story-series","platform":"Instagram|TikTok","trend":"hot|rising|steady|new","match":85,"persona":["Authentic","Relatable"],"estReach":"50K-150K","tags":["#tag1","#tag2"],"cat":"fitness|lifestyle|beauty|tech|wellness|other","sound":"Song Name, Artist (or empty string)"}]}
 Real, specific, and shippable. Each idea distinct. match is 60-99 reflecting fit to this creator. trend reflects timeliness. cat powers UI filters, choose the closest value.
 
 Use the scraped Instagram recommendation context like retrieval evidence: riff from the creator's best-performing recent posts, repeated themes, visual style, format mix, hashtags, and reused audio. Ideas should feel like only this creator would post them, not generic niche templates. Avoid bland titles like "Morning Routine" unless tied to a specific observed pattern.
 
-For the \`sound\` field: prefer suggesting an audio the creator has actually used before (provided in context if any), write the exact name as "Song Name, Artist". Their reuse signals it works for their audience. Don't invent songs you can't verify exist; leave \`sound\` as an empty string if nothing from their library fits the idea.`;
+If the user supplied a specific premise and asked for framing, angles, hooks, or a viral-trend mechanic, this is NOT a fresh-ideas request. Return {"ideas":[]} and a "response" explaining that premise framing should be handled as frames.
+
+For the \`sound\` field: prefer suggesting an audio the creator has actually used before (provided in context if any), write the exact name as "Song Name, Artist". Their reuse signals it works for their audience. Don't invent songs you can't verify exist; leave \`sound\` as an empty string if nothing from their library fits the idea. Never output placeholder text like "Song Name, Artist (or empty string)".`;
       const topSoundsLines = Array.isArray(creator.topSounds) && creator.topSounds.length
         ? creator.topSounds.slice(0, 8).map(s => `- "${s.song_name || 'Untitled'}", ${s.artist_name || 'Unknown'} (used ${s.count || 1}× in their reels)`).join('\n')
         : null;
@@ -323,6 +331,73 @@ Use the scraped Instagram recommendation context like retrieval evidence: match 
   } catch (e) {
     return { error: String((e && e.message) || e) };
   }
+}
+
+async function generatePremiseFrames(args, creator, env) {
+  const count = Math.max(1, Math.min(Number(args.count) || 3, 6));
+  const premise = String(args.premise || args.theme || '').trim().slice(0, 1600);
+  const theme = String(args.theme || '').trim().slice(0, 900);
+  const creatorBits = [
+    creator?.niche ? `Creator niche: ${creator.niche}` : null,
+    creator?.followers ? `Followers: ${creator.followers}` : null,
+    creator?.engagementPct ? `Engagement: ${creator.engagementPct}%` : null,
+    creator?.recommendationContext ? `Creator context, use only if it sharpens the premise:\n${String(creator.recommendationContext).slice(0, 1600)}` : null,
+  ].filter(Boolean).join('\n');
+  const sys = `You are the Create specialist helping a creator sharpen a supplied content premise. Return ONLY JSON, no markdown:
+{"frames":[{"name":"UV Index Check Test","hook":"Ask your husband this one question and don't help him.","execution":"Wife asks what the UV index is today, then follows up with what does that actually mean?","twist":"He answers confidently, then reveals he has no idea if 9 is out of 10 or 100.","why_it_works":"It mirrors the viral trend mechanic: simple repeatable spouse test, confidence to confusion, audience wants to try it.","caption":"Men would rather guess than admit they don't know what UV index means."}]}
+
+Rules:
+- Preserve the user's exact premise. Do not turn it into a generic topic.
+- If a viral trend/mechanic is referenced, explicitly adapt that mechanic.
+- Each frame needs a simple repeatable setup, a social tension, and a clear punchline.
+- Be sharper than a content calendar. No generic wellness/skincare/educational filler unless the premise asks for it.
+- Keep each field concise and production-ready.`;
+  const user = [
+    premise ? `User premise/request:\n${premise}` : null,
+    theme && theme !== premise ? `Requested angle/mechanic:\n${theme}` : null,
+    creatorBits ? `\nCreator context:\n${creatorBits}` : null,
+    `\nReturn ${count} viral-ready frames.`,
+  ].filter(Boolean).join('\n\n');
+  const r = await fetch(CHAT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.API_KEY },
+    body: JSON.stringify({
+      model: MODEL,
+      temperature: 0.75,
+      messages: [
+        { role: 'system', content: sys },
+        { role: 'user', content: user },
+      ],
+      response_format: { type: 'json_object' },
+    }),
+  });
+  if (!r.ok) {
+    const errText = await r.text().catch(() => r.statusText);
+    return { error: 'premise_framing_failed', status: r.status, details: errText.slice(0, 200) };
+  }
+  const data = await r.json();
+  let txt = data?.choices?.[0]?.message?.content || '{}';
+  txt = stripCodeFence(txt);
+  let frames = [];
+  try {
+    const parsed = JSON.parse(txt);
+    frames = Array.isArray(parsed.frames) ? parsed.frames : [];
+  } catch { frames = []; }
+  frames = frames.slice(0, count);
+  const response = frames.length
+    ? frames.map((f, i) => {
+      const lines = [
+        `${i + 1}. ${f.name || 'Frame'}`,
+        f.hook ? `Hook:\n${f.hook}` : null,
+        f.execution ? `Execution:\n${f.execution}` : null,
+        f.twist ? `Twist:\n${f.twist}` : null,
+        f.why_it_works ? `Why it works:\n${f.why_it_works}` : null,
+        f.caption ? `Caption punch:\n${f.caption}` : null,
+      ].filter(Boolean);
+      return lines.join('\n\n');
+    }).join('\n\n')
+    : 'This is a premise-framing request, not a generic idea-card request. Keep the supplied premise and develop hooks, execution, twist, why it works, and caption punch.';
+  return { stage: 'premise_framing', frames, response };
 }
 
 function stripCodeFence(text) {

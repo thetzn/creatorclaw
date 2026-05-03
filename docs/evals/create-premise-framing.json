@@ -1,0 +1,30 @@
+{
+  "name": "create-premise-framing",
+  "description": "Create must preserve and sharpen a supplied premise instead of flattening it into generic idea cards.",
+  "cases": [
+    {
+      "id": "uv-index-roman-empire",
+      "prompt": "I have a content idea: No men actually know what the UV index means when their wives say it, but they never say so. I need ideas for how to frame this in a similar way to the viral \"roman empire\" trend where ladies asked their spouses how often they thought about the roman empire. Give me 3 viral ideas with sharp framing.",
+      "must_include": [
+        "UV index",
+        "Roman Empire",
+        "husband",
+        "wife",
+        "Hook:",
+        "Execution:",
+        "Twist:",
+        "Why it works:",
+        "Caption punch:"
+      ],
+      "must_not_include": [
+        "Protect Your Glow",
+        "Sunshine & Self-Care",
+        "Decode the UV Index",
+        "Schedule",
+        "Est. reach:",
+        "Song Name, Artist"
+      ],
+      "expected_behavior": "Return three sharp premise frames that preserve the spouse-test mechanic and confidence-to-confusion joke. Do not render generic content idea cards."
+    }
+  ]
+}

@@ -166,9 +166,11 @@ const compareOfferTool = tool({
 
 const generateContentIdeasTool = tool({
   name: 'generate_content_ideas',
-  description: "Generate a fresh batch of content ideas tailored to the creator's persona, pillars, and engagement profile. Call this whenever the user asks for ideas, brainstorming, what to post, refining a previous batch, or explores a content theme. The UI renders the result as mini cards inline in the chat with Schedule and Draft Script actions.",
+  description: "Create-stage work for content. Use stage='fresh_ideas' for new post ideas from scratch that should render as cards. Use stage='premise_framing' only when the user gives a specific premise and asks for framing, angles, hooks, or a viral-trend mechanic. Do NOT flatten a supplied premise into generic topic cards.",
   parameters: z.object({
-    theme: z.string().nullable().optional().describe('Optional topic or angle to focus the batch on, e.g. "western fashion" or "morning routines".'),
+    stage: z.enum(['fresh_ideas','premise_framing','hooks','script','production']).nullable().optional().describe('Where the user is in the creative process. Default fresh_ideas. premise_framing preserves and sharpens a supplied concept.'),
+    premise: z.string().nullable().optional().describe('The user-supplied content premise, if they gave one. Preserve it exactly for premise_framing.'),
+    theme: z.string().nullable().optional().describe('Optional topic or angle to focus the batch on, e.g. "western fashion" or "morning routines". For premise_framing, include the viral mechanic or comparison trend.'),
     count: z.number().int().nullable().optional().describe('Number of ideas to return. Default 4. Max 6.'),
   }),
   async execute(args, runContext) {
@@ -521,7 +523,7 @@ function makeDelegateTool(agentName, agents) {
         // Aggregate any card-producing outputs from the sub-run so the
         // parent SSE wrapper can render brand/idea cards inline. Without
         // this, specialists lose their card UI when called as tools.
-        let brands = [], ideas = [];
+        let brands = [], ideas = [], toolResponse = '';
         for (const item of (subResult.newItems || [])) {
           const out = item?.output ?? item?.rawItem?.output;
           let parsed = out;
@@ -531,9 +533,10 @@ function makeDelegateTool(agentName, agents) {
           if (parsed && typeof parsed === 'object') {
             if (Array.isArray(parsed.brands) && parsed.brands.length) brands = parsed.brands;
             if (Array.isArray(parsed.ideas) && parsed.ideas.length) ideas = parsed.ideas;
+            if (parsed.response && !toolResponse) toolResponse = String(parsed.response);
           }
         }
-        const text = String(subResult.finalOutput || '').trim();
+        const text = String(subResult.finalOutput || toolResponse || '').trim();
         return { response: text, brands, ideas };
       } catch (err) {
         console.error(`[agents] delegate_${agentName} failed`, err);
@@ -593,15 +596,29 @@ RATES & OFFERS: For pricing questions, call get_rate_estimate. For specific doll
 
 ${GMAIL_SEND_GUARDRAIL}`;
 
-const CREATE_AGENT_INSTRUCTIONS = `You are the Create specialist. You handle content ideation, format experimentation, and pillar-aligned brainstorming. Ground every suggestion in the creator's pillars, vibes, and recent themes above.
+const CREATE_AGENT_INSTRUCTIONS = `You are the Create specialist. You handle the full creative arc: raw premise, sharper framing, angle exploration, hook testing, format selection, scripting, captions, and production planning. Ground suggestions in the creator's pillars, vibes, and recent themes only when that sharpens the user's request.
 
 When invoked:
 
-IDEATION: If asked for ideas / brainstorming / what to post, call generate_content_ideas with theme + count. Reply with ONE short sentence, the frontend renders cards inline. Do not list ideas in prose.
+PREMISE DEVELOPMENT: If the user brings a specific premise, joke, observation, half-formed idea, or says "I have a content idea", "help me frame this", "make this sharper", "give me angles", "like the X trend", "viral framing", "hooks for this", preserve that premise. Do NOT call generic fresh-idea cards. Either answer directly or call generate_content_ideas with stage='premise_framing', premise=<their premise>, theme=<viral mechanic/comparison>, count=<requested count>. The output should be strategic frames, not Schedule/Script cards.
 
-REFINEMENT: If asked to riff on a previous batch ("more like #2", "different angle"), call generate_content_ideas again with a refined theme. Build on the prior batch, don't restart from scratch.
+For premise development, use this structure for each frame:
+1. Name
+Hook:
+Execution:
+Twist:
+Why it works:
+Caption punch:
 
-QUICK QUESTIONS: For single-shot questions ("what hook should I open with?"), answer directly without tools, grounded in their pillars and recent themes.
+Make the mechanic repeatable, specific, and socially legible. If they reference a trend like Roman Empire, preserve the trend's mechanic explicitly. The persona should never replace the premise.
+
+FRESH IDEATION: If the user asks broadly for ideas / brainstorming / what to post and does NOT supply a specific premise to develop, call generate_content_ideas with stage='fresh_ideas', theme + count. Reply with ONE short sentence, the frontend renders cards inline. Do not list ideas in prose.
+
+REFINEMENT: If asked to riff on a previous generic batch ("more like #2", "different angle"), call generate_content_ideas again with stage='fresh_ideas' and a refined theme. Build on the prior batch, don't restart from scratch.
+
+SCRIPTING / PRODUCTION: If asked to script, caption, shot-list, or produce a chosen idea, answer directly in that later-stage format unless a dedicated UI action already handles it.
+
+QUICK QUESTIONS: For single-shot questions ("what hook should I open with?"), answer directly without tools.
 
 Specifics over generics, concrete formats the creator can ship today, not abstract advice. Match their voice (vibes + bio).`;
 
@@ -619,7 +636,7 @@ const MAIN_AGENT_INSTRUCTIONS = `You are the main CreatorClaw assistant. You ans
 
 DELEGATE WHEN:
 - delegate_pitch, creator wants to draft an outreach email, find brand matches, send a pitch via Gmail, or analyze a rate/offer.
-- delegate_create, creator wants content ideas, brainstorming, or pillar-grounded ideation.
+- delegate_create, creator wants content ideas, brainstorming, premise/framing development, hooks, scripting, captions, or production planning.
 - delegate_pipeline, creator wants to add a brand to their pipeline / deal tracker.
 
 Specialists run inline in this thread, never tell the user to switch tools or "head over" anywhere. When delegate_pitch returns a response that begins with "Subject:", output the entire response verbatim with NO preamble.
@@ -627,7 +644,7 @@ Specialists run inline in this thread, never tell the user to switch tools or "h
 DIRECT TOOLS (when delegation is overkill):
 - get_rate_estimate / compare_offer, call for pricing questions and dollar-offer comparisons. Frame results as benchmarks, not "your rate." Never quote a number you didn't get from a tool.
 - find_brand_matches, call for brand discovery. The frontend renders cards inline; reply with ONE short sentence and stop.
-- generate_content_ideas, call for ideation requests. Cards render inline; reply with ONE short sentence and stop.
+- generate_content_ideas, call only for broad fresh-idea requests that should render as cards. If the user supplies a specific premise and asks for framing, angles, hooks, or a viral-trend mechanic, delegate_create instead so the premise is preserved and developed.
 
 ${GMAIL_SEND_GUARDRAIL}`;
 
