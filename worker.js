@@ -1953,93 +1953,147 @@ function postsCadence(posts) {
 // IG signal runs in parallel with program discovery.
 
 const PROGRAM_PATHS = [
-  '/pages/athletes', '/pages/creators', '/pages/ambassadors', '/pages/squad',
-  '/pages/partners', '/pages/community', '/pages/collective',
-  '/creator-program', '/creators', '/ambassadors', '/athletes',
-  '/partnerships', '/partners', '/partner-with-us',
-  '/affiliate', '/affiliates', '/influencer', '/influencers',
-  '/community', '/collective', '/squad', '/join-us',
-  '/brand-ambassadors', '/about/partnerships',
+  '/pages/creators', '/pages/ambassadors', '/pages/affiliates', '/pages/athletes',
+  '/creator-program', '/ambassadors', '/affiliates', '/brand-ambassadors',
+  '/partnerships', '/partner-with-us', '/creators', '/influencers',
 ];
 const PROGRAM_KEYWORDS = /(ambassador|creator|partner|affiliate|collective|squad|athlete|collab|community|influencer)/i;
 const TIMEOUT_PATH = 4500;
 const TIMEOUT_HOME = 6000;
+const BRAND_INTEL_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
 async function runAgentBrandResearch(body, env, origin, allowed) {
   const brand = String(body.brand || '').trim();
   if (!brand) return json({ error: { message: 'brand required' } }, 400, origin, allowed);
-  const brandDomain = String(body.brandDomain || '').trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const brandDomain = normalizeDomain(body.brandDomain || '');
   const brandHandle = String(body.brandHandle || '').trim().replace(/^@/, '');
   console.log('[brand]', brand, 'start domain=', brandDomain, 'handle=', brandHandle);
 
-  const [program, igSignal] = await Promise.all([
+  if (brandDomain) {
+    const cached = await getCachedBrandIntel(env, brandDomain).catch(e => {
+      console.log('[brand]', brand, 'cache read err', e && e.message);
+      return null;
+    });
+    if (cached) return json({ result: brandIntelToResult(cached, true) }, 200, origin, allowed);
+  }
+
+  const intel = await buildBrandIntel({ brand, brandDomain, brandHandle, env });
+  if (brandDomain) {
+    await saveBrandIntel(env, intel).catch(e => console.log('[brand]', brand, 'cache write err', e && e.message));
+  }
+
+  return json({ result: brandIntelToResult(intel, false) }, 200, origin, allowed);
+}
+
+async function buildBrandIntel({ brand, brandDomain, brandHandle, env }) {
+  const [program, igSignal, adActivity] = await Promise.all([
     brandDomain ? discoverBrandProgram(brandDomain).catch(e => { console.log('[brand]', brand, 'discover err', e && e.message); return null; }) : null,
     brandHandle ? fetchBrandIgSignal(brandHandle, env).catch(e => { console.log('[brand]', brand, 'ig err', e && e.message); return null; }) : null,
+    brandDomain ? fetchAdActivitySignal(brandDomain, env).catch(e => { console.log('[brand]', brand, 'ad err', e && e.message); return null; }) : null,
   ]);
 
   const igOk = igSignal && !igSignal.error ? igSignal : null;
-  console.log('[brand]', brand, 'done program=', program?.tier, 'url=', program?.url, 'ig=', igOk?.followers);
+  const signals = [];
+  const sourceUrls = [];
+  let creatorScore = 0;
+  let marketingScore = 0;
 
-  return json({
-    result: {
-      active: !!program?.url,
-      program_url: program?.url || '',
-      program_title: program?.title || '',
-      recent_partners: [],
-      recent_campaigns: [],
-      ig_signal: igOk ? {
-        followers: igOk.followers,
-        engagement_rate_pct: igOk.engagement_rate_pct,
-        recent_post_count: igOk.recent_post_count,
-      } : null,
-      pitch_angle: '',
-      confidence: program?.tier === 1 ? 'high' : program?.tier ? 'medium' : 'low',
-    },
-  }, 200, origin, allowed);
+  if (program?.url) {
+    creatorScore += program.tier === 1 ? 55 : program.tier === 2 ? 45 : 35;
+    signals.push(program.tier === 1 ? 'creator_program_found' : 'creator_program_possible');
+    sourceUrls.push(program.url);
+  }
+  if (igOk?.recent_paid_partnership_count) {
+    creatorScore += Math.min(25, igOk.recent_paid_partnership_count * 8);
+    signals.push('recent_paid_partnership_language');
+  }
+  if (igOk?.recent_post_count) {
+    marketingScore += Math.min(12, igOk.recent_post_count);
+    signals.push('active_social_account');
+  }
+  if (adActivity?.active) {
+    marketingScore += Math.min(35, 15 + (Number(adActivity.active_count) || 0) * 3);
+    signals.push('active_paid_ads');
+    if (adActivity.source_url) sourceUrls.push(adActivity.source_url);
+  }
+
+  creatorScore = Math.min(100, creatorScore);
+  marketingScore = Math.min(100, marketingScore);
+  const outreachScore = Math.min(100, Math.round(creatorScore * 0.7 + marketingScore * 0.3));
+  const confidence = program?.tier === 1 || igOk?.recent_paid_partnership_count ? 'high' : program?.tier || adActivity?.active ? 'medium' : 'low';
+
+  console.log('[brand]', brand, 'done creator=', creatorScore, 'marketing=', marketingScore, 'program=', program?.url, 'ads=', adActivity?.active_count || 0);
+  return {
+    domain: brandDomain,
+    brand_name: brand,
+    creator_readiness_score: creatorScore,
+    marketing_activity_score: marketingScore,
+    outreach_priority_score: outreachScore,
+    creator_program_url: program?.url || '',
+    creator_program_title: program?.title || '',
+    creator_program_confidence: program?.tier === 1 ? 'high' : program?.tier ? 'medium' : 'low',
+    ad_activity: adActivity || {},
+    ig_signal: igOk ? {
+      followers: igOk.followers,
+      engagement_rate_pct: igOk.engagement_rate_pct,
+      recent_post_count: igOk.recent_post_count,
+      recent_paid_partnership_count: igOk.recent_paid_partnership_count || 0,
+    } : {},
+    signals,
+    source_urls: Array.from(new Set(sourceUrls.filter(Boolean))).slice(0, 8),
+    raw_sources: { program, adActivity },
+    last_checked_at: new Date().toISOString(),
+    confidence,
+  };
+}
+
+function brandIntelToResult(intel, cacheHit) {
+  const ad = intel.ad_activity || {};
+  const ig = intel.ig_signal && Object.keys(intel.ig_signal).length ? intel.ig_signal : null;
+  const signals = Array.isArray(intel.signals) ? intel.signals : [];
+  const creatorScore = Number(intel.creator_readiness_score) || 0;
+  const marketingScore = Number(intel.marketing_activity_score) || 0;
+  const priorityScore = Number(intel.outreach_priority_score) || 0;
+  return {
+    active: creatorScore >= 35,
+    program_url: intel.creator_program_url || '',
+    program_title: intel.creator_program_title || '',
+    recent_partners: [],
+    recent_campaigns: ad.active_count ? [{ title: `${ad.active_count} active ad${ad.active_count === 1 ? '' : 's'} detected`, source: ad.source || 'ads_transparency' }] : [],
+    ig_signal: ig,
+    pitch_angle: '',
+    confidence: intel.confidence || intel.creator_program_confidence || (priorityScore >= 50 ? 'medium' : 'low'),
+    creator_readiness_score: creatorScore,
+    marketing_activity_score: marketingScore,
+    outreach_priority_score: priorityScore,
+    ad_activity: ad,
+    signals,
+    source_urls: Array.isArray(intel.source_urls) ? intel.source_urls : [],
+    cache_hit: !!cacheHit,
+    last_checked_at: intel.last_checked_at || null,
+  };
 }
 
 async function discoverBrandProgram(domain) {
   const base = `https://${domain}`;
 
-  // Tier 1: parallel GETs on known paths. We only accept a hit if the final
-  // URL (after redirects) still contains a non-root path, catches Shopify
-  // soft-404s that 200 but redirect to root.
-  const tier1 = await Promise.all(
-    PROGRAM_PATHS.map(path =>
-      fetchWithTimeout(base + path, { redirect: 'follow' }, TIMEOUT_PATH)
-        .then(r => {
-          if (!r || !r.ok) return null;
-          let finalPath = '';
-          try { finalPath = new URL(r.url).pathname; } catch { return null; }
-          if (finalPath === '/' || finalPath === '') return null;
-          return r.text().then(html => ({
-            url: r.url,
-            title: extractTitle(html),
-            tier: 1,
-          }));
-        })
-        .catch(() => null)
-    )
-  );
-  const t1Hit = tier1.find(Boolean);
-  if (t1Hit) return t1Hit;
-
-  // Tier 2: homepage link-grep.
+  // Tier 1: homepage link-grep. This is usually the cheapest/highest-confidence
+  // path because creator/affiliate programs tend to live in footer nav.
   const home = await fetchWithTimeout(base + '/', { redirect: 'follow' }, TIMEOUT_HOME);
   if (home && home.ok) {
     const html = await home.text().catch(() => '');
     const candidates = extractProgramLinks(html, base);
-    for (const c of candidates.slice(0, 4)) {
-      const r = await fetchWithTimeout(c.url, { redirect: 'follow' }, TIMEOUT_PATH).catch(() => null);
-      if (r && r.ok) {
-        let finalPath = '';
-        try { finalPath = new URL(r.url).pathname; } catch { continue; }
-        if (finalPath === '/' || finalPath === '') continue;
-        const subHtml = await r.text().catch(() => '');
-        return { url: r.url, title: extractTitle(subHtml) || c.text, tier: 2 };
-      }
-    }
+    const hit = await firstProgramHit(candidates.slice(0, 4).map(c => () => fetchProgramPage(c.url, c.text, 1)), 2);
+    if (hit) return hit;
   }
+  else if (home?.body) {
+    await home.body.cancel().catch(() => {});
+  }
+
+  // Tier 2: known-path probe in small batches so the Worker never fans out
+  // dozens of hanging responses for one background enrichment.
+  const pathHit = await firstProgramHit(PROGRAM_PATHS.map(path => () => fetchProgramPage(base + path, '', 2)), 3);
+  if (pathHit) return pathHit;
 
   // Tier 3: sitemap.xml scan.
   const sm = await fetchWithTimeout(base + '/sitemap.xml', {}, TIMEOUT_PATH).catch(() => null);
@@ -2051,6 +2105,38 @@ async function discoverBrandProgram(domain) {
   }
 
   return null;
+}
+
+async function firstProgramHit(tasks, batchSize) {
+  for (let i = 0; i < tasks.length; i += batchSize) {
+    const hits = await Promise.all(tasks.slice(i, i + batchSize).map(fn => fn().catch(() => null)));
+    const hit = hits.find(Boolean);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+async function fetchProgramPage(url, fallbackTitle, tier) {
+  const r = await fetchWithTimeout(url, { redirect: 'follow' }, TIMEOUT_PATH).catch(() => null);
+  if (!r || !r.ok) {
+    if (r?.body) await r.body.cancel().catch(() => {});
+    return null;
+  }
+  let finalPath = '';
+  try { finalPath = new URL(r.url).pathname; } catch {
+    if (r.body) await r.body.cancel().catch(() => {});
+    return null;
+  }
+  if (finalPath === '/' || finalPath === '') {
+    if (r.body) await r.body.cancel().catch(() => {});
+    return null;
+  }
+  const html = await r.text().catch(() => '');
+  return {
+    url: r.url,
+    title: extractTitle(html) || fallbackTitle || '',
+    tier,
+  };
 }
 
 async function fetchWithTimeout(url, opts, ms) {
@@ -2099,6 +2185,86 @@ function extractProgramLinks(html, base) {
   return hits;
 }
 
+function normalizeDomain(raw) {
+  let s = String(raw || '').trim().toLowerCase();
+  s = s.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].replace(/\/$/, '');
+  return /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(s) ? s : '';
+}
+
+async function getCachedBrandIntel(env, domain) {
+  if (!domain || !env.SUPABASE_SERVICE_ROLE_KEY) return null;
+  const r = await sbServiceFetch(env, `/brand_intel?domain=eq.${encodeURIComponent(domain)}&select=*&limit=1`);
+  if (!r.ok) return null;
+  const rows = await r.json().catch(() => []);
+  const row = Array.isArray(rows) && rows[0];
+  if (!row?.last_checked_at) return null;
+  const age = Date.now() - new Date(row.last_checked_at).getTime();
+  if (!Number.isFinite(age) || age > BRAND_INTEL_TTL_MS) return null;
+  return row;
+}
+
+async function saveBrandIntel(env, intel) {
+  if (!intel?.domain) return;
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY not configured');
+  const r = await sbServiceFetch(env, '/brand_intel?on_conflict=domain', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({
+      domain: intel.domain,
+      brand_name: intel.brand_name,
+      creator_readiness_score: intel.creator_readiness_score,
+      marketing_activity_score: intel.marketing_activity_score,
+      outreach_priority_score: intel.outreach_priority_score,
+      creator_program_url: intel.creator_program_url,
+      creator_program_title: intel.creator_program_title,
+      creator_program_confidence: intel.creator_program_confidence,
+      ad_activity: intel.ad_activity || {},
+      ig_signal: intel.ig_signal || {},
+      signals: intel.signals || [],
+      source_urls: intel.source_urls || [],
+      raw_sources: intel.raw_sources || {},
+      last_checked_at: intel.last_checked_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }),
+  });
+  if (!r.ok) {
+    const text = await r.text().catch(() => '');
+    throw new Error(`brand_intel upsert failed ${r.status}: ${text.slice(0, 240)}`);
+  }
+}
+
+async function fetchAdActivitySignal(domain, env) {
+  const apiKey = env.SEARCHAPI_KEY || env.SERPAPI_KEY || '';
+  if (!apiKey) return null;
+  const host = env.SEARCHAPI_KEY ? 'https://www.searchapi.io/api/v1/search' : 'https://serpapi.com/search.json';
+  const params = new URLSearchParams({
+    engine: 'google_ads_transparency_center',
+    domain,
+    api_key: apiKey,
+  });
+  const r = await fetchWithTimeout(`${host}?${params.toString()}`, { headers: { Accept: 'application/json' } }, 7000);
+  if (!r || !r.ok) return null;
+  const data = await r.json().catch(() => null);
+  if (!data) return null;
+  const ads = Array.isArray(data.ads) ? data.ads
+    : Array.isArray(data.ad_creatives) ? data.ad_creatives
+      : Array.isArray(data.results) ? data.results
+        : Array.isArray(data.search_results) ? data.search_results
+          : [];
+  const activeAds = ads.filter(a => {
+    const status = String(a.status || a.active_status || a.ad_status || '').toLowerCase();
+    return a.is_active === true || status.includes('active') || !a.end_date;
+  });
+  return {
+    source: env.SEARCHAPI_KEY ? 'searchapi_google_ads_transparency' : 'serpapi_google_ads_transparency',
+    active: activeAds.length > 0,
+    active_count: activeAds.length,
+    sample_count: ads.length,
+    source_url: `https://adstransparency.google.com/?domain=${encodeURIComponent(domain)}`,
+    checked_at: new Date().toISOString(),
+  };
+}
+
 async function fetchBrandIgSignal(rawHandle, env) {
   const handle = String(rawHandle || '').replace(/^@/, '').trim();
   if (!handle) return { error: 'no handle provided' };
@@ -2123,6 +2289,11 @@ async function fetchBrandIgSignal(rawHandle, env) {
   const totalPosts = p.postsCount || 0;
   const engagementPct = followers > 0 ? ((avgLikes + avgComments) / followers) * 100 : 0;
   const lastPostTs = posts[0]?.timestamp || posts[0]?.takenAt || null;
+  const paidWords = /(paid partnership|#ad\b|#sponsored\b|sponsored by|partnered with|gifted by|use code|discount code)/i;
+  const recentPaidPartnershipCount = posts
+    .slice(0, 12)
+    .filter(p => paidWords.test(String(p.caption || '')))
+    .length;
 
   return {
     handle,
@@ -2132,6 +2303,7 @@ async function fetchBrandIgSignal(rawHandle, env) {
     avg_comments: Math.round(avgComments),
     engagement_rate_pct: Number(engagementPct.toFixed(2)),
     recent_post_count: posts.length,
+    recent_paid_partnership_count: recentPaidPartnershipCount,
     last_post_ts: lastPostTs,
     bio: (p.biography || '').slice(0, 280),
   };
