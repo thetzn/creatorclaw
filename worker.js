@@ -1547,6 +1547,11 @@ export default {
     try { body = await request.json(); }
     catch { return new Response('Invalid JSON', { status: 400 }); }
 
+    // ── Fast IG profile shell: basics + photo, no LLM/vision/reels ─────
+    if (body.igScrapeLite) {
+      return runIGScrapeLite(body.handle, env, origin, allowed);
+    }
+
     // ── IG scrape via Apify ─────────────────────────────────────────────
     if (body.igScrape) {
       return runIGScrape(body.handle, env, origin, allowed);
@@ -1680,6 +1685,84 @@ export default {
 };
 
 // ── IG scrape: Apify scrape + OpenAI interpretation ──────────────────────────
+function formatIGCount(n) {
+  n = Number(n) || 0;
+  if (!n || n <= 0) return null;
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, '') + 'M';
+  if (n >= 1_000) return (n / 1_000).toFixed(n >= 10_000 ? 0 : 1).replace(/\.0$/, '') + 'K';
+  return String(n);
+}
+
+async function fetchImageDataUrl(url) {
+  if (!url) return null;
+  try {
+    const picRes = await fetch(url);
+    if (!picRes.ok) return null;
+    const buf = await picRes.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.byteLength; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    const b64 = btoa(binary);
+    const contentType = picRes.headers.get('content-type') || 'image/jpeg';
+    return `data:${contentType};base64,${b64}`;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function runIGScrapeLite(rawHandle, env, origin, allowed) {
+  const handle = String(rawHandle || '').replace(/^@/, '').replace(/^(https?:\/\/)?(www\.)?instagram\.com\//, '').replace(/\/$/, '').trim();
+  if (!handle) {
+    return json({ error: { message: 'No handle provided' } }, 400, origin, allowed);
+  }
+  const started = Date.now();
+  const res = await fetch(`${APIFY_IG_URL}?token=${env.APIFY_TOKEN}&timeout=30`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usernames: [handle], resultsLimit: 6 }),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    return json({ error: { message: 'Apify quick profile failed: ' + errText.slice(0, 200) } }, res.status, origin, allowed);
+  }
+  const items = await res.json();
+  const p = Array.isArray(items) ? items[0] : null;
+  if (!p) return json({ error: { message: 'Profile not found or is private' } }, 404, origin, allowed);
+
+  const posts = (p.latestPosts || p.posts || []).filter(x => typeof x.likesCount === 'number' || typeof x.likes === 'number');
+  const likeOf = x => (typeof x.likesCount === 'number' ? x.likesCount : (x.likes || 0));
+  const commentOf = x => (typeof x.commentsCount === 'number' ? x.commentsCount : (x.comments || 0));
+  const avgLikes = posts.length ? posts.reduce((s, x) => s + likeOf(x), 0) / posts.length : 0;
+  const avgComments = posts.length ? posts.reduce((s, x) => s + commentOf(x), 0) / posts.length : 0;
+  const followers = p.followersCount || p.followers_count || p.followers || p.edge_followed_by?.count || 0;
+  const following = p.followsCount || p.follows_count || p.following || p.edge_follow?.count || 0;
+  const totalPosts = p.postsCount || p.posts_count || p.edge_owner_to_timeline_media?.count || 0;
+  const engagementPct = followers > 0 ? ((avgLikes + avgComments) / followers) * 100 : 0;
+  const picUrl = p.profilePicUrlHD || p.profilePicUrl || p.profile_pic_url_hd || p.profile_pic_url || null;
+  const profilePicData = await fetchImageDataUrl(picUrl);
+  const profile = {
+    _lite: true,
+    username: '@' + (p.username || handle),
+    displayName: p.fullName || p.full_name || p.username || handle,
+    profilePicUrl: picUrl,
+    profilePicData,
+    followers: formatIGCount(followers),
+    following: formatIGCount(following),
+    totalPosts: formatIGCount(totalPosts),
+    engagementRate: engagementPct > 0 ? (engagementPct < 1 ? engagementPct.toFixed(2) : engagementPct.toFixed(1)) + '%' : null,
+    bio: p.biography || p.bio || null,
+    verified: !!p.verified,
+    _raw: { followers, following, posts: totalPosts, avgLikes, avgComments, private: !!p.private },
+  };
+  console.log('[scrape-lite]', JSON.stringify({ handle, ms: Date.now() - started, posts: posts.length, hasPic: !!profilePicData }));
+  return json({
+    choices: [{ message: { role: 'assistant', content: JSON.stringify(profile) } }],
+  }, 200, origin, allowed);
+}
+
 async function runIGScrape(rawHandle, env, origin, allowed) {
   const handle = String(rawHandle || '').replace(/^@/, '').replace(/^(https?:\/\/)?(www\.)?instagram\.com\//, '').replace(/\/$/, '').trim();
   if (!handle) {

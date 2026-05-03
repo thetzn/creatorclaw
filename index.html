@@ -402,9 +402,6 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .persona-reveal-card.has-photo .persona-reveal-crab{opacity:0;transform:scale(0.85) rotate(18deg)}
 .persona-reveal-card.has-photo .persona-reveal-img{opacity:1}
 .persona-reveal-card.is-refined .persona-reveal-img{filter:blur(0) saturate(1);transform:scale(1);image-rendering:auto}
-.persona-reveal-agent-mark{position:absolute;right:7px;bottom:7px;width:22px;height:22px;border-radius:50%;background:var(--gold);border:2px solid var(--card);display:flex;align-items:center;justify-content:center;opacity:0;transform:scale(0.7);transition:opacity 0.35s ease,transform 0.35s ease}
-.persona-reveal-agent-mark img{width:15px;height:11px;object-fit:contain}
-.persona-reveal-card.is-refined .persona-reveal-agent-mark{opacity:1;transform:scale(1)}
 .persona-reveal-copy{min-width:0;flex:1}
 .persona-reveal-kicker{font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
 .persona-reveal-title{font-size:20px;font-weight:500;color:var(--text);line-height:1.25;margin-bottom:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -967,7 +964,6 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
         <div class="persona-reveal-avatar">
           <div class="persona-reveal-crab" data-crab></div>
           <img class="persona-reveal-img" alt="" loading="eager" decoding="async" fetchpriority="high">
-          <span class="persona-reveal-agent-mark"><img data-crab-img alt=""></span>
         </div>
         <div class="persona-reveal-copy">
           <div class="persona-reveal-kicker">First read</div>
@@ -3291,7 +3287,6 @@ function personaRevealMarkup(handle = ''){
         <div class="persona-reveal-avatar">
           <div class="persona-reveal-crab" data-crab></div>
           <img class="persona-reveal-img" alt="" loading="eager" decoding="async" fetchpriority="high">
-          <span class="persona-reveal-agent-mark"><img data-crab-img alt=""></span>
         </div>
         <div class="persona-reveal-copy">
           <div class="persona-reveal-kicker">First read</div>
@@ -3488,6 +3483,39 @@ function submitOnboardingHandle(){
   startOnboardingChat(v);
 }
 
+async function fetchIGProfileChunk(handle, lite = false){
+  const res = await fetch(PROXY_URL, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(lite ? { igScrapeLite: true, handle } : { igScrape: true, handle })
+  });
+  if(!res.ok){
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.error?.message || ('Analyze failed ('+res.status+')'));
+  }
+  const data = await res.json();
+  return parseJSON(data.choices[0].message.content);
+}
+
+function applyIGProfile(profile){
+  state.igData = { ...(state.igData || {}), ...(profile || {}) };
+  state.igConnected = true;
+  refreshUserAvatars();
+  const setText = (id,v)=>{ const e=document.getElementById(id); if(e) e.textContent = v||'N/A'; };
+  setText('ig-val-followers', state.igData.followers);
+  setText('ig-val-engagement', state.igData.engagementRate);
+  setText('ig-val-posts', state.igData.totalPosts);
+  setText('ig-val-category', state.igData.topCategory || state.igData.categories?.[0]?.name);
+}
+
+async function enrichIGProfileInBackground(handle){
+  const profile = await fetchIGProfileChunk(handle, false);
+  applyIGProfile(profile);
+  if(state.persona){
+    await generatePersona({ inlineMode: true });
+  }
+}
+
 async function startOnboardingChat(handle){
   document.getElementById('intro-screen')?.remove();
 
@@ -3532,27 +3560,9 @@ async function startOnboardingChat(handle){
   ]);
 
   try {
-    // 1. Scrape IG profile
-    const res = await fetch(PROXY_URL, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ igScrape: true, handle: cleanHandle })
-    });
-    if(!res.ok){
-      const err = await res.json().catch(()=>({}));
-      throw new Error(err.error?.message || ('Analyze failed ('+res.status+')'));
-    }
-    const scrapeData = await res.json();
-    const profile = parseJSON(scrapeData.choices[0].message.content);
-    state.igData = profile;
-    state.igConnected = true;
-    refreshUserAvatars();
-    // Quietly populate Connect tab so it reflects reality if user navigates back post-signin
-    const setText = (id,v)=>{ const e=document.getElementById(id); if(e) e.textContent = v||'N/A'; };
-    setText('ig-val-followers', profile.followers);
-    setText('ig-val-engagement', profile.engagementRate);
-    setText('ig-val-posts', profile.totalPosts);
-    setText('ig-val-category', profile.topCategory || profile.categories?.[0]?.name);
+    // 1. Fast shell: profile basics + photo, no reels/vision/LLM.
+    const profile = await fetchIGProfileChunk(cleanHandle, true);
+    applyIGProfile(profile);
 
     stopThinkingVerb(scanVerbHandle);
     updatePersonaRevealProfile(revealCard, profile);
@@ -3586,6 +3596,9 @@ async function startOnboardingChat(handle){
 
     // 4. Push picker (Create / Pitch), visible right away
     pushOnboardingPicker();
+
+    // 5. Rich scrape + persona refresh happens after the user can interact.
+    enrichIGProfileInBackground(cleanHandle).catch(e => console.warn('background profile enrichment failed', e));
   } catch(e){
     stopThinkingVerb(scanVerbHandle);
     console.error('Onboarding error:', e);
@@ -4996,38 +5009,19 @@ async function analyzeIGProfile(){
   startLoading('persona', 25);
 
   try {
-    const res=await fetch(PROXY_URL,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ igScrape:true, handle:raw })
-    });
-
-    if(!res.ok){
-      const err=await res.json().catch(()=>({}));
-      throw new Error(err.error?.message||('API error '+res.status));
-    }
-    const data=await res.json();
-    const content=data.choices[0].message.content;
-    const profile=parseJSON(content);
-
-    // Store enriched data for persona generation
-    state.igData=profile;
-    state.igConnected=true;
-    refreshUserAvatars();
+    const profile = await fetchIGProfileChunk(raw, true);
+    applyIGProfile(profile);
     updatePersonaRevealProfile(revealCard, profile);
 
     // Quietly populate the Connect tab so it reflects reality if user navigates back
-    document.getElementById('ig-val-followers').textContent=profile.followers||'N/A';
-    document.getElementById('ig-val-engagement').textContent=profile.engagementRate||'N/A';
-    document.getElementById('ig-val-posts').textContent=profile.totalPosts||'N/A';
-    document.getElementById('ig-val-category').textContent=profile.topCategory||profile.categories?.[0]?.name||'N/A';
     document.getElementById('ig-connect').classList.add('hidden');
     document.getElementById('ig-stats').classList.remove('hidden');
     document.getElementById('ig-badge').innerHTML=`✓ Analyzed`;
     document.getElementById('ig-badge').classList.remove('hidden');
 
-    // Kick off persona, spinner keeps running, no visible "handoff"
+    // Kick off first persona immediately, then enrich the scrape in the background.
     generatePersona();
+    enrichIGProfileInBackground(raw).catch(e => console.warn('background profile enrichment failed', e));
 
   } catch(e){
     stopLoading('persona');
