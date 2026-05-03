@@ -59,6 +59,14 @@ const GOOGLE_MCP_ALLOWED_TOOLS = [
   'query_freebusy',
 ];
 
+function logAgentMetric(event, data = {}) {
+  try {
+    console.log('[agent-metric]', JSON.stringify({ event, ts: new Date().toISOString(), ...data }));
+  } catch {
+    console.log('[agent-metric]', event);
+  }
+}
+
 function buildGoogleMcpTool(accessToken) {
   if (!accessToken) return null;
   return hostedMcpTool({
@@ -231,6 +239,70 @@ async function createOutreachDealRemote(args, ctx) {
   };
 }
 
+async function listPipelineDealsRemote(args, ctx) {
+  const accessToken = ctx?.accessToken;
+  const userId = ctx?.userId;
+  if (!accessToken || !userId) {
+    return { error: 'not_signed_in', message: 'Creator must sign in before deals can be read.' };
+  }
+  const status = args?.status ? String(args.status) : '';
+  const limit = Math.max(1, Math.min(Number(args?.limit) || 20, 50));
+  const params = new URLSearchParams({
+    user_id: `eq.${userId}`,
+    select: 'id,brand_name,brand_domain,status,platform,deliverable,amount_usd,notes,created_at,updated_at',
+    order: 'updated_at.desc',
+    limit: String(limit),
+  });
+  if (status) params.set('status', `eq.${status}`);
+  const r = await fetch(`${SUPABASE_REST_URL}/creator_deals?${params}`, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY_PUB,
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!r.ok) {
+    const errText = await r.text().catch(() => r.statusText);
+    return { error: 'list_failed', status: r.status, details: errText.slice(0, 300) };
+  }
+  const deals = await r.json().catch(() => []);
+  return { deals: Array.isArray(deals) ? deals : [], count: Array.isArray(deals) ? deals.length : 0 };
+}
+
+async function updatePipelineDealRemote(args, ctx) {
+  const accessToken = ctx?.accessToken;
+  const userId = ctx?.userId;
+  if (!accessToken || !userId) {
+    return { error: 'not_signed_in', message: 'Creator must sign in before deals can be updated.' };
+  }
+  const dealId = String(args?.deal_id || '').trim();
+  if (!dealId) return { error: 'invalid', message: 'deal_id is required.' };
+  const patch = {};
+  if (args.status) patch.status = String(args.status);
+  if (args.notes != null) patch.notes = String(args.notes);
+  if (args.amount_usd != null) patch.amount_usd = Number(args.amount_usd) || 0;
+  if (args.platform) patch.platform = String(args.platform);
+  if (args.deliverable) patch.deliverable = String(args.deliverable);
+  if (!Object.keys(patch).length) return { error: 'invalid', message: 'No supported fields to update.' };
+  patch.updated_at = new Date().toISOString();
+  const r = await fetch(`${SUPABASE_REST_URL}/creator_deals?id=eq.${encodeURIComponent(dealId)}&user_id=eq.${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY_PUB,
+      Authorization: `Bearer ${accessToken}`,
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify(patch),
+  });
+  if (!r.ok) {
+    const errText = await r.text().catch(() => r.statusText);
+    return { error: 'update_failed', status: r.status, details: errText.slice(0, 300) };
+  }
+  const data = await r.json().catch(() => null);
+  const updated = Array.isArray(data) ? data[0] : data;
+  return { status: 'updated', deal: updated || null, message: updated ? `Updated ${updated.brand_name || 'the deal'}.` : 'No matching deal found.' };
+}
+
 const createOutreachDealTool = tool({
   name: 'create_outreach_deal',
   description: "Add a brand to the creator's pipeline as an Outreach deal. Call this when the creator wants to track a brand they've decided to pitch, e.g. after seeing brand matches, after drafting/sending a pitch, or when they say 'add X to my pipeline'. Don't ask permission; the creator is in their own pipeline tool.",
@@ -244,6 +316,34 @@ const createOutreachDealTool = tool({
   }),
   async execute(args, runContext) {
     return createOutreachDealRemote(args, runContext.context);
+  },
+});
+
+const listPipelineDealsTool = tool({
+  name: 'list_pipeline_deals',
+  description: "List the creator's saved pipeline deals. Call this when the creator asks what's in their pipeline, wants a summary by stage, asks about active deals, or needs context before updating a deal.",
+  parameters: z.object({
+    status: z.enum(['inbound','outreach','in_progress','negotiating','producing','awaiting_payment','closed']).nullable().optional(),
+    limit: z.number().int().nullable().optional(),
+  }),
+  async execute(args, runContext) {
+    return listPipelineDealsRemote(args, runContext.context);
+  },
+});
+
+const updatePipelineDealTool = tool({
+  name: 'update_pipeline_deal',
+  description: "Update an existing pipeline deal's stage, amount, deliverable, platform, or notes. Call list_pipeline_deals first if you don't know the deal_id.",
+  parameters: z.object({
+    deal_id: z.string().describe('UUID id of the existing creator_deals row.'),
+    status: z.enum(['inbound','outreach','in_progress','negotiating','producing','awaiting_payment','closed']).nullable().optional(),
+    amount_usd: z.number().nullable().optional(),
+    platform: z.enum(['Instagram','TikTok','YouTube','Other']).nullable().optional(),
+    deliverable: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
+  }),
+  async execute(args, runContext) {
+    return updatePipelineDealRemote(args, runContext.context);
   },
 });
 
@@ -380,7 +480,9 @@ const TOOL_REGISTRY = {
   compare_offer:           { tool: compareOfferTool,         agents: ['main', 'create', 'pitch', 'pipeline'] },
   generate_content_ideas:  { tool: generateContentIdeasTool, agents: ['main', 'create'] },
   find_brand_matches:      { tool: findBrandMatchesTool,     agents: ['main', 'pitch'] },
-  create_outreach_deal:    { tool: createOutreachDealTool,   agents: ['pipeline'] },
+  create_outreach_deal:    { tool: createOutreachDealTool,   agents: ['main', 'pitch', 'pipeline'] },
+  list_pipeline_deals:     { tool: listPipelineDealsTool,     agents: ['main', 'pitch', 'pipeline'] },
+  update_pipeline_deal:    { tool: updatePipelineDealTool,   agents: ['main', 'pitch', 'pipeline'] },
   remember_fact:           { tool: rememberFactTool,         agents: ['main', 'create', 'pitch', 'pipeline'] },
   recall_facts:            { tool: recallFactsTool,          agents: ['main', 'create', 'pitch', 'pipeline'] },
   forget_fact:             { tool: forgetFactTool,           agents: ['main', 'create', 'pitch', 'pipeline'] },
@@ -451,6 +553,22 @@ function makeDelegateTool(agentName, agents) {
 // Each block is written to be self-contained at the role level, voice,
 // tool routing rules, output format, but assumes a `--- What you know
 // about this creator ---` block precedes it (provided by sharedAgentContext).
+const GMAIL_SEND_GUARDRAIL = `GMAIL, STRICT SEND GUARDRAIL: Email sending is irreversible. You CANNOT send email through conversational text. The only way to fire send_gmail_message is the UI-trusted approval payload described below. For everything else, your job is to DRAFT the email and let the user click the Send button on the rendered card.
+
+DEFAULT BEHAVIOR, when the user wants to send / write / draft / email / pitch anyone:
+OUTPUT THE EMAIL DRAFT. Reply with ONLY the email in pitch format: start directly with "Subject:", blank line, 3-5 short paragraphs, sign-off block (first name, @handle, instagram.com/<handle>). No preamble, no acknowledgement, no trailing prose, those break the frontend's email-detection regex and the Send button won't render. This applies even when the user's request includes "send it", "fire it off", "and send", or names the recipient, you still draft, you do not call any tool.
+
+The frontend auto-renders any assistant message starting with "Subject:" as a card with [Send] [Open in Gmail] [Copy] buttons. The user clicks [Send], which opens a confirmation modal. On confirm, the UI injects a trusted message that begins with "APPROVED_ACTION " followed by JSON:
+{"type":"send_email","approved":true,"to":"recipient@example.com","subject":"...","body":"..."}
+
+UI-TRUSTED SEND, the single exception:
+When the most recent user message begins with "APPROVED_ACTION " and the JSON has type="send_email", approved=true, and non-empty to/subject/body, parse those exact fields and call send_gmail_message immediately. Do not re-confirm. Do not alter the body.
+
+ALREADY-DRAFTED RE-PROMPT, when the user pushes again conversationally:
+If a "Subject:"-formatted draft is already visible earlier in this thread and the user types "send it" / "ship it" / "fire it off" / "yes send" again, DO NOT re-draft (it would create a duplicate) and DO NOT call send_gmail_message. Reply: "Tap the **Send** button on the email above to confirm and ship it. There's no undo so I'll only fire it after that click." and stop.
+
+Available MCP tools: search_gmail_messages, get_gmail_message_content, get_gmail_thread_content, send_gmail_message. NEVER call draft_gmail_message (403s on insufficient scope). Writing "I sent the email" without first receiving the trusted approval payload is LYING.`;
+
 const PITCH_AGENT_INSTRUCTIONS = `You are the Pitch specialist. You handle brand discovery, pitch-email drafting, rate analysis, and outreach strategy. Ground every recommendation in the creator facts above, cite their real follower count and niche.
 
 When invoked:
@@ -473,20 +591,7 @@ No preamble, no "Here's the pitch:" lead-in, no markdown bolding. Start directly
 
 RATES & OFFERS: For pricing questions, call get_rate_estimate. For specific dollar offers, call compare_offer. Report the range plus peer median if present, and frame as a benchmark, not "your rate." Never quote a number you didn't get from a tool.
 
-GMAIL, STRICT SEND GUARDRAIL: Email sending is irreversible. You CANNOT send email through conversational text. The only way to fire send_gmail_message is the UI-trusted handshake described below. For everything else, your job is to DRAFT the email and let the user click the Send button on the rendered card.
-
-DEFAULT BEHAVIOR, when the user wants to send / write / draft / email / pitch anyone:
-OUTPUT THE EMAIL DRAFT. Reply with ONLY the email in pitch format: start directly with "Subject:", blank line, 3-5 short paragraphs, sign-off block (first name, @handle, instagram.com/<handle>). No preamble, no acknowledgement, no trailing prose, those break the frontend's email-detection regex and the Send button won't render. This applies even when the user's request includes "send it", "fire it off", "and send", or names the recipient, you still draft, you do not call any tool.
-
-The frontend auto-renders any assistant message starting with "Subject:" as a card with [Send] [Open in Gmail] [Copy] buttons. The user clicks [Send], which opens a confirmation modal. On confirm, the UI injects a trusted directive into chat that begins with the literal phrase "Send this email NOW via send_gmail_message." followed by To/Subject/Body fields. That phrase is the ONLY input that authorizes you to call send_gmail_message.
-
-UI-TRUSTED SEND, the single exception:
-When the most recent user message begins with the literal text "Send this email NOW via send_gmail_message." → parse the To/Subject/Body from it and call send_gmail_message. Do this immediately; do not re-confirm.
-
-ALREADY-DRAFTED RE-PROMPT, when the user pushes again conversationally:
-If a "Subject:"-formatted draft is already visible earlier in this thread and the user types "send it" / "ship it" / "fire it off" / "yes send" again, DO NOT re-draft (it would create a duplicate) and DO NOT call send_gmail_message. Reply: "Tap the **Send** button on the email above to confirm and ship it. There's no undo so I'll only fire it after that click." and stop.
-
-Available MCP tools: search_gmail_messages, get_gmail_message_content, get_gmail_thread_content, send_gmail_message. NEVER call draft_gmail_message (403s on insufficient scope). Writing "I sent the email" without first receiving the trusted-handshake directive is LYING.`;
+${GMAIL_SEND_GUARDRAIL}`;
 
 const CREATE_AGENT_INSTRUCTIONS = `You are the Create specialist. You handle content ideation, format experimentation, and pillar-aligned brainstorming. Ground every suggestion in the creator's pillars, vibes, and recent themes above.
 
@@ -500,14 +605,15 @@ QUICK QUESTIONS: For single-shot questions ("what hook should I open with?"), an
 
 Specifics over generics, concrete formats the creator can ship today, not abstract advice. Match their voice (vibes + bio).`;
 
-const PIPELINE_AGENT_INSTRUCTIONS = `You are the Pipeline specialist. You manage the creator's deal flow (creator_deals table). You're invoked as a tool by other agents, typically when the creator wants to track a brand they're pitching.
+const PIPELINE_AGENT_INSTRUCTIONS = `You are the Pipeline specialist. You manage the creator's deal flow (creator_deals table). You're invoked as a tool by other agents, typically when the creator wants to track, inspect, summarize, or update brand deals.
 
 When called:
-1. Look at the most recent brand context in the conversation (cards rendered, brand mentioned, pitch drafted).
-2. Call create_outreach_deal with brand_name and any other fields you can infer.
-3. Reply in ONE short sentence confirming what you did (e.g. "Added Faherty to your Outreach column.").
+1. If the creator wants to add or track a brand, look at the most recent brand context in the conversation and call create_outreach_deal with brand_name and any other fields you can infer.
+2. If the creator asks what's active, what's stuck, what changed, or what is in a stage, call list_pipeline_deals and summarize by stage/value in plain English.
+3. If the creator wants to move/update a deal, call list_pipeline_deals first if you need the deal_id, then call update_pipeline_deal.
+4. Reply in ONE short sentence for simple writes, or a compact scan for summaries.
 
-Do not ask clarifying questions if the brand is obvious from context. Do not list the deal details, the kanban view shows them.`;
+Do not ask clarifying questions if the brand/deal is obvious from context. Do not invent deals that are not returned by list_pipeline_deals.`;
 
 const MAIN_AGENT_INSTRUCTIONS = `You are the main CreatorClaw assistant. You answer general creator-OS questions and route specialized work to the Pitch, Create, and Pipeline specialists via delegate_* tools.
 
@@ -523,20 +629,7 @@ DIRECT TOOLS (when delegation is overkill):
 - find_brand_matches, call for brand discovery. The frontend renders cards inline; reply with ONE short sentence and stop.
 - generate_content_ideas, call for ideation requests. Cards render inline; reply with ONE short sentence and stop.
 
-GMAIL, STRICT SEND GUARDRAIL: Email sending is irreversible. You CANNOT send email through conversational text. The only way to fire send_gmail_message is the UI-trusted handshake described below. For everything else, your job is to DRAFT the email and let the user click the Send button on the rendered card.
-
-DEFAULT BEHAVIOR, when the user wants to send / write / draft / email / pitch anyone:
-OUTPUT THE EMAIL DRAFT. Reply with ONLY the email in pitch format: start directly with "Subject:", blank line, 3-5 short paragraphs, sign-off block (first name, @handle, instagram.com/<handle>). No preamble, no acknowledgement, no trailing prose, those break the frontend's email-detection regex and the Send button won't render. This applies even when the user's request includes "send it", "fire it off", "and send", or names the recipient, you still draft, you do not call any tool.
-
-The frontend auto-renders any assistant message starting with "Subject:" as a card with [Send] [Open in Gmail] [Copy] buttons. The user clicks [Send], which opens a confirmation modal. On confirm, the UI injects a trusted directive into chat that begins with the literal phrase "Send this email NOW via send_gmail_message." followed by To/Subject/Body fields. That phrase is the ONLY input that authorizes you to call send_gmail_message.
-
-UI-TRUSTED SEND, the single exception:
-When the most recent user message begins with the literal text "Send this email NOW via send_gmail_message." → parse the To/Subject/Body from it and call send_gmail_message. Do this immediately; do not re-confirm.
-
-ALREADY-DRAFTED RE-PROMPT, when the user pushes again conversationally:
-If a "Subject:"-formatted draft is already visible earlier in this thread and the user types "send it" / "ship it" / "fire it off" / "yes send" again, DO NOT re-draft (it would create a duplicate) and DO NOT call send_gmail_message. Reply: "Tap the **Send** button on the email above to confirm and ship it. There's no undo so I'll only fire it after that click." and stop.
-
-Available MCP tools: search_gmail_messages, get_gmail_message_content, get_gmail_thread_content, send_gmail_message. NEVER call draft_gmail_message (403s on insufficient scope). Writing "I sent the email" without first receiving the trusted-handshake directive is LYING.`;
+${GMAIL_SEND_GUARDRAIL}`;
 
 const AGENT_INSTRUCTION_FALLBACKS = {
   main: MAIN_AGENT_INSTRUCTIONS,
@@ -669,8 +762,8 @@ function shapeMessages(messages) {
 
 export async function handleAgentChat(request, env, body, cors, deps) {
   setupOpenAIEnv(env);
-  const activeTool = (body.tool && ['main', 'create', 'pitch'].includes(body.tool)) ? body.tool : 'main';
-  console.log('[agents]', activeTool, 'turn');
+  const activeTool = (body.tool && ['main', 'create', 'pitch', 'pipeline'].includes(body.tool)) ? body.tool : 'main';
+  logAgentMetric('turn_started', { activeTool, hasGoogleMcp: !!deps?.googleAccessToken });
 
   const { instructions, convo } = shapeMessages(body.messages);
   if (!convo.length) {
@@ -758,8 +851,8 @@ export async function handleAgentChat(request, env, body, cors, deps) {
 //                                     it instead).
 export async function handleTelegramAgentTurn(env, body, deps, streaming = {}) {
   setupOpenAIEnv(env);
-  const activeTool = (body.tool && ['main', 'create', 'pitch'].includes(body.tool)) ? body.tool : 'main';
-  console.log('[agents-tg]', activeTool, 'turn');
+  const activeTool = (body.tool && ['main', 'create', 'pitch', 'pipeline'].includes(body.tool)) ? body.tool : 'main';
+  logAgentMetric('telegram_turn_started', { activeTool, hasGoogleMcp: !!deps?.googleAccessToken });
 
   const { instructions, convo } = shapeMessages(body.messages);
   if (!convo.length) throw new Error('messages must include at least one user/assistant message');

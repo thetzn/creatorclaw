@@ -2371,10 +2371,9 @@ function loadCreatorMemory(){
       preferredCategories: Array.isArray(parsed.preferredCategories) ? parsed.preferredCategories.slice(0,12) : [],
       savedBrands: Array.isArray(parsed.savedBrands) ? parsed.savedBrands.slice(0,24) : [],
       rejectedBrands: Array.isArray(parsed.rejectedBrands) ? parsed.rejectedBrands.slice(0,24) : [],
-      minDeal: Number(parsed.minDeal) || 0,
     };
   } catch {
-    return { preferredCategories:[], savedBrands:[], rejectedBrands:[], minDeal:0 };
+    return { preferredCategories:[], savedBrands:[], rejectedBrands:[] };
   }
 }
 
@@ -2406,7 +2405,6 @@ function buildCreatorMemoryContext(){
   if((memory.preferredCategories || []).length) lines.push(`Creator previously saved/drafted these brand categories: ${memory.preferredCategories.slice(0,8).join(', ')}.`);
   if((memory.savedBrands || []).length) lines.push(`Creator previously acted on these brands: ${memory.savedBrands.slice(0,10).join(', ')}. Use as taste signal, do not repeat unless the ask is follow-up.`);
   if((memory.rejectedBrands || []).length) lines.push(`Creator rejected or wanted to avoid these brands: ${memory.rejectedBrands.slice(0,10).join(', ')}.`);
-  if(memory.minDeal) lines.push(`Creator prefers deals at or above roughly $${Number(memory.minDeal).toLocaleString()}.`);
   return lines.join('\n');
 }
 
@@ -2839,7 +2837,7 @@ const chatState = {
   messages: [],
   streaming: false,
   conversations: [],
-  activeTool: 'main',  // 'main' | 'create' | 'pitch', drives system prompt, greeting, conversation scope
+  activeTool: 'main',  // 'main' | 'create' | 'pitch' | 'pipeline', drives agent role + conversation scope
   followBottom: true,  // sticky-scroll: follow streaming content unless user scrolls up
 };
 
@@ -2870,6 +2868,13 @@ const TOOL_CONFIG = {
     greeting: 'I can match brands, draft outreach, and pressure-test offers against your audience.',
     chips: ['Find brand matches', 'Draft a cold pitch', 'Review an offer'],
   },
+  pipeline: {
+    label: 'Pipeline',
+    placeholder: 'Ask Pipeline…',
+    headline: 'Keep your deals moving.',
+    greeting: 'I can add deals, summarize active opportunities, and move brands through your pipeline.',
+    chips: ['Summarize my pipeline', 'Add a deal', 'What needs follow-up?'],
+  },
 };
 
 function activeToolConfig(){
@@ -2877,7 +2882,7 @@ function activeToolConfig(){
 }
 
 function showChatView(tool){
-  // tool is optional. Undefined = keep current; 'main'/'create'/'pitch' = switch.
+  // tool is optional. Undefined = keep current.
   document.getElementById('intro-screen')?.remove();
   document.querySelector('.header')?.classList.add('hidden');
   document.querySelector('.main')?.classList.add('hidden');
@@ -3871,6 +3876,64 @@ function buildSystemPrompt(){
   return buildSharedAgentContext();
 }
 
+async function buildCreatorToolContext(){
+  const p = state.persona || {};
+  const d = state.igData || {};
+  const parseFollowers = (raw) => {
+    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'string'){
+      const s = raw.replace(/[, ]/g,'');
+      if(/M$/i.test(s)) return Math.round(parseFloat(s)*1_000_000);
+      if(/K$/i.test(s)) return Math.round(parseFloat(s)*1_000);
+      const n = Number(s); if(!isNaN(n)) return n;
+    }
+    return 0;
+  };
+  const parseEng = (raw) => {
+    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'string'){ const m = raw.match(/([\d.]+)/); if(m) return parseFloat(m[1]); }
+    return null;
+  };
+  let userId = null, accessToken = null;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    userId = session?.user?.id || null;
+    accessToken = session?.access_token || null;
+  } catch {}
+  let timezone = 'UTC';
+  try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch {}
+  return {
+    followers: parseFollowers(d._raw?.followers || d.followers || p.totalReach),
+    engagementPct: parseEng(d.engagementRate || p.avgEngagement),
+    niche: p.topCategory || d.topCategory || (p.pillars||[])[0]?.l || 'lifestyle',
+    brandAffinities: Array.isArray(d.brandAffinities) ? d.brandAffinities.slice(0,8) : [],
+    topSounds: Array.isArray(d.topSounds) ? d.topSounds.slice(0,8) : [],
+    recommendationContext: buildRecommendationContext(),
+    userId,
+    accessToken,
+    timezone,
+  };
+}
+
+async function callProductAction(productAction, args = {}){
+  const creatorContext = await buildCreatorToolContext();
+  const res = await fetch(PROXY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      productAction,
+      args,
+      creatorContext,
+      sharedAgentContext: buildSharedAgentContext(),
+    }),
+  });
+  if(!res.ok){
+    const errText = await res.text().catch(()=>res.statusText);
+    throw new Error('Action '+res.status+': '+errText.slice(0,200));
+  }
+  return await res.json();
+}
+
 async function ensureConversation(firstMessage){
   if(chatState.conversationId) return chatState.conversationId;
   const user = await getCurrentUser();
@@ -3961,54 +4024,7 @@ async function sendChatMessage(options = {}){
     ...chatState.messages.map(m => ({ role: m.role, content: m.content }))
   ];
 
-  // Creator profile for the rate-estimator tools the Worker exposes. Worker
-  // uses this to parameterize rate calculations when the LLM calls
-  // get_rate_estimate / compare_offer mid-conversation.
-  const p = state.persona || {};
-  const d = state.igData || {};
-  const parseFollowers = (raw) => {
-    if (typeof raw === 'number') return raw;
-    if (typeof raw === 'string'){
-      const s = raw.replace(/[, ]/g,'');
-      if(/M$/i.test(s)) return Math.round(parseFloat(s)*1_000_000);
-      if(/K$/i.test(s)) return Math.round(parseFloat(s)*1_000);
-      const n = Number(s); if(!isNaN(n)) return n;
-    }
-    return 0;
-  };
-  const parseEng = (raw) => {
-    if (typeof raw === 'number') return raw;
-    if (typeof raw === 'string'){ const m = raw.match(/([\d.]+)/); if(m) return parseFloat(m[1]); }
-    return null;
-  };
-  // Pull Supabase user id + JWT so:
-  //  - Arcade tool calls bind to this creator's connected Gmail
-  //  - The Worker's pipeline tools can write to creator_deals under RLS
-  //    (auth.uid() resolves to this user via the JWT)
-  let userId = null, accessToken = null;
-  try {
-    const { data: { session } } = await sb.auth.getSession();
-    userId = session?.user?.id || null;
-    accessToken = session?.access_token || null;
-  } catch {}
-  // Browser timezone, used by Gmail/Calendar tool calls. Without this the
-  // Google Calendar API rejects events with "Missing time zone definition".
-  let timezone = 'UTC';
-  try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch {}
-  const creatorContext = {
-    followers: parseFollowers(d._raw?.followers || d.followers || p.totalReach),
-    engagementPct: parseEng(d.engagementRate || p.avgEngagement),
-    niche: p.topCategory || d.topCategory || (p.pillars||[])[0]?.l || 'lifestyle',
-    brandAffinities: Array.isArray(d.brandAffinities) ? d.brandAffinities.slice(0,8) : [],
-    // Reels music history, the chat-driven generate_content_ideas tool uses
-    // this to suggest real songs from the creator's own library instead of
-    // hallucinating "trending audio" names.
-    topSounds: Array.isArray(d.topSounds) ? d.topSounds.slice(0,8) : [],
-    recommendationContext: buildRecommendationContext(),
-    userId,
-    accessToken,
-    timezone,
-  };
+  const creatorContext = await buildCreatorToolContext();
 
   let fullText = '';
   try {
@@ -4778,19 +4794,8 @@ async function submitPipelineQuickAdd(){
   }
   if(btn){ btn.disabled = true; btn.textContent = 'Reading'; }
   if(hint){ hint.textContent = 'Making a best guess from your pipeline categories...'; hint.classList.remove('ask'); }
-  const system = `You turn quick creator deal notes into CreatorClaw pipeline rows. Return ONLY JSON:
-{"follow_up":"","deal":{"brand_name":"Alo Yoga","brand_domain":"aloyoga.com","status":"negotiating","platform":"Instagram","deliverable":"Reel","amount_usd":4000,"notes":"2 reels + 3 stories. Due next Friday."}}
-
-Allowed status values: ${PIPELINE_STAGES.map(s=>s.id).join(', ')}.
-Allowed platforms: ${PIPELINE_PLATFORMS.join(', ')}.
-Allowed deliverables: ${PIPELINE_DELIVERABLES.join(', ')}.
-
-If you cannot identify the brand, return {"follow_up":"Which brand is this for?","deal":null}.
-If other fields are missing, make a conservative best guess and put uncertainty in notes. Use amount_usd 0 if no budget/value is mentioned.`;
-  const user = `Quick pipeline note:\n${text}`;
   try {
-    const raw = await chatLLM(system, user, { response_format:{ type:'json_object' } });
-    const parsed = parseJSON(raw);
+    const parsed = await callProductAction('parse_pipeline_quick', { text });
     if(parsed?.follow_up){
       if(hint){ hint.textContent = parsed.follow_up; hint.classList.add('ask'); }
       return;
@@ -5235,30 +5240,23 @@ async function generateBrands(){
   const existingBrands = Array.isArray(state.igData?.brandAffinities)
     ? state.igData.brandAffinities.slice(0,8).map(b=>String(b).replace(/^@/,'')).filter(Boolean)
     : [];
-  const excludeLine = existingBrands.length
-    ? `\n\nBrands the creator already mentions / has worked with (DO NOT recommend any of these, they are existing relationships, not new leads): ${existingBrands.join(', ')}.\nUse them only as a TIER + AESTHETIC reference: recommend brands of similar size, niche, and brand sensibility, peers, complements, and step-ups, not the same brands.`
-    : '';
 
   const memoryContext = buildCreatorMemoryContext();
-  const memoryRejects = state.creatorMemory?.rejectedBrands?.length
-    ? `\n\nBrands the creator has rejected or asked to avoid (DO NOT recommend): ${state.creatorMemory.rejectedBrands.join(', ')}.`
-    : '';
-
-  const system=`Brand matchmaker. Return ONLY JSON, no markdown. Structure:
-{"brands":[{"name":"Gymshark","domain":"gymshark.com","match":96,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"evidence":["Top posts skew fitness routines","Audience overlaps apparel buyers"],"pitch_angle":"30-day creator test around gym-to-street outfits","next_step":"Pitch one reel concept and ask for creator program contact","deal":"$2,500 - $5,000"}]}
-Real brands. domain is the primary website (no https:// or trailing slash). match 60-99. reasons exactly 3. evidence exactly 2, short and grounded in the scraped context. deal is dollar range. Order by match desc.
-
-Use the scraped Instagram recommendation context like retrieval evidence: match the creator's actual themes, top-performing post formats, visual style, audience/location signals, and brand orbit. Do not recommend brands already listed as existing affinities. Prefer less-obvious brands that fit the same audience and aesthetic tier.`;
+  const rejectedBrands = state.creatorMemory?.rejectedBrands?.length
+    ? state.creatorMemory.rejectedBrands.map(String).filter(Boolean)
+    : [];
 
   const personaSummary=state.persona
     ? `${state.persona.name}: ${state.persona.bio} Pillars: ${state.persona.pillars.map(p=>p.l).join(', ')}. Vibes: ${state.persona.vibes.join(', ')}. Reach: ${state.persona.totalReach}, Engagement: ${state.persona.avgEngagement}`
     : getConnectedStats();
-  const recommendationContext = buildRecommendationContext();
-  const user=`${personaSummary}${excludeLine}${memoryRejects}${memoryContext?`\n\nCreator memory:\n${memoryContext}`:''}${recommendationContext?`\n\nScraped recommendation context:\n${recommendationContext}`:''}\n\n8 brand matches:`;
 
   try {
-    const raw=await chatLLM(system,user,{ response_format:{ type:'json_object' } });
-    const brands=asArrayPayload(raw,'brands');
+    const payload = await callProductAction('find_brand_matches', {
+      count: 8,
+      preferenceContext: memoryContext,
+      exclude: [...existingBrands, ...rejectedBrands],
+    });
+    const brands = Array.isArray(payload?.brands) ? payload.brands : [];
     if(!brands.length) throw new Error('No brand matches returned');
     stopLoading('brands');
     document.getElementById('brands-loading').classList.add('hidden');
@@ -5717,15 +5715,18 @@ function executePitchSend(){
   closeModal();
   window._ccPendingSend = null;
   const { pitch } = pending;
-  // Push a fully-specified directive to the chat input. The agent's
-  // prompt rules tell it to call send_gmail_message immediately on this
-  // pattern, with no further confirmation.
-  const directive = `Send this email NOW via send_gmail_message. To: ${to}. Subject: ${pitch.subject}. Body: ${pitch.body}`;
+  const directive = 'APPROVED_ACTION ' + JSON.stringify({
+    type: 'send_email',
+    approved: true,
+    to,
+    subject: pitch.subject || '',
+    body: pitch.body || '',
+  });
   const input = document.getElementById('chat-input');
   if(!input){ showError('Chat input not found'); return; }
   input.value = directive;
   if(typeof autoResizeChat === 'function') autoResizeChat(input);
-  sendChatMessage();
+  sendChatMessage({ visible: false, displayText: `Send email to ${to}` });
 }
 
 // Tool side-channel renderer, handles structured payloads emitted by the
@@ -6000,49 +6001,25 @@ async function generatePitchDraft(i){
   const engagement = p.avgEngagement || d.engagementRate || '';
 
   const agentName = state.agent.name || DEFAULT_AGENT_NAME;
-  const senderInstruction = pitchOptions.senderMode === 'agent'
-    ? `Write as ${agentName}, the creator's named agent, on behalf of the creator. Use third person for the creator where natural, be transparent that you represent them, and sign off as ${agentName}.`
-    : 'Write as the creator in first person and sign off as the creator.';
-
-  const sys = `You are writing a cold outreach email to a brand's partnerships team. The creator wants to be considered for a paid collab. ${senderInstruction} Follow the creator's saved agent style if provided. Be specific, confident, and concise by default. No sycophancy, no "I love your brand" filler. One concrete idea tied to the brand's known program if possible.
-
-Return ONLY JSON, no markdown:
-{
-  "subject": "short, specific, has creator's handle or name",
-  "body": "3-5 short paragraphs, plaintext (no markdown). First line names the creator + niche + metric. Second paragraph references brand's program/aesthetic/campaign if given. Third is a concrete concept idea. Fourth is the ask (next step/call). Sign off with creator's first name."
-}`;
-
-  const brandCtx = [
-    `Brand: ${brand.name}${brand.domain?` (${brand.domain})`:''}`,
-    brand.cat ? `Category: ${brand.cat}` : null,
-    brand.program_url ? `Creator program: ${brand.program_url}` : null,
-    (brand.recent_campaigns||[]).length ? `Recent campaigns: ${(brand.recent_campaigns||[]).slice(0,2).map(c=>c.title||'').filter(Boolean).join(' | ')}` : null,
-    pitchOptions.angle ? `Chosen angle: ${pitchOptions.angle}` : null,
-    brand.next_step ? `Recommended next step: ${brand.next_step}` : null,
-    Array.isArray(brand.evidence) && brand.evidence.length ? `Recommendation evidence: ${brand.evidence.join('; ')}` : null,
-    Array.isArray(brand.reasons) && brand.reasons.length ? `Fit reasons: ${brand.reasons.join('; ')}` : null,
-  ].filter(Boolean).join('\n');
-
-  const creatorCtx = [
-    `Name: ${creatorName}`,
-    handle ? `Handle: ${handle}` : null,
-    state.agent.persona ? `Saved agent style and pitch preferences: ${state.agent.persona}` : null,
-    location ? `Based in: ${location}` : null,
-    followers ? `Followers: ${followers}` : null,
-    engagement ? `Engagement rate: ${engagement}` : null,
-    vibes ? `Voice/vibes: ${vibes}` : null,
-    pillars ? `Content pillars: ${pillars}` : null,
-    partnerships.length ? `Existing partnerships (use 1-2 as social proof if natural): ${partnerships.map(x=>'@'+x).join(', ')}` : null,
-  ].filter(Boolean).join('\n');
-
-  const user = `Brand to pitch:\n${brandCtx}\n\nCreator:\n${creatorCtx}\n\nPitch JSON:`;
-
   try {
-    const raw = await chatLLM(sys, user,{ response_format:{ type:'json_object' } });
-    const pitch = parseJSON(raw);
+    const payload = await callProductAction('draft_pitch', {
+      brand,
+      pitchOptions,
+      creatorProfile: {
+        creatorName,
+        handle,
+        agentName,
+        agentStyle: state.agent.persona || '',
+        location,
+        followers,
+        engagement,
+        vibes,
+        pillars,
+        partnerships,
+      },
+    });
+    const pitch = payload?.pitch || payload;
     if(!pitch || !pitch.subject || !pitch.body){ throw new Error('Could not parse pitch response'); }
-    pitch.sender_mode = pitchOptions.senderMode;
-    pitch.sender_name = pitchOptions.senderMode === 'agent' ? agentName : creatorName;
     showPitchModal(brand, pitch);
   } catch(e){
     closeModal();
@@ -6149,27 +6126,9 @@ async function generatePulse(){
   document.getElementById('pulse-loading').classList.remove('hidden');
   startLoading('pulse', 10);
 
-  const system=`Content strategist. Return ONLY JSON, no markdown. Structure:
-{"ideas":[{"title":"Title","hook":"Why this works.","trend":"hot","match":96,"format":"Reel / TikTok","platform":"Both","estReach":"45K – 80K","tags":["#tag1","#tag2","#tag3"],"persona":["Trait1","Trait2"],"cat":"fitness","sound":"Song Name, Artist"}]}
-trend: hot/rising/steady/new. platform: Both/Instagram/TikTok/YouTube. cat: fitness/lifestyle/beauty/tech/wellness/other. Mix categories. Order by match desc.
-
-Use the scraped Instagram recommendation context like retrieval evidence: riff from the creator's best-performing recent posts, repeated themes, visual style, format mix, hashtags, and reused audio. Ideas should feel like only this creator would post them, not generic niche templates. Avoid bland titles like "Morning Routine" unless tied to a specific observed pattern.
-
-For the \`sound\` field: prefer suggesting an audio the creator has actually used before (listed below if any), write the exact name as "Song Name, Artist". Their reuse signals it works for their audience. Don't invent songs you can't verify exist; leave \`sound\` empty if nothing from their library fits the idea.`;
-
-  const topSounds = (state.igData && Array.isArray(state.igData.topSounds)) ? state.igData.topSounds : [];
-  const soundsLine = topSounds.length
-    ? `\nAudios they've used before (prefer suggesting these by exact name when natural):\n${topSounds.slice(0,8).map(s=>`- "${s.song_name||'Untitled'}", ${s.artist_name||'Unknown'} (used ${s.count||1}× in their reels)`).join('\n')}`
-    : '';
-  const personaSummary=state.persona
-    ? `${state.persona.name}: ${state.persona.bio} Pillars: ${state.persona.pillars.map(p=>p.l).join(', ')}. Vibes: ${state.persona.vibes.join(', ')}`
-    : getConnectedStats();
-  const recommendationContext = buildRecommendationContext();
-  const user=`${personaSummary}${soundsLine}${recommendationContext?`\n\nScraped recommendation context:\n${recommendationContext}`:''}\n\n10 content ideas:`;
-
   try {
-    const raw=await chatLLM(system,user,{ response_format:{ type:'json_object' } });
-    const ideas=asArrayPayload(raw,'ideas');
+    const payload = await callProductAction('generate_content_ideas', { count: 10 });
+    const ideas = Array.isArray(payload?.ideas) ? payload.ideas : [];
     if(!ideas.length) throw new Error('No content ideas returned');
     stopLoading('pulse');
     document.getElementById('pulse-loading').classList.add('hidden');

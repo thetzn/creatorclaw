@@ -32,6 +32,9 @@ const ENGAGEMENT_BANDS = [
 const NICHE_MULTIPLIERS = { finance: 1.5, b2b: 1.4, tech: 1.2, business: 1.2, wellness: 1.1, beauty: 1.1, fashion: 1.1, fitness: 1.05, parenting: 1.0, travel: 1.0, lifestyle: 1.0, diy: 1.0, home: 1.0, food: 0.9, gaming: 0.9, entertainment: 0.9, default: 1.0 };
 const DELIVERABLE_MULTIPLIERS = { story: 0.4, 'story-series': 0.9, static: 1.0, carousel: 1.1, reel: 1.5, video: 1.0, 'reel-plus-story': 1.8, 'static-plus-stories': 1.4, 'full-bundle': 2.5, ugc: 0.7, 'youtube-short': 0.7, 'youtube-integration': 1.0, 'youtube-dedicated': 2.5, 'crosspost-ig-tt': 2.0 };
 const ADDONS = { usageRightsPerMonth: 0.15, exclusivity30d: 0.5, exclusivity60d: 0.8, exclusivity90d: 1.2, whitelisting: 0.75, rush: 0.25 };
+const PIPELINE_STAGES = ['inbound', 'outreach', 'in_progress', 'negotiating', 'producing', 'awaiting_payment', 'closed'];
+const PIPELINE_PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Other'];
+const PIPELINE_DELIVERABLES = ['Reel', 'Static', 'Carousel', 'Story set', 'TikTok video', 'YouTube short', 'Full bundle', 'UGC', 'Other'];
 
 // Benchmark cache across requests in a warm Worker instance.
 let _benchmarkCache = null;
@@ -177,11 +180,11 @@ async function executeRateToolCall(toolCall, creatorContext, env) {
     // Content ideation tool, generates structured ideas as JSON. Frontend
     // renders the items as inline mini-cards in the chat.
     if (name === 'generate_content_ideas') {
-      const count = Math.max(1, Math.min(Number(args.count) || 4, 6));
+      const count = Math.max(1, Math.min(Number(args.count) || 4, 10));
       const theme = String(args.theme || '').trim();
       const sys = `You generate Instagram/TikTok content ideas for individual creators. Return ONLY JSON (no markdown), shaped:
-{"ideas":[{"title":"...","hook":"first 3-second hook","format":"reel|carousel|static|story-series","platform":"Instagram|TikTok","trend":"hot|rising|steady|new","match":85,"persona":["Authentic","Relatable"],"estReach":"50K-150K","tags":["#tag1","#tag2"],"sound":"Song Name, Artist (or empty string)"}]}
-Real, specific, and shippable. Each idea distinct. match is 60-99 reflecting fit to this creator. trend reflects timeliness.
+{"ideas":[{"title":"...","hook":"first 3-second hook","format":"reel|carousel|static|story-series","platform":"Instagram|TikTok","trend":"hot|rising|steady|new","match":85,"persona":["Authentic","Relatable"],"estReach":"50K-150K","tags":["#tag1","#tag2"],"cat":"fitness|lifestyle|beauty|tech|wellness|other","sound":"Song Name, Artist (or empty string)"}]}
+Real, specific, and shippable. Each idea distinct. match is 60-99 reflecting fit to this creator. trend reflects timeliness. cat powers UI filters, choose the closest value.
 
 Use the scraped Instagram recommendation context like retrieval evidence: riff from the creator's best-performing recent posts, repeated themes, visual style, format mix, hashtags, and reused audio. Ideas should feel like only this creator would post them, not generic niche templates. Avoid bland titles like "Morning Routine" unless tied to a specific observed pattern.
 
@@ -230,12 +233,13 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
 
     // Brand-match tool, generates structured brand recommendations.
     if (name === 'find_brand_matches') {
-      const count = Math.max(1, Math.min(Number(args.count) || 4, 6));
+      const count = Math.max(1, Math.min(Number(args.count) || 4, 8));
       const theme = String(args.theme || '').trim();
+      const preferenceContext = String(args.preferenceContext || '').trim();
       const exclude = Array.isArray(args.exclude) ? args.exclude.filter(Boolean).map(String).slice(0, 20) : [];
       const sys = `Brand matchmaker for individual creators. Return ONLY JSON, no markdown. Schema:
-{"brands":[{"name":"Gymshark","domain":"gymshark.com","match":92,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"}]}
-domain has no protocol or trailing slash. match 60-99. Exactly 3 reasons each. Order by match desc. Real, currently-active brands; avoid generic ones the creator already mentioned (those are existing relationships, not new leads).
+{"brands":[{"name":"Gymshark","domain":"gymshark.com","match":92,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"evidence":["Top posts skew fitness routines","Audience overlaps apparel buyers"],"pitch_angle":"30-day creator test around gym-to-street outfits","next_step":"Pitch one reel concept and ask for creator program contact","deal":"$2,500 - $5,000"}]}
+domain has no protocol or trailing slash. match 60-99. Exactly 3 reasons each. Exactly 2 evidence items, short and grounded in the scraped context. pitch_angle and next_step should be concrete. Order by match desc. Real, currently-active brands; avoid generic ones the creator already mentioned (those are existing relationships, not new leads).
 
 Use the scraped Instagram recommendation context like retrieval evidence: match the creator's actual themes, top-performing post formats, visual style, audience/location signals, and brand orbit. Prefer less-obvious brands that fit the same audience and aesthetic tier.`;
       const ctxLines = [
@@ -246,6 +250,7 @@ Use the scraped Instagram recommendation context like retrieval evidence: match 
         Array.isArray(creator.brandAffinities) && creator.brandAffinities.length
           ? `Existing partnerships (DO NOT recommend, use as tier signal only): ${creator.brandAffinities.join(', ')}`
           : null,
+        preferenceContext ? `Creator recommendation preferences / memory:\n${preferenceContext.slice(0, 1200)}` : null,
         exclude.length
           ? `Already shown (DO NOT repeat, return different brands): ${exclude.join(', ')}`
           : null,
@@ -317,6 +322,151 @@ Use the scraped Instagram recommendation context like retrieval evidence: match 
     return est;
   } catch (e) {
     return { error: String((e && e.message) || e) };
+  }
+}
+
+function stripCodeFence(text) {
+  return String(text || '').replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
+}
+
+async function chatJson(env, messages, temperature = 0.5) {
+  const r = await fetch(CHAT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.API_KEY },
+    body: JSON.stringify({
+      model: MODEL,
+      temperature,
+      messages,
+      response_format: { type: 'json_object' },
+    }),
+  });
+  if (!r.ok) {
+    const errText = await r.text().catch(() => r.statusText);
+    throw new Error(`openai_${r.status}: ${errText.slice(0, 300)}`);
+  }
+  const data = await r.json();
+  const txt = stripCodeFence(data?.choices?.[0]?.message?.content || '{}');
+  return JSON.parse(txt || '{}');
+}
+
+function sanitizePipelineDeal(raw, fallbackText = '') {
+  const d = raw || {};
+  const brand = String(d.brand_name || '').trim();
+  if (!brand) return null;
+  let domain = String(d.brand_domain || '').trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/^www\./i, '')
+    .replace(/\/.*$/, '');
+  const status = PIPELINE_STAGES.includes(d.status) ? d.status : 'outreach';
+  const platform = PIPELINE_PLATFORMS.includes(d.platform) ? d.platform : 'Instagram';
+  const deliverable = PIPELINE_DELIVERABLES.includes(d.deliverable) ? d.deliverable : 'Other';
+  return {
+    brand_name: brand,
+    brand_domain: domain || null,
+    status,
+    platform,
+    deliverable,
+    amount_usd: Number(d.amount_usd) || 0,
+    notes: String(d.notes || fallbackText || '').trim() || null,
+  };
+}
+
+async function parsePipelineQuickAction(args, env) {
+  const text = String(args?.text || '').trim().slice(0, 1600);
+  if (!text) return { follow_up: 'Write the deal in plain English first.', deal: null };
+  const system = `You turn quick creator deal notes into CreatorClaw pipeline rows. Return ONLY JSON:
+{"follow_up":"","deal":{"brand_name":"Alo Yoga","brand_domain":"aloyoga.com","status":"negotiating","platform":"Instagram","deliverable":"Reel","amount_usd":4000,"notes":"2 reels + 3 stories. Due next Friday."}}
+
+Allowed status values: ${PIPELINE_STAGES.join(', ')}.
+Allowed platforms: ${PIPELINE_PLATFORMS.join(', ')}.
+Allowed deliverables: ${PIPELINE_DELIVERABLES.join(', ')}.
+
+If you cannot identify the brand, return {"follow_up":"Which brand is this for?","deal":null}.
+If other fields are missing, make a conservative best guess and put uncertainty in notes. Use amount_usd 0 if no budget/value is mentioned.`;
+  const parsed = await chatJson(env, [
+    { role: 'system', content: system },
+    { role: 'user', content: `Quick pipeline note:\n${text}` },
+  ], 0.2);
+  if (parsed?.follow_up) return { follow_up: String(parsed.follow_up).slice(0, 220), deal: null };
+  const deal = sanitizePipelineDeal(parsed?.deal || parsed, text);
+  if (!deal) return { follow_up: 'Which brand is this for?', deal: null };
+  return { follow_up: '', deal };
+}
+
+async function draftPitchAction(args, creatorContext, env) {
+  const brand = args?.brand || {};
+  const pitchOptions = args?.pitchOptions || {};
+  const profile = args?.creatorProfile || {};
+  const agentName = String(profile.agentName || 'Claw').trim() || 'Claw';
+  const senderMode = pitchOptions.senderMode === 'agent' ? 'agent' : 'creator';
+  const senderInstruction = senderMode === 'agent'
+    ? `Write as ${agentName}, the creator's named agent, on behalf of the creator. Use third person for the creator where natural, be transparent that you represent them, and sign off as ${agentName}.`
+    : 'Write as the creator in first person and sign off as the creator.';
+  const sys = `You are writing a cold outreach email to a brand's partnerships team. The creator wants to be considered for a paid collab. ${senderInstruction} Follow the creator's saved agent style if provided. Be specific, confident, and concise by default. No sycophancy, no "I love your brand" filler. One concrete idea tied to the brand's known program if possible.
+
+Return ONLY JSON, no markdown:
+{
+  "subject": "short, specific, has creator's handle or name",
+  "body": "3-5 short paragraphs, plaintext (no markdown). First line names the creator + niche + metric. Second paragraph references brand's program/aesthetic/campaign if given. Third is a concrete concept idea. Fourth is the ask (next step/call). Sign off with creator's first name."
+}`;
+  const brandCtx = [
+    `Brand: ${brand.name || 'Unknown'}${brand.domain ? ` (${brand.domain})` : ''}`,
+    brand.cat ? `Category: ${brand.cat}` : null,
+    brand.program_url ? `Creator program: ${brand.program_url}` : null,
+    Array.isArray(brand.recent_campaigns) && brand.recent_campaigns.length ? `Recent campaigns: ${brand.recent_campaigns.slice(0, 2).map(c => c.title || '').filter(Boolean).join(' | ')}` : null,
+    pitchOptions.angle ? `Chosen angle: ${pitchOptions.angle}` : null,
+    brand.next_step ? `Recommended next step: ${brand.next_step}` : null,
+    Array.isArray(brand.evidence) && brand.evidence.length ? `Recommendation evidence: ${brand.evidence.join('; ')}` : null,
+    Array.isArray(brand.reasons) && brand.reasons.length ? `Fit reasons: ${brand.reasons.join('; ')}` : null,
+  ].filter(Boolean).join('\n');
+  const creatorCtx = [
+    profile.creatorName ? `Name: ${profile.creatorName}` : null,
+    profile.handle ? `Handle: ${profile.handle}` : null,
+    profile.agentStyle ? `Saved agent style and pitch preferences: ${profile.agentStyle}` : null,
+    profile.location ? `Based in: ${profile.location}` : null,
+    profile.followers ? `Followers: ${profile.followers}` : null,
+    profile.engagement ? `Engagement rate: ${profile.engagement}` : null,
+    profile.vibes ? `Voice/vibes: ${profile.vibes}` : null,
+    profile.pillars ? `Content pillars: ${profile.pillars}` : null,
+    Array.isArray(profile.partnerships) && profile.partnerships.length ? `Existing partnerships (use 1-2 as social proof if natural): ${profile.partnerships.map(x => '@' + String(x).replace(/^@/, '')).join(', ')}` : null,
+    creatorContext?.recommendationContext ? `Scraped recommendation context:\n${String(creatorContext.recommendationContext).slice(0, 2200)}` : null,
+  ].filter(Boolean).join('\n');
+  const pitch = await chatJson(env, [
+    { role: 'system', content: sys },
+    { role: 'user', content: `Brand to pitch:\n${brandCtx}\n\nCreator:\n${creatorCtx}\n\nPitch JSON:` },
+  ], 0.65);
+  if (!pitch?.subject || !pitch?.body) throw new Error('pitch_json_missing_fields');
+  return {
+    pitch: {
+      subject: String(pitch.subject).trim(),
+      body: String(pitch.body).trim(),
+      sender_mode: senderMode,
+      sender_name: senderMode === 'agent' ? agentName : (profile.creatorName || 'the creator'),
+    },
+  };
+}
+
+async function handleProductAction(body, env, origin, allowed) {
+  const started = Date.now();
+  const action = String(body.productAction || '').trim();
+  const args = body.args || {};
+  const creatorContext = body.creatorContext || {};
+  try {
+    let result;
+    if (action === 'find_brand_matches' || action === 'generate_content_ideas') {
+      result = await executeRateToolCall({ function: { name: action, arguments: JSON.stringify(args || {}) } }, creatorContext, env);
+    } else if (action === 'parse_pipeline_quick') {
+      result = await parsePipelineQuickAction(args, env);
+    } else if (action === 'draft_pitch') {
+      result = await draftPitchAction(args, creatorContext, env);
+    } else {
+      return json({ error: 'unknown_product_action' }, 400, origin, allowed);
+    }
+    console.log('[product-action]', JSON.stringify({ action, ok: !result?.error, ms: Date.now() - started }));
+    return json(result, 200, origin, allowed);
+  } catch (e) {
+    console.error('[product-action] failed', action, e);
+    return json({ error: 'product_action_failed', action, message: String(e?.message || e) }, 500, origin, allowed);
   }
 }
 
@@ -1439,6 +1589,11 @@ export default {
       }, 200, origin, allowed);
     }
 
+    // ── Product actions: Worker-owned generation/parsing used by tabs ───
+    if (body.productAction) {
+      return handleProductAction(body, env, origin, allowed);
+    }
+
     // ── Agent: brand research (Responses API + web_search allowlist) ────
     if (body.agentBrandResearch) {
       return runAgentBrandResearch(body, env, origin, allowed);
@@ -1482,8 +1637,11 @@ export default {
     // sub-LLM JSON generation) instead of duplicating logic.
     if (body.stream) {
       const executeToolByName = async (name, args) => {
+        const started = Date.now();
         const fakeToolCall = { function: { name, arguments: JSON.stringify(args || {}) } };
-        return await executeRateToolCall(fakeToolCall, body.creatorContext || {}, env);
+        const result = await executeRateToolCall(fakeToolCall, body.creatorContext || {}, env);
+        console.log('[tool-metric]', JSON.stringify({ name, ok: !result?.error, ms: Date.now() - started }));
+        return result;
       };
       // Look up the user's Google Workspace access token (refreshing if
       // expired). Passed to the SDK so agents can call gmail/calendar via
@@ -3550,9 +3708,15 @@ async function handlePitchConfirmCb(cb, link, jwt, actionId, env) {
     await tgEditMessageText(env, cb.message.chat.id, cb.message.message_id,
       `<i>Sending to ${tgEscapeHtml(recipient)}...</i>`);
   }
-  // Synthesize the trusted-handshake directive that the agent's Gmail
+  // Synthesize the trusted approval payload that the agent's Gmail
   // guardrail recognizes. The agent will fire send_gmail_message.
-  const directive = `Send this email NOW via send_gmail_message. To: ${recipient}. Subject: ${subject}. Body: ${body}`;
+  const directive = 'APPROVED_ACTION ' + JSON.stringify({
+    type: 'send_email',
+    approved: true,
+    to: recipient,
+    subject,
+    body,
+  });
   // Manufacture a fake message envelope so we can reuse handleAgentMessage's
   // full path (persona load, conversation persist, run, response).
   const fakeMsg = {
