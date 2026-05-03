@@ -2359,11 +2359,9 @@ function loadCreatorMemory(){
       savedBrands: Array.isArray(parsed.savedBrands) ? parsed.savedBrands.slice(0,24) : [],
       rejectedBrands: Array.isArray(parsed.rejectedBrands) ? parsed.rejectedBrands.slice(0,24) : [],
       minDeal: Number(parsed.minDeal) || 0,
-      pitchTone: parsed.pitchTone || 'warm',
-      pitchLength: parsed.pitchLength || 'short',
     };
   } catch {
-    return { preferredCategories:[], savedBrands:[], rejectedBrands:[], minDeal:0, pitchTone:'warm', pitchLength:'short' };
+    return { preferredCategories:[], savedBrands:[], rejectedBrands:[], minDeal:0 };
   }
 }
 
@@ -2371,7 +2369,7 @@ function saveCreatorMemory(){
   try { localStorage.setItem('cc_creator_memory', JSON.stringify(state.creatorMemory || {})); } catch {}
 }
 
-function rememberBrandInteraction(brand, action, extra = {}){
+function rememberBrandInteraction(brand, action){
   if(!brand) return;
   const memory = state.creatorMemory || loadCreatorMemory();
   const name = String(brand.name || '').trim();
@@ -2385,8 +2383,6 @@ function rememberBrandInteraction(brand, action, extra = {}){
   if(action === 'reject' && name){
     memory.rejectedBrands = [name, ...(memory.rejectedBrands || []).filter(x => x !== name)].slice(0,24);
   }
-  if(extra.pitchTone) memory.pitchTone = extra.pitchTone;
-  if(extra.pitchLength) memory.pitchLength = extra.pitchLength;
   state.creatorMemory = memory;
   saveCreatorMemory();
 }
@@ -2398,7 +2394,6 @@ function buildCreatorMemoryContext(){
   if((memory.savedBrands || []).length) lines.push(`Creator previously acted on these brands: ${memory.savedBrands.slice(0,10).join(', ')}. Use as taste signal, do not repeat unless the ask is follow-up.`);
   if((memory.rejectedBrands || []).length) lines.push(`Creator rejected or wanted to avoid these brands: ${memory.rejectedBrands.slice(0,10).join(', ')}.`);
   if(memory.minDeal) lines.push(`Creator prefers deals at or above roughly $${Number(memory.minDeal).toLocaleString()}.`);
-  if(memory.pitchTone) lines.push(`Preferred pitch tone: ${memory.pitchTone}.`);
   return lines.join('\n');
 }
 
@@ -5869,12 +5864,18 @@ function draftPitchInline(i){
 function draftPitch(i){
   const brand = (state.brands||[])[i];
   if(!brand){ showError('Brand not found'); return; }
-  const memory = state.creatorMemory || loadCreatorMemory();
   const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const angle = brandPitchAngle(brand);
+  const agentStyle = state.agent.persona
+    ? 'Uses your saved agent style for tone, length, and voice.'
+    : 'Uses CreatorClaw defaults. Add tone or length preferences in Agent style.';
   showModal(`
     <div class="modal-title">Draft pitch</div>
     <div class="modal-sub">${esc(brand.name)} gets a pitch built from your creator profile, scraped IG context, and this match's evidence.</div>
+    <div class="brand-trust" style="margin-bottom:14px">
+      <div class="brand-trust-kicker">Style source</div>
+      <div class="brand-trust-angle">${esc(agentStyle)}</div>
+    </div>
     <div class="modal-label">Angle</div>
     <select id="pitch-angle-select" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;margin-bottom:14px">
       <option value="${esc(angle)}">${esc(angle)}</option>
@@ -5883,20 +5884,6 @@ function draftPitch(i){
       <option value="Lead with UGC-style creative the brand can reuse">UGC creative</option>
       ${brand.program_url ? '<option value="Lead with their creator program and explain why this profile fits it">Creator program fit</option>' : ''}
     </select>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
-      <div>
-        <div class="modal-label">Tone</div>
-        <select id="pitch-tone-select" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
-          ${['warm','direct','premium','playful'].map(t=>`<option value="${t}"${memory.pitchTone===t?' selected':''}>${t[0].toUpperCase()+t.slice(1)}</option>`).join('')}
-        </select>
-      </div>
-      <div>
-        <div class="modal-label">Length</div>
-        <select id="pitch-length-select" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
-          ${['short','standard','detailed'].map(t=>`<option value="${t}"${memory.pitchLength===t?' selected':''}>${t[0].toUpperCase()+t.slice(1)}</option>`).join('')}
-        </select>
-      </div>
-    </div>
     <div class="modal-row">
       <button class="modal-cancel-btn" onclick="closeModal()">Cancel</button>
       <button class="modal-save-btn" onclick="generatePitchDraft(${i})">Generate</button>
@@ -5909,10 +5896,8 @@ async function generatePitchDraft(i){
   if(!brand){ showError('Brand not found'); return; }
   const pitchOptions = {
     angle: document.getElementById('pitch-angle-select')?.value || brandPitchAngle(brand),
-    tone: document.getElementById('pitch-tone-select')?.value || state.creatorMemory?.pitchTone || 'warm',
-    length: document.getElementById('pitch-length-select')?.value || state.creatorMemory?.pitchLength || 'short',
   };
-  rememberBrandInteraction(brand, 'draft', { pitchTone: pitchOptions.tone, pitchLength: pitchOptions.length });
+  rememberBrandInteraction(brand, 'draft');
   const p = state.persona || {};
   const d = state.igData || {};
 
@@ -5935,7 +5920,7 @@ async function generatePitchDraft(i){
   const followers = p.totalReach || d.followers || '';
   const engagement = p.avgEngagement || d.engagementRate || '';
 
-  const sys = `You are writing a cold outreach email from an Instagram creator to a brand's partnerships team. The creator wants to be considered for a paid collab. Write in the creator's authentic voice, match their vibes. Be ${pitchOptions.tone}, specific, confident, and ${pitchOptions.length}. No sycophancy, no "I love your brand" filler. One concrete idea tied to the brand's known program if possible.
+  const sys = `You are writing a cold outreach email from an Instagram creator to a brand's partnerships team. The creator wants to be considered for a paid collab. Write in the creator's authentic voice and follow their saved agent style if provided. Be specific, confident, and concise by default. No sycophancy, no "I love your brand" filler. One concrete idea tied to the brand's known program if possible.
 
 Return ONLY JSON, no markdown:
 {
@@ -5957,6 +5942,7 @@ Return ONLY JSON, no markdown:
   const creatorCtx = [
     `Name: ${creatorName}`,
     handle ? `Handle: ${handle}` : null,
+    state.agent.persona ? `Saved agent style and pitch preferences: ${state.agent.persona}` : null,
     location ? `Based in: ${location}` : null,
     followers ? `Followers: ${followers}` : null,
     engagement ? `Engagement rate: ${engagement}` : null,
