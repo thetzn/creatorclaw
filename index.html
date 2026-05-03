@@ -553,35 +553,40 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .growth-label{font-size:7px;color:var(--muted2);margin-top:4px;font-weight:500;letter-spacing:0.05em}
 
 /* Brands */
-.brand-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.brand-card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:28px}
-.brand-card:hover{border-color:var(--border2)}
-.brand-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.brand-logo{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;overflow:hidden}
+.brand-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.brand-card{background:linear-gradient(180deg,rgba(255,255,255,0.025),rgba(255,255,255,0)),var(--card);border-radius:10px;border:1px solid var(--border);padding:20px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.035);transition:border-color 0.22s ease,box-shadow 0.22s ease,transform 0.22s ease}
+.brand-card:hover{border-color:var(--gold-border);box-shadow:0 16px 40px rgba(0,0,0,0.18),inset 0 1px 0 rgba(255,255,255,0.05);transform:translateY(-1px)}
+.brand-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}
+.brand-logo{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;overflow:hidden;box-shadow:0 1px 0 rgba(255,255,255,0.05)}
 .brand-logo img{width:70%;height:70%;object-fit:contain}
-.brand-info{display:flex;align-items:center;gap:14px}
-.brand-name{font-weight:600;font-size:15px;letter-spacing:0.02em}
-.brand-cat{font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase}
+.brand-info{display:flex;align-items:center;gap:12px;min-width:0}
+.brand-name{font-weight:650;font-size:15px;letter-spacing:0;line-height:1.2}
+.brand-cat{font-size:9px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-top:4px;line-height:1.2}
 .brand-match{color:var(--gold);font-weight:700;font-size:14px;letter-spacing:-0.02em}
-.match-meter{width:54px;height:54px;flex-shrink:0;position:relative}
-.match-meter-ring{width:54px;height:54px;border-radius:50%;background:conic-gradient(var(--gold3) 0deg,var(--gold) var(--deg,0deg),var(--border) var(--deg,0deg))}
-.match-meter-inner{position:absolute;inset:4px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;line-height:1}
-.match-meter-val{font-size:14px;font-weight:700;color:var(--gold);letter-spacing:-0.02em}
-.match-meter-lbl{font-size:7px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-top:2px}
-.brand-reasons{margin:16px 0}
-.brand-reason{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin-bottom:6px}
-.brand-reason .chk{color:var(--gold);font-weight:400}
-.brand-enriched{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
-.brand-enriched-pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;letter-spacing:0.04em;padding:4px 9px;border-radius:999px;background:var(--card2);border:1px solid var(--border2);color:var(--muted);text-decoration:none;line-height:1}
-.brand-enriched-pill.verified{color:var(--green);border-color:rgba(107,158,107,0.4)}
-.brand-enriched-pill.warm{color:var(--gold);border-color:var(--gold-border)}
-.brand-enriched-pill.link{color:var(--gold);border-color:var(--gold-border);cursor:pointer}
-.brand-enriched-pill.link:hover{background:var(--card)}
-.brand-footer{display:flex;align-items:center;justify-content:space-between;padding-top:16px;border-top:1px solid var(--border)}
-.brand-deal{font-size:13px;font-weight:600;color:var(--green)}
-.outreach-btn{background:transparent;border:1px solid var(--gold-border);border-radius:6px;padding:9px 18px;color:var(--gold);font-weight:600;font-size:10px;display:flex;align-items:center;gap:5px;letter-spacing:0.1em;text-transform:uppercase;transition:all 0.3s}
-.outreach-btn:hover{background:var(--gold);color:var(--bg)}
-.outreach-btn.sent{background:var(--green-dim);color:var(--green);border-color:rgba(107,158,107,0.3)}
+.match-meter{width:50px;height:50px;flex-shrink:0;position:relative}
+.match-meter-ring{width:50px;height:50px;border-radius:50%;background:conic-gradient(var(--gold2) 0deg,var(--gold) var(--deg,0deg),rgba(255,255,255,0.07) var(--deg,0deg))}
+.match-meter-inner{position:absolute;inset:3px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;line-height:1;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.035)}
+.match-meter-val{font-size:13px;font-weight:750;color:var(--gold);letter-spacing:0}
+.match-meter-lbl{font-size:6px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-top:3px}
+.brand-reasons{display:grid;gap:8px;margin:14px 0 12px}
+.brand-reason{display:grid;grid-template-columns:12px 1fr;align-items:start;gap:8px;font-size:12px;color:var(--muted);line-height:1.45}
+.brand-reason .chk{position:relative;width:12px;height:12px;margin-top:2px;color:transparent;font-size:0}
+.brand-reason .chk::before{content:'';position:absolute;left:3px;top:5px;width:5px;height:2px;background:var(--gold);border-radius:2px}
+.brand-enriched{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 14px}
+.brand-enriched-pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;letter-spacing:0;padding:5px 9px;border-radius:999px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);color:var(--muted);text-decoration:none;line-height:1}
+.brand-enriched-pill.verified{color:var(--green);border-color:rgba(107,158,107,0.28);background:rgba(107,158,107,0.07)}
+.brand-enriched-pill.warm{color:var(--gold);border-color:rgba(201,169,110,0.24);background:rgba(201,169,110,0.07)}
+.brand-enriched-pill.link{color:var(--gold);border-color:rgba(201,169,110,0.28);cursor:pointer}
+.brand-enriched-pill.link:hover{background:var(--gold-dim)}
+.brand-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.055)}
+.brand-deal{font-size:13px;font-weight:700;color:var(--green);letter-spacing:0}
+.brand-actions{display:flex;gap:8px;align-items:center;justify-content:flex-end}
+.outreach-btn{border:1px solid var(--border2);border-radius:8px;padding:10px 14px;color:var(--muted);background:rgba(255,255,255,0.02);font-weight:700;font-size:9px;display:inline-flex;align-items:center;justify-content:center;gap:6px;letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap;transition:background 0.2s ease,border-color 0.2s ease,color 0.2s ease,transform 0.2s ease,box-shadow 0.2s ease}
+.outreach-btn:hover{border-color:var(--gold-border);color:var(--gold);background:var(--gold-dim)}
+.outreach-btn.primary{background:linear-gradient(180deg,var(--gold2),var(--gold));border-color:transparent;color:#17120A;box-shadow:0 10px 24px rgba(201,169,110,0.16)}
+.outreach-btn.primary:hover{background:linear-gradient(180deg,var(--gold2),var(--gold3));color:#17120A;transform:translateY(-1px)}
+.outreach-btn.secondary{padding:10px 12px}
+.outreach-btn.sent{background:var(--green-dim);color:var(--green);border-color:rgba(107,158,107,0.28);box-shadow:none}
 
 /* Pulse */
 .pulse-filters{display:flex;gap:6px;margin-bottom:36px;flex-wrap:wrap}
@@ -669,9 +674,12 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   .gen-btn{padding:16px 32px;font-size:11px;min-height:48px}
   .cta-btn{padding:14px 24px;min-height:44px}
   .connect-btn{padding:16px 0;min-height:52px;font-size:13px}
-  .brand-card,.pulse-card{padding:22px}
+  .brand-card,.pulse-card{padding:18px}
+  .brand-head{gap:12px}
   .brand-footer{flex-direction:column;gap:12px;align-items:stretch}
-  .outreach-btn{padding:12px 16px;font-size:11px;min-height:40px;justify-content:center}
+  .brand-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .brand-actions .outreach-btn:only-child{grid-column:1/-1}
+  .outreach-btn{padding:12px 14px;font-size:10px;min-height:42px;justify-content:center}
   .pulse-actions{flex-wrap:wrap;gap:8px}
   .pulse-save-btn,.pulse-draft-btn{padding:11px 14px;min-height:40px;flex:1;justify-content:center}
   /* Chat content cards should read like compact message attachments, not
@@ -3647,9 +3655,9 @@ async function runInlineBrandsPreview(){
         <div class="brand-reasons">${(b.reasons||[]).slice(0,3).map(r=>`<div class="brand-reason"><span class="chk">✓</span>${escapeHtml(r)}</div>`).join('')}</div>
         <div class="brand-footer">
           <div class="brand-deal">${escapeHtml(b.deal||'')}</div>
-          <div style="display:flex;gap:6px">
-            <button class="outreach-btn" onclick="draftPitch(${i})">Draft Pitch</button>
-            <button class="outreach-btn" onclick="toggleSent(this,'${safeName}')">Outreach</button>
+          <div class="brand-actions">
+            <button class="outreach-btn primary" onclick="draftPitch(${i})">Draft Pitch</button>
+            <button class="outreach-btn secondary" onclick="toggleSent(this,'${safeName}')">Outreach</button>
           </div>
         </div>`;
       grid.appendChild(card);
@@ -5191,13 +5199,13 @@ function decorateBrandCard(index, brand){
   const adActivity = brand.ad_activity || {};
   const paidCollabCount = Number(igSignal?.recent_paid_partnership_count || 0);
   const parts = [];
-  if(creatorScore >= 50) parts.push(`<span class="brand-enriched-pill verified">✓ Creator ready</span>`);
-  else if(creatorScore >= 30) parts.push(`<span class="brand-enriched-pill warm">Warm creator signal</span>`);
-  if(programUrl) parts.push(`<a class="brand-enriched-pill link" href="${programUrl}" target="_blank" rel="noopener">Program ↗</a>`);
+  if(creatorScore >= 50) parts.push(`<span class="brand-enriched-pill verified">Creator ready</span>`);
+  else if(creatorScore >= 30) parts.push(`<span class="brand-enriched-pill warm">Warm signal</span>`);
+  if(programUrl) parts.push(`<a class="brand-enriched-pill link" href="${programUrl}" target="_blank" rel="noopener">Program page</a>`);
   if(paidCollabCount) parts.push(`<span class="brand-enriched-pill">${paidCollabCount} sponsored signal${paidCollabCount>1?'s':''}</span>`);
   if(adActivity.active_count) parts.push(`<span class="brand-enriched-pill">${adActivity.active_count} active ad${adActivity.active_count>1?'s':''}</span>`);
   else if(marketingScore >= 10) parts.push(`<span class="brand-enriched-pill">Marketing active</span>`);
-  if(igSignal && igSignal.followers) parts.push(`<span class="brand-enriched-pill">${formatCount(igSignal.followers)} IG · ${igSignal.engagement_rate_pct||0}% eng</span>`);
+  if(igSignal && igSignal.followers) parts.push(`<span class="brand-enriched-pill">${formatCount(igSignal.followers)} IG, ${igSignal.engagement_rate_pct||0}% eng</span>`);
   if(!parts.length) return;
   cards.forEach(card => {
     if(card.querySelector('.brand-enriched')) return;
@@ -5240,9 +5248,9 @@ function renderBrands(brands){
       <div class="brand-reasons">${(b.reasons||[]).map(r=>`<div class="brand-reason"><span class="chk">✓</span>${r}</div>`).join('')}</div>
       <div class="brand-footer">
         <div class="brand-deal">${b.deal}</div>
-        <div style="display:flex;gap:6px">
-          <button class="outreach-btn" onclick="draftPitch(${i})">Draft Pitch</button>
-          <button class="outreach-btn" onclick="toggleSent(this,'${b.name.replace(/'/g,"&#39;")}')">Outreach</button>
+        <div class="brand-actions">
+          <button class="outreach-btn primary" onclick="draftPitch(${i})">Draft Pitch</button>
+          <button class="outreach-btn secondary" onclick="toggleSent(this,'${b.name.replace(/'/g,"&#39;")}')">Outreach</button>
         </div>
       </div>`;
     frag.appendChild(card);
@@ -5252,8 +5260,8 @@ function renderBrands(brands){
 
 function toggleSent(btn,name){
   state.sent[name]=!state.sent[name];
-  if(state.sent[name]){btn.className='outreach-btn sent';btn.innerHTML='✓ Sent'}
-  else{btn.className='outreach-btn';btn.innerHTML='Start Outreach'}
+  if(state.sent[name]){btn.className='outreach-btn secondary sent';btn.innerHTML='Sent'}
+  else{btn.className='outreach-btn secondary';btn.innerHTML='Outreach'}
 }
 
 // ── Pitch drafting + Gmail compose ────────────────────────────────────────────
@@ -5615,8 +5623,8 @@ function renderInlineBrandsIntoBody(bodyEl, brands){
       <div class="brand-reasons">${(b.reasons||[]).slice(0,3).map(r=>`<div class="brand-reason"><span class="chk">✓</span>${escapeHtml(r)}</div>`).join('')}</div>
       <div class="brand-footer">
         <div class="brand-deal">${escapeHtml(b.deal||'')}</div>
-        <div style="display:flex;gap:6px">
-          <button class="outreach-btn" onclick="draftPitchInline(${idx})">Draft Pitch</button>
+        <div class="brand-actions">
+          <button class="outreach-btn primary" onclick="draftPitchInline(${idx})">Draft Pitch</button>
         </div>
       </div>`;
     grid.appendChild(card);
@@ -5789,10 +5797,10 @@ function sendPitchViaGmail(){
     document.querySelectorAll('.brand-card').forEach(card=>{
       const nameEl = card.querySelector('.brand-name');
       if(nameEl && nameEl.textContent.trim() === pending.brand.name){
-        const btn = card.querySelector('.outreach-btn:last-of-type');
+        const btn = card.querySelector('.outreach-btn.secondary');
         if(btn){
-          btn.className = 'outreach-btn sent';
-          btn.innerHTML = '✓ Sent';
+          btn.className = 'outreach-btn secondary sent';
+          btn.innerHTML = 'Sent';
         }
       }
     });
