@@ -467,6 +467,14 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .pipeline-sub{font-size:13px;color:var(--muted);line-height:1.5}
 .pipeline-add-btn{display:inline-flex;align-items:center;gap:8px;background:var(--gold);border:none;border-radius:8px;padding:10px 18px;color:var(--bg);font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;transition:opacity 0.2s;flex-shrink:0}
 .pipeline-add-btn:hover{opacity:0.88}
+.pipeline-quick{background:linear-gradient(180deg,rgba(255,255,255,0.025),rgba(255,255,255,0)),var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:18px}
+.pipeline-quick-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
+.pipeline-quick-input{width:100%;min-height:44px;max-height:120px;background:transparent;border:none;color:var(--text);font-family:inherit;font-size:13px;line-height:1.45;resize:vertical;outline:none;padding:4px}
+.pipeline-quick-input::placeholder{color:var(--muted2)}
+.pipeline-quick-btn{background:var(--gold);border:none;border-radius:8px;padding:12px 18px;color:var(--bg);font-size:11px;font-weight:750;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap}
+.pipeline-quick-btn:disabled{opacity:0.65;cursor:wait}
+.pipeline-quick-hint{font-size:11px;color:var(--muted);line-height:1.45;margin-top:8px}
+.pipeline-quick-hint.ask{color:var(--gold)}
 .pipeline-rollup{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px}
 .pipeline-stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
 .pipeline-stat-label{font-size:10px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px}
@@ -514,6 +522,8 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 
 /* Mobile: collapse the board into stacked accordion sections */
 @media(max-width:768px){
+  .pipeline-quick-row{grid-template-columns:1fr}
+  .pipeline-quick-btn{width:100%;min-height:42px}
   .pipeline-board{display:block}
   .pipeline-col{margin-bottom:10px;min-height:0}
   .pipeline-col-head{cursor:pointer;padding:4px 0;border-bottom:none}
@@ -925,10 +935,6 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   <div id="persona-cta" class="center-cta"><div class="center-icon">✦</div><h2>Build your creator brief</h2><p>Analyze a public Instagram profile to generate your persona, content pillars, rate card, and pitch context. Usually takes 10-15 seconds.</p><button class="gen-btn" onclick="generatePersona()">Analyze Profile</button><div class="center-cta-meta">Uses public profile data. Audience estimates are labeled clearly.</div></div>
   <div id="persona-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Analyzing your content…</div><div class="loading-sub" id="persona-loading-sub">Scanning your recent posts…</div><div class="loading-progress"><div class="loading-progress-fill" id="persona-loading-bar"></div></div></div>
   <div id="persona-result" class="hidden">
-    <div id="saved-banner" class="hidden" style="background:var(--green-dim);border:1px solid rgba(107,158,107,0.3);border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--text)">
-      <span style="color:var(--green)">✓</span> <span id="saved-banner-text">Persona saved to your account</span>
-      <button onclick="signOut()" style="float:right;background:transparent;border:none;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline">Sign out</button>
-    </div>
     <div class="card persona-header" style="margin-bottom:20px;position:relative">
       <button class="media-kit-btn" id="media-kit-btn" onclick="downloadMediaKit()" title="Download media kit (PDF)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1022,6 +1028,13 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
       <div class="pipeline-sub">Your deal flow, from inbound DMs to closed checks.</div>
     </div>
     <button class="pipeline-add-btn" onclick="openDealModal()"><span style="font-size:14px;line-height:1">+</span> New deal</button>
+  </div>
+  <div class="pipeline-quick">
+    <div class="pipeline-quick-row">
+      <textarea id="pipeline-quick-input" class="pipeline-quick-input" rows="2" placeholder="Add a deal in plain English, e.g. 'Alo Yoga wants 2 reels and 3 stories for $4k, negotiating, due next Friday'"></textarea>
+      <button id="pipeline-quick-btn" class="pipeline-quick-btn" onclick="submitPipelineQuickAdd()">Add</button>
+    </div>
+    <div id="pipeline-quick-hint" class="pipeline-quick-hint">I’ll infer stage, platform, deliverable, value, and notes. If the brand or basics are unclear, I’ll ask.</div>
   </div>
   <div class="pipeline-rollup hidden" id="pipeline-rollup">
     <div class="pipeline-stat"><div class="pipeline-stat-label">Total Earned</div><div class="pipeline-stat-val" id="pipeline-stat-earned">$0</div></div>
@@ -2586,7 +2599,6 @@ function refreshUserAvatars(){
 }
 
 function updateAuthUI(user){
-  const saved = document.getElementById('saved-banner');
   const avatar = document.getElementById('avatar-initials');
   const chatAvatar = document.getElementById('chat-avatar');
   const chatName = document.getElementById('chat-user-name');
@@ -2602,14 +2614,12 @@ function updateAuthUI(user){
   if(user){
     const name = user.user_metadata?.full_name || user.email || '';
     const initials = name.trim().split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase() || 'U';
-    if(saved) saved.classList.remove('hidden');
     applyAvatar(avatar, user, initials);
     applyAvatar(chatAvatar, user, initials);
     if(avatar) avatar.title = name;
     if(chatAvatar) chatAvatar.title = name;
     if(chatName) chatName.textContent = name.split(/\s+/)[0] || name;
   } else {
-    if(saved) saved.classList.add('hidden');
     applyAvatar(avatar, null, 'CC');
     applyAvatar(chatAvatar, null, 'CC');
     if(chatName) chatName.textContent = 'N/A';
@@ -2652,8 +2662,6 @@ async function initAuth(){
       document.getElementById('persona-cta').classList.add('hidden');
       renderPersona(saved.ai_analysis);
       updateLastRefreshLabel();
-      const savedText = document.getElementById('saved-banner-text');
-      if(savedText) savedText.textContent = 'Loaded saved persona for @' + saved.ig_handle;
       // Kick off a background re-scrape if the cached data is over a week
       // old. Non-blocking, UI uses cached data until fresh data lands.
       refreshIgDataIfStale(saved);
@@ -4759,6 +4767,70 @@ async function submitDealModal(id){
   closeModal();
 }
 
+async function submitPipelineQuickAdd(){
+  const input = document.getElementById('pipeline-quick-input');
+  const btn = document.getElementById('pipeline-quick-btn');
+  const hint = document.getElementById('pipeline-quick-hint');
+  const text = (input?.value || '').trim();
+  if(!text){
+    if(hint){ hint.textContent = 'Write the deal in plain English first.'; hint.classList.add('ask'); }
+    return;
+  }
+  if(btn){ btn.disabled = true; btn.textContent = 'Reading'; }
+  if(hint){ hint.textContent = 'Making a best guess from your pipeline categories...'; hint.classList.remove('ask'); }
+  const system = `You turn quick creator deal notes into CreatorClaw pipeline rows. Return ONLY JSON:
+{"follow_up":"","deal":{"brand_name":"Alo Yoga","brand_domain":"aloyoga.com","status":"negotiating","platform":"Instagram","deliverable":"Reel","amount_usd":4000,"notes":"2 reels + 3 stories. Due next Friday."}}
+
+Allowed status values: ${PIPELINE_STAGES.map(s=>s.id).join(', ')}.
+Allowed platforms: ${PIPELINE_PLATFORMS.join(', ')}.
+Allowed deliverables: ${PIPELINE_DELIVERABLES.join(', ')}.
+
+If you cannot identify the brand, return {"follow_up":"Which brand is this for?","deal":null}.
+If other fields are missing, make a conservative best guess and put uncertainty in notes. Use amount_usd 0 if no budget/value is mentioned.`;
+  const user = `Quick pipeline note:\n${text}`;
+  try {
+    const raw = await chatLLM(system, user, { response_format:{ type:'json_object' } });
+    const parsed = parseJSON(raw);
+    if(parsed?.follow_up){
+      if(hint){ hint.textContent = parsed.follow_up; hint.classList.add('ask'); }
+      return;
+    }
+    const d = parsed?.deal || parsed;
+    const brand = String(d?.brand_name || '').trim();
+    if(!brand){
+      if(hint){ hint.textContent = 'Which brand is this for?'; hint.classList.add('ask'); }
+      return;
+    }
+    let domain = String(d.brand_domain || '').trim().replace(/^https?:\/\//,'').replace(/^www\./,'').replace(/\/$/,'');
+    const status = PIPELINE_STAGES.some(s => s.id === d.status) ? d.status : 'outreach';
+    const platform = PIPELINE_PLATFORMS.includes(d.platform) ? d.platform : 'Instagram';
+    const deliverable = PIPELINE_DELIVERABLES.includes(d.deliverable) ? d.deliverable : 'Other';
+    const amount = Number(d.amount_usd) || 0;
+    const notes = String(d.notes || text).trim();
+    const now = new Date().toISOString();
+    const fields = { brand_name: brand, brand_domain: domain, status, platform, deliverable, amount_usd: amount, notes };
+    if(!state.deals) await loadDeals();
+    const userObj = await getCurrentUser();
+    if(userObj){
+      const remote = await upsertDealRemote(fields);
+      if(!remote){ showError('Could not save deal, please try again.'); return; }
+      state.deals.unshift(remote);
+    } else {
+      const newId = 'd_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
+      state.deals.push({ id: newId, ...fields, created_at: now, updated_at: now });
+      saveLocalDeals();
+    }
+    input.value = '';
+    if(hint){ hint.textContent = `${brand} added to ${stageLabel(status)}.`; hint.classList.remove('ask'); }
+    renderPipeline();
+  } catch(e){
+    console.error('quick pipeline failed', e);
+    if(hint){ hint.textContent = 'Could not read that yet. Try “Brand, deliverables, amount, stage.”'; hint.classList.add('ask'); }
+  } finally {
+    if(btn){ btn.disabled = false; btn.textContent = 'Add'; }
+  }
+}
+
 // ── Instagram URL Analysis ────────────────────────────────────────────────────
 async function analyzeIGProfile(){
   const input=document.getElementById('ig-url-input');
@@ -5869,6 +5941,7 @@ function draftPitch(i){
   const agentStyle = state.agent.persona
     ? 'Uses your saved agent style for tone, length, and voice.'
     : 'Uses CreatorClaw defaults. Add tone or length preferences in Agent style.';
+  const agentName = state.agent.name || DEFAULT_AGENT_NAME;
   showModal(`
     <div class="modal-title">Draft pitch</div>
     <div class="modal-sub">${esc(brand.name)} gets a pitch built from your creator profile, scraped IG context, and this match's evidence.</div>
@@ -5876,6 +5949,11 @@ function draftPitch(i){
       <div class="brand-trust-kicker">Style source</div>
       <div class="brand-trust-angle">${esc(agentStyle)}</div>
     </div>
+    <div class="modal-label">Email voice</div>
+    <select id="pitch-sender-select" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;margin-bottom:14px">
+      <option value="creator">From me</option>
+      <option value="agent">From ${esc(agentName)} on my behalf</option>
+    </select>
     <div class="modal-label">Angle</div>
     <select id="pitch-angle-select" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;margin-bottom:14px">
       <option value="${esc(angle)}">${esc(angle)}</option>
@@ -5896,6 +5974,7 @@ async function generatePitchDraft(i){
   if(!brand){ showError('Brand not found'); return; }
   const pitchOptions = {
     angle: document.getElementById('pitch-angle-select')?.value || brandPitchAngle(brand),
+    senderMode: document.getElementById('pitch-sender-select')?.value || 'creator',
   };
   rememberBrandInteraction(brand, 'draft');
   const p = state.persona || {};
@@ -5920,7 +5999,12 @@ async function generatePitchDraft(i){
   const followers = p.totalReach || d.followers || '';
   const engagement = p.avgEngagement || d.engagementRate || '';
 
-  const sys = `You are writing a cold outreach email from an Instagram creator to a brand's partnerships team. The creator wants to be considered for a paid collab. Write in the creator's authentic voice and follow their saved agent style if provided. Be specific, confident, and concise by default. No sycophancy, no "I love your brand" filler. One concrete idea tied to the brand's known program if possible.
+  const agentName = state.agent.name || DEFAULT_AGENT_NAME;
+  const senderInstruction = pitchOptions.senderMode === 'agent'
+    ? `Write as ${agentName}, the creator's named agent, on behalf of the creator. Use third person for the creator where natural, be transparent that you represent them, and sign off as ${agentName}.`
+    : 'Write as the creator in first person and sign off as the creator.';
+
+  const sys = `You are writing a cold outreach email to a brand's partnerships team. The creator wants to be considered for a paid collab. ${senderInstruction} Follow the creator's saved agent style if provided. Be specific, confident, and concise by default. No sycophancy, no "I love your brand" filler. One concrete idea tied to the brand's known program if possible.
 
 Return ONLY JSON, no markdown:
 {
@@ -5957,6 +6041,8 @@ Return ONLY JSON, no markdown:
     const raw = await chatLLM(sys, user,{ response_format:{ type:'json_object' } });
     const pitch = parseJSON(raw);
     if(!pitch || !pitch.subject || !pitch.body){ throw new Error('Could not parse pitch response'); }
+    pitch.sender_mode = pitchOptions.senderMode;
+    pitch.sender_name = pitchOptions.senderMode === 'agent' ? agentName : creatorName;
     showPitchModal(brand, pitch);
   } catch(e){
     closeModal();
@@ -5972,12 +6058,16 @@ function showPitchModal(brand, pitch){
   const toGuess = domain ? `partnerships@${domain}` : '';
   const subjectEsc = esc(pitch.subject);
   const bodyEsc = esc(pitch.body);
+  const senderLabel = pitch.sender_mode === 'agent'
+    ? `Email reads as sent by ${pitch.sender_name || state.agent.name || DEFAULT_AGENT_NAME} on your behalf.`
+    : 'Email reads as sent by you.';
   // Stash on window for the buttons below (avoids quoting issues in the
   // onclick attributes).
   window._ccPendingPitch = { brand, pitch, to: toGuess };
   showModal(
     '<div class="modal-title">Pitch: '+esc(brand.name)+'</div>'+
     '<div class="modal-sub">Review, tweak, and open in Gmail.</div>'+
+    '<div class="brand-trust" style="margin-bottom:14px"><div class="brand-trust-kicker">Email voice</div><div class="brand-trust-angle">'+esc(senderLabel)+'</div></div>'+
     '<div class="modal-label">To (best guess, overwrite in Gmail if wrong)</div>'+
     '<input id="pitch-to-input" type="text" value="'+esc(toGuess)+'" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--text);font-family:\'Inter\',sans-serif;font-size:13px;outline:none;margin-bottom:14px">'+
     '<div class="modal-label">Subject</div>'+
