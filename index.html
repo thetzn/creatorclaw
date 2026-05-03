@@ -391,6 +391,34 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .spinner-inline svg{width:100%;height:100%;display:block}
 .loading-title{font-weight:400;font-size:16px;color:var(--text);letter-spacing:0.02em}
 .loading-sub{color:var(--muted);font-size:12px;margin-top:8px;min-height:1em}
+.persona-reveal-card{width:min(460px,100%);margin:0 auto 22px;background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:22px;box-shadow:0 18px 60px rgba(0,0,0,0.22);text-align:left;position:relative;overflow:hidden;white-space:normal}
+:root[data-theme="light"] .persona-reveal-card{box-shadow:0 18px 45px rgba(96,77,45,0.12)}
+.persona-reveal-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(221,190,111,0.10),transparent 42%,rgba(127,191,164,0.08));opacity:0.7;pointer-events:none}
+.persona-reveal-main{position:relative;display:flex;gap:18px;align-items:center;z-index:1}
+.persona-reveal-avatar{width:92px;height:92px;border-radius:24px;border:1px solid var(--gold-border);background:var(--card2);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;flex-shrink:0}
+.persona-reveal-crab{width:58px;height:38px;color:var(--gold);animation:spin 2.4s linear infinite;transition:opacity 0.5s ease,transform 0.5s ease}
+.persona-reveal-crab svg{width:100%;height:100%;display:block}
+.persona-reveal-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.08);filter:blur(10px) saturate(0.8);image-rendering:pixelated;transition:opacity 0.55s ease,filter 1.2s ease,transform 1.2s ease}
+.persona-reveal-card.has-photo .persona-reveal-crab{opacity:0;transform:scale(0.85) rotate(18deg)}
+.persona-reveal-card.has-photo .persona-reveal-img{opacity:1}
+.persona-reveal-card.is-refined .persona-reveal-img{filter:blur(0) saturate(1);transform:scale(1);image-rendering:auto}
+.persona-reveal-agent-mark{position:absolute;right:7px;bottom:7px;width:22px;height:22px;border-radius:50%;background:var(--gold);border:2px solid var(--card);display:flex;align-items:center;justify-content:center;opacity:0;transform:scale(0.7);transition:opacity 0.35s ease,transform 0.35s ease}
+.persona-reveal-agent-mark img{width:15px;height:11px;object-fit:contain}
+.persona-reveal-card.is-refined .persona-reveal-agent-mark{opacity:1;transform:scale(1)}
+.persona-reveal-copy{min-width:0;flex:1}
+.persona-reveal-kicker{font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
+.persona-reveal-title{font-size:20px;font-weight:500;color:var(--text);line-height:1.25;margin-bottom:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.persona-reveal-sub{font-size:13px;color:var(--muted);line-height:1.55;min-height:20px}
+.persona-reveal-meta{position:relative;z-index:1;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:18px;opacity:0;transform:translateY(6px);transition:opacity 0.45s ease,transform 0.45s ease}
+.persona-reveal-card.has-photo .persona-reveal-meta{opacity:1;transform:translateY(0)}
+.persona-reveal-stat{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 11px;min-width:0}
+.persona-reveal-stat-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px}
+.persona-reveal-stat-val{font-size:13px;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.persona-reveal-tags{position:relative;z-index:1;display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;opacity:0;transform:translateY(6px);transition:opacity 0.45s ease,transform 0.45s ease}
+.persona-reveal-card.is-refined .persona-reveal-tags{opacity:1;transform:translateY(0)}
+.persona-reveal-tag{font-size:10px;color:var(--muted);border:1px solid var(--border2);border-radius:999px;padding:4px 9px;background:var(--card2)}
+.chat-msg-body .persona-reveal-card{margin:0;box-shadow:none;max-width:440px}
+@media(max-width:640px){.persona-reveal-card{padding:18px;border-radius:14px}.persona-reveal-main{gap:14px}.persona-reveal-avatar{width:78px;height:78px;border-radius:20px}.persona-reveal-title{font-size:17px}.persona-reveal-sub{font-size:12px}.persona-reveal-meta{grid-template-columns:1fr 1fr}.persona-reveal-stat:last-child{grid-column:1/-1}}
 
 /* Persona */
 .persona-header{display:flex;gap:32px;margin-bottom:28px;align-items:flex-start}
@@ -933,7 +961,31 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 <!-- PERSONA TAB -->
 <div id="tab-persona" class="hidden">
   <div id="persona-cta" class="center-cta"><div class="center-icon">✦</div><h2>Build your creator brief</h2><p>Analyze a public Instagram profile to generate your persona, content pillars, rate card, and pitch context. Usually takes 10-15 seconds.</p><button class="gen-btn" onclick="generatePersona()">Analyze Profile</button><div class="center-cta-meta">Uses public profile data. Audience estimates are labeled clearly.</div></div>
-  <div id="persona-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Analyzing your content…</div><div class="loading-sub" id="persona-loading-sub">Scanning your recent posts…</div><div class="loading-progress"><div class="loading-progress-fill" id="persona-loading-bar"></div></div></div>
+  <div id="persona-loading" class="loading hidden">
+    <div class="persona-reveal-card" data-persona-reveal>
+      <div class="persona-reveal-main">
+        <div class="persona-reveal-avatar">
+          <div class="persona-reveal-crab" data-crab></div>
+          <img class="persona-reveal-img" alt="">
+          <span class="persona-reveal-agent-mark"><img data-crab-img alt=""></span>
+        </div>
+        <div class="persona-reveal-copy">
+          <div class="persona-reveal-kicker">First read</div>
+          <div class="persona-reveal-title">Finding your profile</div>
+          <div class="persona-reveal-sub">CreatorClaw is pulling the profile into focus.</div>
+        </div>
+      </div>
+      <div class="persona-reveal-meta">
+        <div class="persona-reveal-stat"><div class="persona-reveal-stat-label">Followers</div><div class="persona-reveal-stat-val" data-reveal-followers>Scanning</div></div>
+        <div class="persona-reveal-stat"><div class="persona-reveal-stat-label">Engagement</div><div class="persona-reveal-stat-val" data-reveal-engagement>Scanning</div></div>
+        <div class="persona-reveal-stat"><div class="persona-reveal-stat-label">Posts</div><div class="persona-reveal-stat-val" data-reveal-posts>Scanning</div></div>
+      </div>
+      <div class="persona-reveal-tags"></div>
+    </div>
+    <div class="loading-title">Analyzing your content…</div>
+    <div class="loading-sub" id="persona-loading-sub">Scanning your recent posts…</div>
+    <div class="loading-progress"><div class="loading-progress-fill" id="persona-loading-bar"></div></div>
+  </div>
   <div id="persona-result" class="hidden">
     <div class="card persona-header" style="margin-bottom:20px;position:relative">
       <button class="media-kit-btn" id="media-kit-btn" onclick="downloadMediaKit()" title="Download media kit (PDF)">
@@ -3230,6 +3282,102 @@ function escapeHtml(s){
   return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function personaRevealMarkup(handle = ''){
+  const clean = String(handle || '').replace(/^@/,'').trim();
+  const title = clean ? `Finding @${clean}` : 'Finding your profile';
+  return `
+    <div class="persona-reveal-card" data-persona-reveal>
+      <div class="persona-reveal-main">
+        <div class="persona-reveal-avatar">
+          <div class="persona-reveal-crab" data-crab></div>
+          <img class="persona-reveal-img" alt="">
+          <span class="persona-reveal-agent-mark"><img data-crab-img alt=""></span>
+        </div>
+        <div class="persona-reveal-copy">
+          <div class="persona-reveal-kicker">First read</div>
+          <div class="persona-reveal-title">${escapeHtml(title)}</div>
+          <div class="persona-reveal-sub">CreatorClaw is pulling the profile into focus.</div>
+        </div>
+      </div>
+      <div class="persona-reveal-meta">
+        <div class="persona-reveal-stat"><div class="persona-reveal-stat-label">Followers</div><div class="persona-reveal-stat-val" data-reveal-followers>Scanning</div></div>
+        <div class="persona-reveal-stat"><div class="persona-reveal-stat-label">Engagement</div><div class="persona-reveal-stat-val" data-reveal-engagement>Scanning</div></div>
+        <div class="persona-reveal-stat"><div class="persona-reveal-stat-label">Posts</div><div class="persona-reveal-stat-val" data-reveal-posts>Scanning</div></div>
+      </div>
+      <div class="persona-reveal-tags"></div>
+    </div>
+  `;
+}
+
+function hydratePersonaReveal(root, handle = ''){
+  const card = root?.matches?.('[data-persona-reveal]') ? root : root?.querySelector?.('[data-persona-reveal]');
+  if(!card) return null;
+  card.querySelectorAll('[data-crab]').forEach(el => { el.innerHTML = crabSVG(); });
+  card.querySelectorAll('[data-crab-img]').forEach(el => { if(typeof LOGO_DATA_URI !== 'undefined') el.src = LOGO_DATA_URI; });
+  resetPersonaReveal(card, handle);
+  return card;
+}
+
+function resetPersonaReveal(card, handle = ''){
+  if(!card) return;
+  const clean = String(handle || '').replace(/^@/,'').trim();
+  card.classList.remove('has-photo','is-refined');
+  const title = card.querySelector('.persona-reveal-title');
+  const sub = card.querySelector('.persona-reveal-sub');
+  const img = card.querySelector('.persona-reveal-img');
+  if(title) title.textContent = clean ? `Finding @${clean}` : 'Finding your profile';
+  if(sub) sub.textContent = 'CreatorClaw is pulling the profile into focus.';
+  if(img){ img.removeAttribute('src'); img.alt = ''; }
+  const setText = (sel, val) => { const el = card.querySelector(sel); if(el) el.textContent = val; };
+  setText('[data-reveal-followers]', 'Scanning');
+  setText('[data-reveal-engagement]', 'Scanning');
+  setText('[data-reveal-posts]', 'Scanning');
+  const tags = card.querySelector('.persona-reveal-tags');
+  if(tags) tags.innerHTML = '';
+}
+
+function updatePersonaRevealProfile(card, profile = {}){
+  if(!card) return;
+  const handle = String(profile.username || '').replace(/^@/,'');
+  const titleText = profile.displayName || (handle ? `@${handle}` : 'Profile found');
+  const pic = profile.profilePicData || profile.profilePicUrl || '';
+  const title = card.querySelector('.persona-reveal-title');
+  const sub = card.querySelector('.persona-reveal-sub');
+  const img = card.querySelector('.persona-reveal-img');
+  if(title) title.textContent = titleText;
+  if(sub) sub.textContent = handle ? `Found @${handle}. Building the first read from public posts.` : 'Profile found. Building the first read from public posts.';
+  if(img && pic){
+    img.src = pic;
+    img.alt = titleText;
+    card.classList.add('has-photo');
+    card.classList.remove('is-refined');
+    setTimeout(() => card.classList.add('is-refined'), 850);
+  }
+  const setText = (sel, val) => { const el = card.querySelector(sel); if(el) el.textContent = val || 'N/A'; };
+  setText('[data-reveal-followers]', profile.followers);
+  setText('[data-reveal-engagement]', profile.engagementRate);
+  setText('[data-reveal-posts]', profile.totalPosts);
+}
+
+function completePersonaReveal(card, persona = {}, profile = {}){
+  if(!card) return;
+  const title = card.querySelector('.persona-reveal-title');
+  const sub = card.querySelector('.persona-reveal-sub');
+  const tags = card.querySelector('.persona-reveal-tags');
+  if(title) title.textContent = 'First read locked';
+  const pillars = (persona.pillars || []).map(p => typeof p === 'string' ? p : p.l || p.label).filter(Boolean).slice(0,3);
+  const vibes = (persona.vibes || []).filter(Boolean).slice(0,3);
+  const read = pillars.length
+    ? `Your profile is resolving around ${pillars.join(', ')} with a ${vibes[0] ? vibes[0].toLowerCase() : 'distinct'} creator voice.`
+    : (persona.bio || profile.bio || 'Your creator profile is ready.');
+  if(sub) sub.textContent = read;
+  if(tags){
+    const items = [...vibes, ...pillars].slice(0,5);
+    tags.innerHTML = items.map(x => `<span class="persona-reveal-tag">${escapeHtml(x)}</span>`).join('');
+  }
+  card.classList.add('is-refined');
+}
+
 // Tiny safe Markdown renderer for chat messages. Escape first, then apply
 // inline substitutions (bold, italic, code, links). Intentionally narrow:
 // we don't run the LLM through a full Markdown parser; pre-wrap CSS handles
@@ -3356,11 +3504,11 @@ async function startOnboardingChat(handle){
 
   const cleanHandle = String(handle||'').trim().replace(/^@/,'').replace(/^(https?:\/\/)?(www\.)?instagram\.com\//,'');
 
-  const status1 = appendStatusBubble('');
-  // Cycle "VERB activity" pairs from the same viral-trend pool used in chat
-  // streaming, e.g. "Yeeting last 25 posts", "Hawk-tuah-ing engagement
-  // patterns". Same gold-gradient + bounce styling as mid-chat thinking.
-  const scanVerbHandle = startVerbActivity(status1.body, [
+  const revealBody = appendInlineCard('assistant', personaRevealMarkup(cleanHandle));
+  const revealCard = hydratePersonaReveal(revealBody, cleanHandle);
+  const revealSub = revealCard?.querySelector('.persona-reveal-sub');
+  if(revealSub) revealSub.textContent = '';
+  const scanVerbHandle = startVerbActivity(revealSub, [
     `last 25 posts of @${cleanHandle}`,
     `engagement patterns`,
     `reel transcripts`,
@@ -3403,13 +3551,8 @@ async function startOnboardingChat(handle){
     setText('ig-val-category', profile.topCategory || profile.categories?.[0]?.name);
 
     stopThinkingVerb(scanVerbHandle);
-    const postsCount = Number(profile.totalPosts) || 0;
-    const postsLabel = postsCount ? `your ${Math.min(25, postsCount)} most-recent posts` : 'your recent posts';
-    const followersBit = profile.followers ? ` ${profile.followers} followers,` : '';
-    const engagementBit = profile.engagementRate ? ` ${profile.engagementRate} engagement` : '';
-    const reelsBit = profile.reelsScraped ? ` · ${profile.reelsScraped} reels analyzed` : '';
-    status1.finish(`${(`Scanned ${postsLabel}.${followersBit}${engagementBit}`.trim().replace(/,$/,'.') || `Scanned ${postsLabel}.`)}${reelsBit}`);
-    await sleep(450);
+    updatePersonaRevealProfile(revealCard, profile);
+    await sleep(950);
 
     // 2. Generate persona inline (no full-screen panel)
     const status2 = appendStatusBubble('');
@@ -3428,6 +3571,7 @@ async function startOnboardingChat(handle){
     } finally {
       stopThinkingVerb(personaVerbHandle);
     }
+    completePersonaReveal(revealCard, state.persona, state.igData);
     status2.finish('Persona ready.');
     await sleep(500);
 
@@ -3449,7 +3593,8 @@ async function startOnboardingChat(handle){
   } catch(e){
     stopThinkingVerb(scanVerbHandle);
     console.error('Onboarding error:', e);
-    status1.finish(`Hit a snag analyzing @${cleanHandle}, ${e.message || 'unknown error'}. Try a different handle?`);
+    const sub = revealCard?.querySelector('.persona-reveal-sub');
+    if(sub) sub.textContent = `Hit a snag analyzing @${cleanHandle}. ${e.message || 'Try a different handle?'}`;
     pushOnboardingHandlePrompt();
   }
 }
@@ -4851,6 +4996,7 @@ async function analyzeIGProfile(){
   document.getElementById('persona-cta').classList.add('hidden');
   document.getElementById('persona-result').classList.add('hidden');
   document.getElementById('persona-loading').classList.remove('hidden');
+  const revealCard = hydratePersonaReveal(document.getElementById('persona-loading'), raw);
   startLoading('persona', 25);
 
   try {
@@ -4872,6 +5018,7 @@ async function analyzeIGProfile(){
     state.igData=profile;
     state.igConnected=true;
     refreshUserAvatars();
+    updatePersonaRevealProfile(revealCard, profile);
 
     // Quietly populate the Connect tab so it reflects reality if user navigates back
     document.getElementById('ig-val-followers').textContent=profile.followers||'N/A';
@@ -4997,6 +5144,7 @@ pillars p must sum to 100. Keep 4-5 pillars.`;
       if(state.igData.engagementRate) data.avgEngagement=state.igData.engagementRate;
     }
     state.persona=data;
+    completePersonaReveal(document.querySelector('#persona-loading [data-persona-reveal]'), data, state.igData);
     if(!inlineMode){
       stopLoading('persona');
       document.getElementById('persona-loading').classList.add('hidden');
