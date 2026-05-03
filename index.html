@@ -395,10 +395,10 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 :root[data-theme="light"] .persona-reveal-card{box-shadow:0 18px 45px rgba(96,77,45,0.12)}
 .persona-reveal-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(221,190,111,0.10),transparent 42%,rgba(127,191,164,0.08));opacity:0.7;pointer-events:none}
 .persona-reveal-main{position:relative;display:flex;gap:18px;align-items:center;z-index:1}
-.persona-reveal-avatar{width:92px;height:92px;border-radius:24px;border:1px solid var(--gold-border);background:var(--card2);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;flex-shrink:0}
+.persona-reveal-avatar{width:92px;height:92px;border-radius:50%;border:1px solid var(--gold-border);background:var(--card2);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;flex-shrink:0}
 .persona-reveal-crab{width:58px;height:38px;color:var(--gold);animation:spin 2.4s linear infinite;transition:opacity 0.5s ease,transform 0.5s ease}
 .persona-reveal-crab svg{width:100%;height:100%;display:block}
-.persona-reveal-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.08);filter:blur(10px) saturate(0.8);image-rendering:pixelated;transition:opacity 0.55s ease,filter 1.2s ease,transform 1.2s ease}
+.persona-reveal-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.08);filter:blur(14px) saturate(0.82);image-rendering:pixelated;transition:opacity 0.22s ease,filter 2.8s cubic-bezier(0.16,1,0.3,1),transform 2.8s cubic-bezier(0.16,1,0.3,1)}
 .persona-reveal-card.has-photo .persona-reveal-crab{opacity:0;transform:scale(0.85) rotate(18deg)}
 .persona-reveal-card.has-photo .persona-reveal-img{opacity:1}
 .persona-reveal-card.is-refined .persona-reveal-img{filter:blur(0) saturate(1);transform:scale(1);image-rendering:auto}
@@ -418,7 +418,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .persona-reveal-card.is-refined .persona-reveal-tags{opacity:1;transform:translateY(0)}
 .persona-reveal-tag{font-size:10px;color:var(--muted);border:1px solid var(--border2);border-radius:999px;padding:4px 9px;background:var(--card2)}
 .chat-msg-body .persona-reveal-card{margin:0;box-shadow:none;max-width:440px}
-@media(max-width:640px){.persona-reveal-card{padding:18px;border-radius:14px}.persona-reveal-main{gap:14px}.persona-reveal-avatar{width:78px;height:78px;border-radius:20px}.persona-reveal-title{font-size:17px}.persona-reveal-sub{font-size:12px}.persona-reveal-meta{grid-template-columns:1fr 1fr}.persona-reveal-stat:last-child{grid-column:1/-1}}
+@media(max-width:640px){.persona-reveal-card{padding:18px;border-radius:14px}.persona-reveal-main{gap:14px}.persona-reveal-avatar{width:78px;height:78px}.persona-reveal-title{font-size:17px}.persona-reveal-sub{font-size:12px}.persona-reveal-meta{grid-template-columns:1fr 1fr}.persona-reveal-stat:last-child{grid-column:1/-1}}
 
 /* Persona */
 .persona-header{display:flex;gap:32px;margin-bottom:28px;align-items:flex-start}
@@ -966,7 +966,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
       <div class="persona-reveal-main">
         <div class="persona-reveal-avatar">
           <div class="persona-reveal-crab" data-crab></div>
-          <img class="persona-reveal-img" alt="">
+          <img class="persona-reveal-img" alt="" loading="eager" decoding="async" fetchpriority="high">
           <span class="persona-reveal-agent-mark"><img data-crab-img alt=""></span>
         </div>
         <div class="persona-reveal-copy">
@@ -3290,7 +3290,7 @@ function personaRevealMarkup(handle = ''){
       <div class="persona-reveal-main">
         <div class="persona-reveal-avatar">
           <div class="persona-reveal-crab" data-crab></div>
-          <img class="persona-reveal-img" alt="">
+          <img class="persona-reveal-img" alt="" loading="eager" decoding="async" fetchpriority="high">
           <span class="persona-reveal-agent-mark"><img data-crab-img alt=""></span>
         </div>
         <div class="persona-reveal-copy">
@@ -3347,11 +3347,15 @@ function updatePersonaRevealProfile(card, profile = {}){
   if(title) title.textContent = titleText;
   if(sub) sub.textContent = handle ? `Found @${handle}. Building the first read from public posts.` : 'Profile found. Building the first read from public posts.';
   if(img && pic){
-    img.src = pic;
     img.alt = titleText;
-    card.classList.add('has-photo');
     card.classList.remove('is-refined');
-    setTimeout(() => card.classList.add('is-refined'), 850);
+    const revealPhoto = () => {
+      card.classList.add('has-photo');
+      setTimeout(() => card.classList.add('is-refined'), 140);
+    };
+    img.onload = revealPhoto;
+    img.src = pic;
+    if(img.complete) setTimeout(revealPhoto, 0);
   }
   const setText = (sel, val) => { const el = card.querySelector(sel); if(el) el.textContent = val || 'N/A'; };
   setText('[data-reveal-followers]', profile.followers);
@@ -3552,11 +3556,11 @@ async function startOnboardingChat(handle){
 
     stopThinkingVerb(scanVerbHandle);
     updatePersonaRevealProfile(revealCard, profile);
-    await sleep(950);
+    await sleep(550);
 
-    // 2. Generate persona inline (no full-screen panel)
-    const status2 = appendStatusBubble('');
-    const personaVerbHandle = startVerbActivity(status2.body, [
+    // 2. Generate persona inline while the same reveal card keeps refining.
+    if(revealSub) revealSub.textContent = '';
+    const personaVerbHandle = startVerbActivity(revealSub, [
       `your voice`,
       `vibe tags`,
       `audience hints`,
@@ -3572,23 +3576,15 @@ async function startOnboardingChat(handle){
       stopThinkingVerb(personaVerbHandle);
     }
     completePersonaReveal(revealCard, state.persona, state.igData);
-    status2.finish('Persona ready.');
-    await sleep(500);
-
-    // 3. Push persona summary card as the next bubble
-    appendInlineCard('assistant', `
-      <div style="margin-bottom:8px">Here's what I found:</div>
-      ${renderInlinePersonaCard(state.persona, state.igData)}
-    `);
     await sleep(900);
 
-    // 4. Stream in-character welcome, fire and forget so the picker
+    // 3. Stream in-character welcome, fire and forget so the picker
     //    can render immediately. The welcome bubble lands above the picker
     //    (it appends first), then continues streaming while the user reads
     //    or starts clicking. Saves 3-5s of perceived wait.
     streamOnboardingWelcome();
 
-    // 5. Push picker (Create / Pitch), visible right away
+    // 4. Push picker (Create / Pitch), visible right away
     pushOnboardingPicker();
   } catch(e){
     stopThinkingVerb(scanVerbHandle);
