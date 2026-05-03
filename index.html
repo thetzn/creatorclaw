@@ -572,6 +572,12 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .brand-reason{display:grid;grid-template-columns:12px 1fr;align-items:start;gap:8px;font-size:12px;color:var(--muted);line-height:1.45}
 .brand-reason .chk{position:relative;width:12px;height:12px;margin-top:2px;color:transparent;font-size:0}
 .brand-reason .chk::before{content:'';position:absolute;left:3px;top:5px;width:5px;height:2px;background:var(--gold);border-radius:2px}
+.brand-trust{margin:12px 0;padding:10px 12px;border:1px solid rgba(255,255,255,0.055);border-radius:8px;background:rgba(255,255,255,0.018)}
+.brand-trust-kicker{font-size:8px;color:var(--muted);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:5px}
+.brand-trust-angle{font-size:12px;color:var(--text);font-weight:600;line-height:1.35}
+.brand-evidence{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.brand-evidence-pill{font-size:9px;color:var(--muted);border:1px solid rgba(255,255,255,0.055);border-radius:999px;padding:4px 7px;line-height:1;background:rgba(255,255,255,0.018)}
+.brand-fit-label{font-size:8px;color:var(--muted2);letter-spacing:0.14em;text-transform:uppercase;margin:12px 0 8px}
 .brand-enriched{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 14px}
 .brand-enriched-pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;letter-spacing:0;padding:5px 9px;border-radius:999px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);color:var(--muted);text-decoration:none;line-height:1}
 .brand-enriched-pill.verified{color:var(--green);border-color:rgba(107,158,107,0.28);background:rgba(107,158,107,0.07)}
@@ -749,7 +755,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .modal-title{font-size:18px;font-weight:500;margin-bottom:6px;letter-spacing:0.02em}
 .modal-sub{color:var(--muted);font-size:13px;margin-bottom:24px;line-height:1.6}
 .modal-label{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:8px}
-.modal-row{display:flex;gap:10px;margin-top:16px}
+.modal-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
 .modal-save-btn{flex:1;background:var(--gold);border-radius:8px;padding:13px 0;color:var(--bg);font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase}
 .modal-cancel-btn{background:transparent;border:1px solid var(--border2);border-radius:8px;padding:13px 20px;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase}
 
@@ -2336,12 +2342,65 @@ const state={
   sent:{},saved:(function(){try{return JSON.parse(localStorage.getItem('cc_schedule')||'{}')}catch{return {}}})(),pulseFilter:'all',
   persona:null,  // holds AI-generated persona data
   brands:null,   // holds AI-generated brand list
+  creatorMemory:loadCreatorMemory(),
   agent:{ name:null, persona:null },  // user-defined agent identity
 };
 
 const DEFAULT_AGENT_NAME = 'CreatorClaw';
 const AGENT_PERSONA_MAX = 2000;
 const AGENT_NAME_MAX = 40;
+
+function loadCreatorMemory(){
+  try {
+    const raw = localStorage.getItem('cc_creator_memory');
+    const parsed = raw ? JSON.parse(raw) : {};
+    return {
+      preferredCategories: Array.isArray(parsed.preferredCategories) ? parsed.preferredCategories.slice(0,12) : [],
+      savedBrands: Array.isArray(parsed.savedBrands) ? parsed.savedBrands.slice(0,24) : [],
+      rejectedBrands: Array.isArray(parsed.rejectedBrands) ? parsed.rejectedBrands.slice(0,24) : [],
+      minDeal: Number(parsed.minDeal) || 0,
+      pitchTone: parsed.pitchTone || 'warm',
+      pitchLength: parsed.pitchLength || 'short',
+    };
+  } catch {
+    return { preferredCategories:[], savedBrands:[], rejectedBrands:[], minDeal:0, pitchTone:'warm', pitchLength:'short' };
+  }
+}
+
+function saveCreatorMemory(){
+  try { localStorage.setItem('cc_creator_memory', JSON.stringify(state.creatorMemory || {})); } catch {}
+}
+
+function rememberBrandInteraction(brand, action, extra = {}){
+  if(!brand) return;
+  const memory = state.creatorMemory || loadCreatorMemory();
+  const name = String(brand.name || '').trim();
+  const cat = String(brand.cat || '').trim();
+  if(name && action !== 'reject'){
+    memory.savedBrands = [name, ...(memory.savedBrands || []).filter(x => x !== name)].slice(0,24);
+  }
+  if(cat && action !== 'reject'){
+    memory.preferredCategories = [cat, ...(memory.preferredCategories || []).filter(x => x !== cat)].slice(0,12);
+  }
+  if(action === 'reject' && name){
+    memory.rejectedBrands = [name, ...(memory.rejectedBrands || []).filter(x => x !== name)].slice(0,24);
+  }
+  if(extra.pitchTone) memory.pitchTone = extra.pitchTone;
+  if(extra.pitchLength) memory.pitchLength = extra.pitchLength;
+  state.creatorMemory = memory;
+  saveCreatorMemory();
+}
+
+function buildCreatorMemoryContext(){
+  const memory = state.creatorMemory || {};
+  const lines = [];
+  if((memory.preferredCategories || []).length) lines.push(`Creator previously saved/drafted these brand categories: ${memory.preferredCategories.slice(0,8).join(', ')}.`);
+  if((memory.savedBrands || []).length) lines.push(`Creator previously acted on these brands: ${memory.savedBrands.slice(0,10).join(', ')}. Use as taste signal, do not repeat unless the ask is follow-up.`);
+  if((memory.rejectedBrands || []).length) lines.push(`Creator rejected or wanted to avoid these brands: ${memory.rejectedBrands.slice(0,10).join(', ')}.`);
+  if(memory.minDeal) lines.push(`Creator prefers deals at or above roughly $${Number(memory.minDeal).toLocaleString()}.`);
+  if(memory.pitchTone) lines.push(`Preferred pitch tone: ${memory.pitchTone}.`);
+  return lines.join('\n');
+}
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const PROXY_URL = 'https://creatorclaw-proxy.creatorclaw.workers.dev';
@@ -3653,12 +3712,13 @@ async function runInlineBrandsPreview(){
           </div>
           <div class="match-meter"><div class="match-meter-ring" style="--deg:${(b.match||0)*3.6}deg"></div><div class="match-meter-inner"><span class="match-meter-val">${escapeHtml(String(b.match||''))}</span><span class="match-meter-lbl">Match</span></div></div>
         </div>
+        ${brandTrustHtml(b)}
         <div class="brand-reasons">${(b.reasons||[]).slice(0,3).map(r=>`<div class="brand-reason"><span class="chk">✓</span>${escapeHtml(r)}</div>`).join('')}</div>
         <div class="brand-footer">
           <div class="brand-deal">${escapeHtml(b.deal||'')}</div>
           <div class="brand-actions">
             <button class="outreach-btn primary" onclick="draftPitch(${i})">Draft Pitch</button>
-            <button class="outreach-btn secondary" onclick="toggleSent(this,'${safeName}')">Outreach</button>
+            <button class="outreach-btn secondary" onclick="addBrandToPipeline(${i},this)">Pipeline</button>
           </div>
         </div>`;
       grid.appendChild(card);
@@ -5112,9 +5172,14 @@ async function generateBrands(){
     ? `\n\nBrands the creator already mentions / has worked with (DO NOT recommend any of these, they are existing relationships, not new leads): ${existingBrands.join(', ')}.\nUse them only as a TIER + AESTHETIC reference: recommend brands of similar size, niche, and brand sensibility, peers, complements, and step-ups, not the same brands.`
     : '';
 
+  const memoryContext = buildCreatorMemoryContext();
+  const memoryRejects = state.creatorMemory?.rejectedBrands?.length
+    ? `\n\nBrands the creator has rejected or asked to avoid (DO NOT recommend): ${state.creatorMemory.rejectedBrands.join(', ')}.`
+    : '';
+
   const system=`Brand matchmaker. Return ONLY JSON, no markdown. Structure:
-{"brands":[{"name":"Gymshark","domain":"gymshark.com","match":96,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"deal":"$2,500 – $5,000"}]}
-Real brands. domain is the primary website (no https:// or trailing slash). match 60-99. reasons exactly 3. deal is dollar range. Order by match desc.
+{"brands":[{"name":"Gymshark","domain":"gymshark.com","match":96,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"evidence":["Top posts skew fitness routines","Audience overlaps apparel buyers"],"pitch_angle":"30-day creator test around gym-to-street outfits","next_step":"Pitch one reel concept and ask for creator program contact","deal":"$2,500 - $5,000"}]}
+Real brands. domain is the primary website (no https:// or trailing slash). match 60-99. reasons exactly 3. evidence exactly 2, short and grounded in the scraped context. deal is dollar range. Order by match desc.
 
 Use the scraped Instagram recommendation context like retrieval evidence: match the creator's actual themes, top-performing post formats, visual style, audience/location signals, and brand orbit. Do not recommend brands already listed as existing affinities. Prefer less-obvious brands that fit the same audience and aesthetic tier.`;
 
@@ -5122,7 +5187,7 @@ Use the scraped Instagram recommendation context like retrieval evidence: match 
     ? `${state.persona.name}: ${state.persona.bio} Pillars: ${state.persona.pillars.map(p=>p.l).join(', ')}. Vibes: ${state.persona.vibes.join(', ')}. Reach: ${state.persona.totalReach}, Engagement: ${state.persona.avgEngagement}`
     : getConnectedStats();
   const recommendationContext = buildRecommendationContext();
-  const user=`${personaSummary}${excludeLine}${recommendationContext?`\n\nScraped recommendation context:\n${recommendationContext}`:''}\n\n8 brand matches:`;
+  const user=`${personaSummary}${excludeLine}${memoryRejects}${memoryContext?`\n\nCreator memory:\n${memoryContext}`:''}${recommendationContext?`\n\nScraped recommendation context:\n${recommendationContext}`:''}\n\n8 brand matches:`;
 
   try {
     const raw=await chatLLM(system,user,{ response_format:{ type:'json_object' } });
@@ -5169,7 +5234,7 @@ async function enrichBrandsWithAgent(brands, creatorSummary){
         verified_active: !!data.result.active,
         recent_campaigns: data.result.recent_campaigns || [],
         ig_signal: data.result.ig_signal || null,
-        pitch_angle: data.result.pitch_angle || '',
+        pitch_angle: data.result.pitch_angle || b.pitch_angle || '',
         creator_readiness_score: data.result.creator_readiness_score || 0,
         marketing_activity_score: data.result.marketing_activity_score || 0,
         outreach_priority_score: data.result.outreach_priority_score || 0,
@@ -5225,6 +5290,56 @@ function formatCount(n){
   return String(n);
 }
 
+function brandPitchAngle(brand){
+  return String(brand?.pitch_angle || brand?.best_pitch_angle || brand?.next_step || '').trim()
+    || `Lead with ${String(brand?.cat || 'audience')} fit and a specific content concept.`;
+}
+
+function brandEvidence(brand){
+  const raw = Array.isArray(brand?.evidence) ? brand.evidence : [];
+  const fallback = Array.isArray(brand?.reasons) ? brand.reasons : [];
+  return [...raw, ...fallback].map(x => String(x || '').trim()).filter(Boolean).slice(0,2);
+}
+
+function brandTrustHtml(brand){
+  const angle = brandPitchAngle(brand);
+  const evidence = brandEvidence(brand);
+  return `
+    <div class="brand-trust">
+      <div class="brand-trust-kicker">Best angle</div>
+      <div class="brand-trust-angle">${escapeHtml(angle)}</div>
+      ${evidence.length ? `<div class="brand-evidence">${evidence.map(e=>`<span class="brand-evidence-pill">${escapeHtml(e)}</span>`).join('')}</div>` : ''}
+    </div>
+    <div class="brand-fit-label">Why this fits</div>
+  `;
+}
+
+function estimateDealAmount(deal){
+  const nums = String(deal || '').match(/\$?\s*([0-9][0-9,]*(?:\.\d+)?)(\s*[kK])?/g) || [];
+  const vals = nums.map(raw => {
+    const isK = /k/i.test(raw);
+    const n = Number(raw.replace(/[^0-9.]/g,''));
+    return Number.isFinite(n) ? Math.round(n * (isK ? 1000 : 1)) : 0;
+  }).filter(Boolean);
+  if(!vals.length) return 0;
+  return Math.round(vals.reduce((a,b)=>a+b,0) / vals.length);
+}
+
+function buildBrandDealNotes(brand, pitch){
+  const lines = [
+    `CreatorClaw match: ${brand.match || 'N/A'}`,
+    brand.deal ? `Suggested range: ${brand.deal}` : null,
+    brandPitchAngle(brand) ? `Best pitch angle: ${brandPitchAngle(brand)}` : null,
+    brand.next_step ? `Next action: ${brand.next_step}` : null,
+    brand.program_url ? `Program: ${brand.program_url}` : null,
+    Array.isArray(brand.reasons) && brand.reasons.length ? `Why it fits: ${brand.reasons.join('; ')}` : null,
+    Array.isArray(brand.evidence) && brand.evidence.length ? `Evidence: ${brand.evidence.join('; ')}` : null,
+    pitch?.subject ? `Draft subject: ${pitch.subject}` : null,
+    pitch?.body ? `Draft body:\n${pitch.body}` : null,
+  ].filter(Boolean);
+  return lines.join('\n');
+}
+
 function renderBrands(brands){
   state.brands=brands;
   const grid=document.getElementById('brands-result');
@@ -5246,17 +5361,80 @@ function renderBrands(brands){
         </div>
         <div class="match-meter"><div class="match-meter-ring" style="--deg:${b.match*3.6}deg"></div><div class="match-meter-inner"><span class="match-meter-val">${b.match}</span><span class="match-meter-lbl">Match</span></div></div>
       </div>
-      <div class="brand-reasons">${(b.reasons||[]).map(r=>`<div class="brand-reason"><span class="chk">✓</span>${r}</div>`).join('')}</div>
+      ${brandTrustHtml(b)}
+      <div class="brand-reasons">${(b.reasons||[]).map(r=>`<div class="brand-reason"><span class="chk">✓</span>${escapeHtml(r)}</div>`).join('')}</div>
       <div class="brand-footer">
-        <div class="brand-deal">${b.deal}</div>
+        <div class="brand-deal">${escapeHtml(b.deal||'')}</div>
         <div class="brand-actions">
           <button class="outreach-btn primary" onclick="draftPitch(${i})">Draft Pitch</button>
-          <button class="outreach-btn secondary" onclick="toggleSent(this,'${b.name.replace(/'/g,"&#39;")}')">Outreach</button>
+          <button class="outreach-btn secondary" onclick="addBrandToPipeline(${i},this)">Pipeline</button>
         </div>
       </div>`;
     frag.appendChild(card);
   });
   grid.appendChild(frag);
+}
+
+async function addBrandToPipeline(i, btn, pitch = null){
+  const brand = (state.brands||[])[i];
+  if(!brand){ showError('Brand not found'); return; }
+  const prevText = btn?.textContent;
+  if(btn){ btn.disabled = true; btn.textContent = 'Saving'; }
+  const ok = await upsertBrandToPipeline(brand, pitch);
+  if(ok){
+    rememberBrandInteraction(brand, 'pipeline');
+    document.querySelectorAll(`.brand-card[data-brand-index="${i}"] .outreach-btn.secondary`).forEach(b=>{
+      b.className = 'outreach-btn secondary sent';
+      b.textContent = 'In Pipeline';
+      b.disabled = false;
+    });
+    showIntroToast(`${brand.name} added to Pipeline.`);
+  } else if(btn){
+    btn.disabled = false;
+    btn.textContent = prevText || 'Pipeline';
+  }
+}
+
+async function upsertBrandToPipeline(brand, pitch = null){
+  if(!brand){ return false; }
+  if(!state.deals) await loadDeals();
+  const now = new Date().toISOString();
+  const domain = String(brand.domain || '').replace(/^https?:\/\//,'').replace(/^www\./,'').replace(/\/$/,'');
+  const normalizedName = String(brand.name || '').trim().toLowerCase();
+  const existing = (state.deals || []).find(d => {
+    const dDomain = String(d.brand_domain || '').replace(/^www\./,'').toLowerCase();
+    return (domain && dDomain === domain.toLowerCase()) || String(d.brand_name || '').trim().toLowerCase() === normalizedName;
+  });
+  const fields = {
+    brand_name: brand.name || 'Untitled',
+    brand_domain: domain,
+    status: existing?.status || 'outreach',
+    platform: 'Instagram',
+    deliverable: existing?.deliverable || 'Reel',
+    amount_usd: existing?.amount_usd || estimateDealAmount(brand.deal),
+    notes: buildBrandDealNotes(brand, pitch),
+  };
+  const user = await getCurrentUser();
+  if(user){
+    const remote = await upsertDealRemote(existing ? { id: existing.id, ...fields } : fields);
+    if(!remote){ showError('Could not save to pipeline'); return false; }
+    if(existing){
+      const idx = state.deals.findIndex(d => d.id === existing.id);
+      if(idx >= 0) state.deals[idx] = remote;
+    } else {
+      state.deals.unshift(remote);
+    }
+  } else {
+    if(existing){
+      Object.assign(existing, { ...fields, updated_at: now });
+    } else {
+      const newId = 'd_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
+      state.deals.push({ id: newId, ...fields, created_at: now, updated_at: now });
+    }
+    saveLocalDeals();
+  }
+  if(!document.getElementById('tab-pipeline')?.classList.contains('hidden')) renderPipeline();
+  return true;
 }
 
 function toggleSent(btn,name){
@@ -5604,7 +5782,8 @@ function renderInlineBrandsIntoBody(bodyEl, brands){
   grid.className = 'inline-preview-grid inline-brand-grid';
   grid.style.cssText = 'margin-top:14px';
   brands.forEach((b) => {
-    const idx = state.brands.findIndex(x => x.name === b.name);
+    let idx = state.brands.findIndex(x => x.name === b.name);
+    if(idx < 0){ state.brands.push(b); idx = state.brands.length - 1; }
     const safeName = (b.name||'').replace(/'/g,'&#39;');
     const logoMarkup = b.domain
       ? `<img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(b.domain)}&sz=128" alt="${escapeHtml(b.name||'')}" onerror="this.parentElement.style.background='var(--card2)';this.parentElement.textContent='${escapeHtml((b.name||'?')[0]).toUpperCase()}'">`
@@ -5621,11 +5800,13 @@ function renderInlineBrandsIntoBody(bodyEl, brands){
         </div>
         <div class="match-meter"><div class="match-meter-ring" style="--deg:${(b.match||0)*3.6}deg"></div><div class="match-meter-inner"><span class="match-meter-val">${escapeHtml(String(b.match||''))}</span><span class="match-meter-lbl">Match</span></div></div>
       </div>
+      ${brandTrustHtml(b)}
       <div class="brand-reasons">${(b.reasons||[]).slice(0,3).map(r=>`<div class="brand-reason"><span class="chk">✓</span>${escapeHtml(r)}</div>`).join('')}</div>
       <div class="brand-footer">
         <div class="brand-deal">${escapeHtml(b.deal||'')}</div>
         <div class="brand-actions">
           <button class="outreach-btn primary" onclick="draftPitchInline(${idx})">Draft Pitch</button>
+          <button class="outreach-btn secondary" onclick="addBrandToPipeline(${idx},this)">Pipeline</button>
         </div>
       </div>`;
     grid.appendChild(card);
@@ -5685,9 +5866,53 @@ function draftPitchInline(i){
   sendChatMessage();
 }
 
-async function draftPitch(i){
+function draftPitch(i){
   const brand = (state.brands||[])[i];
   if(!brand){ showError('Brand not found'); return; }
+  const memory = state.creatorMemory || loadCreatorMemory();
+  const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const angle = brandPitchAngle(brand);
+  showModal(`
+    <div class="modal-title">Draft pitch</div>
+    <div class="modal-sub">${esc(brand.name)} gets a pitch built from your creator profile, scraped IG context, and this match's evidence.</div>
+    <div class="modal-label">Angle</div>
+    <select id="pitch-angle-select" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;margin-bottom:14px">
+      <option value="${esc(angle)}">${esc(angle)}</option>
+      <option value="Lead with audience overlap and one creator-native reel concept">Audience overlap</option>
+      <option value="Lead with a low-risk paid creator test and clear deliverables">Paid test</option>
+      <option value="Lead with UGC-style creative the brand can reuse">UGC creative</option>
+      ${brand.program_url ? '<option value="Lead with their creator program and explain why this profile fits it">Creator program fit</option>' : ''}
+    </select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+      <div>
+        <div class="modal-label">Tone</div>
+        <select id="pitch-tone-select" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
+          ${['warm','direct','premium','playful'].map(t=>`<option value="${t}"${memory.pitchTone===t?' selected':''}>${t[0].toUpperCase()+t.slice(1)}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <div class="modal-label">Length</div>
+        <select id="pitch-length-select" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
+          ${['short','standard','detailed'].map(t=>`<option value="${t}"${memory.pitchLength===t?' selected':''}>${t[0].toUpperCase()+t.slice(1)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="modal-row">
+      <button class="modal-cancel-btn" onclick="closeModal()">Cancel</button>
+      <button class="modal-save-btn" onclick="generatePitchDraft(${i})">Generate</button>
+    </div>
+  `);
+}
+
+async function generatePitchDraft(i){
+  const brand = (state.brands||[])[i];
+  if(!brand){ showError('Brand not found'); return; }
+  const pitchOptions = {
+    angle: document.getElementById('pitch-angle-select')?.value || brandPitchAngle(brand),
+    tone: document.getElementById('pitch-tone-select')?.value || state.creatorMemory?.pitchTone || 'warm',
+    length: document.getElementById('pitch-length-select')?.value || state.creatorMemory?.pitchLength || 'short',
+  };
+  rememberBrandInteraction(brand, 'draft', { pitchTone: pitchOptions.tone, pitchLength: pitchOptions.length });
   const p = state.persona || {};
   const d = state.igData || {};
 
@@ -5710,7 +5935,7 @@ async function draftPitch(i){
   const followers = p.totalReach || d.followers || '';
   const engagement = p.avgEngagement || d.engagementRate || '';
 
-  const sys = `You are writing a cold outreach email from an Instagram creator to a brand's partnerships team. The creator wants to be considered for a paid collab. Write in the creator's authentic voice, match their vibes. Be direct, specific, confident, and short. No sycophancy, no "I love your brand" filler. One concrete idea tied to the brand's known program if possible.
+  const sys = `You are writing a cold outreach email from an Instagram creator to a brand's partnerships team. The creator wants to be considered for a paid collab. Write in the creator's authentic voice, match their vibes. Be ${pitchOptions.tone}, specific, confident, and ${pitchOptions.length}. No sycophancy, no "I love your brand" filler. One concrete idea tied to the brand's known program if possible.
 
 Return ONLY JSON, no markdown:
 {
@@ -5723,7 +5948,9 @@ Return ONLY JSON, no markdown:
     brand.cat ? `Category: ${brand.cat}` : null,
     brand.program_url ? `Creator program: ${brand.program_url}` : null,
     (brand.recent_campaigns||[]).length ? `Recent campaigns: ${(brand.recent_campaigns||[]).slice(0,2).map(c=>c.title||'').filter(Boolean).join(' | ')}` : null,
-    brand.pitch_angle ? `Suggested angle: ${brand.pitch_angle}` : null,
+    pitchOptions.angle ? `Chosen angle: ${pitchOptions.angle}` : null,
+    brand.next_step ? `Recommended next step: ${brand.next_step}` : null,
+    Array.isArray(brand.evidence) && brand.evidence.length ? `Recommendation evidence: ${brand.evidence.join('; ')}` : null,
     Array.isArray(brand.reasons) && brand.reasons.length ? `Fit reasons: ${brand.reasons.join('; ')}` : null,
   ].filter(Boolean).join('\n');
 
@@ -5741,7 +5968,7 @@ Return ONLY JSON, no markdown:
   const user = `Brand to pitch:\n${brandCtx}\n\nCreator:\n${creatorCtx}\n\nPitch JSON:`;
 
   try {
-    const raw = await chatLLM(sys, user);
+    const raw = await chatLLM(sys, user,{ response_format:{ type:'json_object' } });
     const pitch = parseJSON(raw);
     if(!pitch || !pitch.subject || !pitch.body){ throw new Error('Could not parse pitch response'); }
     showPitchModal(brand, pitch);
@@ -5775,13 +6002,24 @@ function showPitchModal(brand, pitch){
       '<button class="copy-btn" onclick="sendPitchViaGmail()" title="Opens Gmail compose with your pitch pre-filled" style="display:inline-flex;align-items:center;justify-content:center;gap:8px">'+
         GMAIL_ICON_SVG + '<span>Open in Gmail</span>'+
       '</button>'+
+      '<button class="modal-cancel-btn" onclick="addPendingPitchToPipeline()">Save to Pipeline</button>'+
       '<button class="modal-cancel-btn" onclick="copyPitchClipboard()">Copy</button>'+
       '<button class="modal-cancel-btn" onclick="closeModal()">Close</button>'+
     '</div>'
   );
 }
 
-function sendPitchViaGmail(){
+async function addPendingPitchToPipeline(){
+  const pending = window._ccPendingPitch;
+  if(!pending?.brand){ showError('No pitch to save'); return; }
+  const ok = await upsertBrandToPipeline(pending.brand, pending.pitch);
+  if(ok){
+    rememberBrandInteraction(pending.brand, 'pipeline');
+    showIntroToast(`${pending.brand.name} saved to Pipeline with the pitch draft.`);
+  }
+}
+
+async function sendPitchViaGmail(){
   const pending = window._ccPendingPitch;
   if(!pending){ closeModal(); return; }
   const toInput = document.getElementById('pitch-to-input');
@@ -5795,13 +6033,15 @@ function sendPitchViaGmail(){
   // that they opened Gmail with it.
   if(pending.brand && pending.brand.name){
     state.sent[pending.brand.name] = true;
+    await upsertBrandToPipeline(pending.brand, pending.pitch);
+    rememberBrandInteraction(pending.brand, 'draft');
     document.querySelectorAll('.brand-card').forEach(card=>{
       const nameEl = card.querySelector('.brand-name');
       if(nameEl && nameEl.textContent.trim() === pending.brand.name){
         const btn = card.querySelector('.outreach-btn.secondary');
         if(btn){
           btn.className = 'outreach-btn secondary sent';
-          btn.innerHTML = 'Sent';
+          btn.innerHTML = 'In Pipeline';
         }
       }
     });
