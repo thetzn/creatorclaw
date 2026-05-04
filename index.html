@@ -436,13 +436,14 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .persona-reveal-stat-val{font-size:13px;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .persona-reveal-context{position:relative;z-index:1;display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;min-height:23px;opacity:0;transform:translateY(4px);transition:opacity 0.35s ease,transform 0.35s ease}
 .persona-reveal-card.has-context .persona-reveal-context{opacity:1;transform:translateY(0)}
-.persona-reveal-context-item{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:rgba(255,255,255,0.02);border-radius:999px;padding:4px 8px;font-size:10px;line-height:1;color:var(--muted);white-space:nowrap}
+.persona-reveal-context-item{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:rgba(255,255,255,0.02);border-radius:999px;padding:4px 8px;font-size:10px;line-height:1;color:var(--muted);white-space:nowrap;transition:background-color 0.25s ease,border-color 0.25s ease,color 0.25s ease,opacity 0.25s ease}
 .persona-reveal-context-item::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--muted2);opacity:0.65}
-.persona-reveal-context-item.is-active{border-color:var(--gold-border);color:var(--text);background:var(--gold-dim)}
+.persona-reveal-context-item.is-active{border-color:var(--gold-border);color:var(--text);background:linear-gradient(90deg,var(--gold-dim),rgba(218,182,107,0.14),var(--gold-dim));background-size:220% 100%;animation:personaContextShimmer 1.9s ease-in-out infinite}
 .persona-reveal-context-item.is-active::before{background:var(--gold);opacity:1;animation:personaContextPulse 1.5s ease-out infinite}
-.persona-reveal-context-item.is-done{color:var(--muted)}
+.persona-reveal-context-item.is-done{color:var(--muted);opacity:0.82}
 .persona-reveal-context-item.is-done::before{background:var(--gold);opacity:0.85;animation:none}
 @keyframes personaContextPulse{0%{box-shadow:0 0 0 0 rgba(218,182,107,0.4)}70%{box-shadow:0 0 0 6px rgba(218,182,107,0)}100%{box-shadow:0 0 0 0 rgba(218,182,107,0)}}
+@keyframes personaContextShimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
 .persona-reveal-tags{position:relative;z-index:1;display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;opacity:0;transform:translateY(6px);transition:opacity 0.45s ease,transform 0.45s ease}
 .persona-reveal-card.is-refined .persona-reveal-tags{opacity:1;transform:translateY(0)}
 .persona-reveal-tag{font-size:10px;color:var(--muted);border:1px solid var(--border2);border-radius:999px;padding:4px 9px;background:var(--card2)}
@@ -3441,9 +3442,9 @@ function startPersonaRevealContext(card, items = []){
   let i = 0;
   renderPersonaRevealContext(card, items, i);
   const interval = setInterval(() => {
-    i = Math.min(i + 1, Math.max(0, items.length - 1));
+    i = (i + 1) % Math.max(1, items.length);
     renderPersonaRevealContext(card, items, i);
-  }, 2300);
+  }, 1800);
   return {
     stop(done = false){
       clearInterval(interval);
