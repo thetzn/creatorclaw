@@ -461,6 +461,13 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .persona-desc{color:var(--muted);font-size:13px;line-height:1.7;margin-bottom:16px;max-width:480px}
 .vibe-tags{display:flex;gap:6px;flex-wrap:wrap}
 .persona-refresh{margin-top:14px;font-size:11px;color:var(--muted);letter-spacing:0.04em}
+.context-sources{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.context-source{border:1px solid var(--border);background:var(--card2);border-radius:8px;padding:8px 10px;min-width:128px}
+.context-source-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+.context-source-value{font-size:12px;line-height:1.35;color:var(--text);font-weight:600}
+.context-source-sub{font-size:10px;line-height:1.35;color:var(--muted);margin-top:3px}
+.context-source.is-active{border-color:var(--gold-border);background:var(--gold-dim)}
+.context-source.is-muted{opacity:0.72}
 .media-kit-btn{position:absolute;top:18px;right:18px;display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--gold-border);border-radius:8px;padding:8px 12px;color:var(--gold);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-family:inherit;transition:all 0.18s ease}
 .media-kit-btn:hover{background:var(--gold);color:var(--bg);border-color:var(--gold)}
 .media-kit-btn svg{width:13px;height:13px;flex-shrink:0}
@@ -1031,6 +1038,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
         <div class="persona-name"><h2>Jordan Mitchell</h2><svg class="verified-badge hidden" viewBox="0 0 40 40" aria-label="Verified"><path fill="#0095F6" d="M19.998 3.094 14.638 0l-2.972 5.15H5.432v6.354L0 14.64 3.096 20 0 25.359l5.432 3.137v5.905h5.975L14.638 40l5.36-3.094L25.358 40l3.232-5.6h6.162v-6.01L40 25.359 36.04 20 40 14.641l-5.248-3.03v-6.46h-6.419L25.358 0z"/><path fill="#fff" d="M16.49 27.456 8.823 19.79l2.69-2.69 4.978 4.978 11.713-11.713 2.69 2.69z"/></svg></div>
         <p class="persona-desc">Fitness enthusiast &amp; lifestyle creator sharing workouts, wellness tips, and daily inspo. Building a community around balanced, real living.</p>
         <div class="vibe-tags"><span class="vibe-tag">Aspirational</span><span class="vibe-tag">Warm Tones</span><span class="vibe-tag">High Energy</span><span class="vibe-tag">Relatable</span><span class="vibe-tag">Polished Casual</span><span class="vibe-tag">Motivational</span></div>
+        <div class="context-sources" id="persona-context-sources"></div>
         <div class="persona-refresh hidden" id="persona-refresh-label"></div>
       </div>
     </div>
@@ -1207,7 +1215,8 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
           <div class="st-profile-handle" id="st-profile-handle">N/A</div>
         </div>
       </div>
-      <div id="st-profile-vibes" class="st-vibes" style="margin-bottom:20px"></div>
+      <div id="st-profile-vibes" class="st-vibes" style="margin-bottom:14px"></div>
+      <div class="context-sources" id="st-profile-context-sources" style="margin-bottom:20px"></div>
       <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px">CreatorClaw refreshes recent Instagram signals weekly. Rebuild your creator persona when your positioning, niche, or content direction has changed.</div>
       <div class="st-row" style="margin-top:0">
         <button class="st-btn st-btn-primary" id="st-persona-refresh-btn" onclick="refreshCreatorPersonaFromSettings()">Rebuild creator persona</button>
@@ -2025,6 +2034,83 @@ function toggleSettingsGroup(group){
   }
 }
 
+function buildCreatorContextSourceItems(){
+  const d = state.igData || {};
+  const items = [];
+  const handle = d.username ? '@' + String(d.username).replace(/^@/,'') : '';
+  if(handle || d.followers || d.reelsScraped || d.topPosts?.length){
+    const bits = [
+      d.followers ? `${d.followers} followers` : null,
+      d.reelsScraped ? `${d.reelsScraped} reels` : null,
+      Array.isArray(d.topPosts) && d.topPosts.length ? `${d.topPosts.length} top posts` : null
+    ].filter(Boolean);
+    items.push({
+      label: 'Instagram',
+      value: handle || 'Profile read',
+      sub: bits.join(' / ') || 'Public profile data',
+      active: true
+    });
+  }
+
+  const linkContext = d.linkContext || {};
+  const sourceCount = Array.isArray(linkContext.sourceUrls) ? linkContext.sourceUrls.length : 0;
+  const outboundCount = Array.isArray(linkContext.outboundLinks) ? linkContext.outboundLinks.length : 0;
+  if(sourceCount || outboundCount){
+    const platforms = Array.isArray(linkContext.platforms)
+      ? linkContext.platforms.map(p=>p.kind).filter(Boolean).slice(0,4)
+      : [];
+    items.push({
+      label: 'Bio links',
+      value: `${sourceCount || 1} source${(sourceCount || 1) === 1 ? '' : 's'} read`,
+      sub: linkContext.summary || (platforms.length ? platforms.join(', ') : `${outboundCount} outbound links`),
+      active: true
+    });
+  }
+
+  const tiktok = d.tiktok || null;
+  const tiktokCandidates = Array.isArray(linkContext.tiktokCandidates) ? linkContext.tiktokCandidates : [];
+  if(tiktok?.handle && !tiktok.error){
+    const videoLine = tiktok.videosScraped
+      ? `${tiktok.videosScraped} videos${tiktok.avgViews ? ` / ${formatCount(tiktok.avgViews)} avg views` : ''}`
+      : 'Linked profile found';
+    items.push({
+      label: 'TikTok',
+      value: tiktok.handle,
+      sub: videoLine,
+      active: true
+    });
+  } else if(tiktok?.handle || tiktokCandidates.length){
+    items.push({
+      label: 'TikTok',
+      value: tiktok?.handle || '@' + tiktokCandidates[0].handle,
+      sub: 'Linked account found; video scrape did not complete',
+      active: false
+    });
+  } else if(sourceCount){
+    items.push({
+      label: 'TikTok',
+      value: 'No linked profile',
+      sub: 'We only scrape TikTok when IG or bio links prove the handle',
+      muted: true
+    });
+  }
+  return items;
+}
+
+function renderCreatorContextSources(){
+  const markup = buildCreatorContextSourceItems().map(item => `
+    <div class="context-source ${item.active ? 'is-active' : ''} ${item.muted ? 'is-muted' : ''}">
+      <div class="context-source-label">${escapeHtml(item.label)}</div>
+      <div class="context-source-value">${escapeHtml(item.value)}</div>
+      ${item.sub ? `<div class="context-source-sub">${escapeHtml(item.sub)}</div>` : ''}
+    </div>
+  `).join('');
+  ['persona-context-sources','st-profile-context-sources'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = markup;
+  });
+}
+
 function stRenderProfile(){
   const p = state.persona || {};
   const d = state.igData || {};
@@ -2046,6 +2132,7 @@ function stRenderProfile(){
     const vibes = p.vibes || [];
     vibesEl.innerHTML = vibes.map(v=>`<span class="st-vibe">${v}</span>`).join('');
   }
+  renderCreatorContextSources();
   const statusEl = document.getElementById('st-persona-refresh-status');
   if(statusEl && state.lastRefreshAt) statusEl.textContent = `Last refreshed ${timeAgo(state.lastRefreshAt)}.`;
 }
@@ -3868,11 +3955,14 @@ function applyIGProfile(profile){
   setText('ig-val-engagement', state.igData.engagementRate);
   setText('ig-val-posts', state.igData.totalPosts);
   setText('ig-val-category', state.igData.topCategory || state.igData.categories?.[0]?.name);
+  renderCreatorContextSources();
 }
 
 async function enrichIGProfileInBackground(handle){
+  const hadTikTok = !!state.igData?.tiktok?.handle && !state.igData?.tiktok?.error;
   const profile = await fetchIGProfileChunk(handle, false);
   applyIGProfile(profile);
+  announceTikTokContextIfFound(profile, hadTikTok);
   // Wait for the onboarding foreground persona to settle before regenerating
   // on top of richer igData; otherwise the second generatePersona is dropped
   // by the _personaLoading guard.
@@ -3880,6 +3970,20 @@ async function enrichIGProfileInBackground(handle){
   if(state.persona){
     await generatePersona({ inlineMode: true });
   }
+}
+
+function announceTikTokContextIfFound(profile, hadTikTok = false){
+  const tt = profile?.tiktok;
+  if(!tt?.handle || tt.error || hadTikTok || chatState._tiktokContextAnnounced) return;
+  chatState._tiktokContextAnnounced = true;
+  if(chatState._onboardingRevealCard){
+    renderPersonaRevealContext(chatState._onboardingRevealCard, ['Bio links read', 'TikTok videos scanned', 'Agent context updated'], 3);
+  }
+  const chatView = document.getElementById('chat-view');
+  if(!chatView || chatView.classList.contains('hidden')) return;
+  const videos = tt.videosScraped ? `${tt.videosScraped} recent TikToks` : 'your linked TikTok';
+  const metrics = tt.avgViews ? `, including roughly ${formatCount(tt.avgViews)} average views on scraped videos` : '';
+  appendMessage('assistant', `Found ${tt.handle} too. I pulled ${videos}${metrics} into your agent context.`);
 }
 
 async function startOnboardingChat(handle){
@@ -3931,6 +4035,7 @@ async function startOnboardingChat(handle){
   chatState._onboardingRevealCard = null;
   chatState._onboardingContinued = false;
   chatState._onboardingNextStepShown = false;
+  chatState._tiktokContextAnnounced = false;
   if(chatState._onboardingRevealContext){
     chatState._onboardingRevealContext.stop();
     chatState._onboardingRevealContext = null;
@@ -5652,6 +5757,7 @@ function renderPersona(d){
   // Show verified badge only if Apify confirmed the IG profile is verified
   document.querySelector('.verified-badge').classList.toggle('hidden', !state.igData?.verified);
   document.querySelector('.vibe-tags').innerHTML=(d.vibes||[]).map(v=>`<span class="vibe-tag">${v}</span>`).join('');
+  renderCreatorContextSources();
   // Stats
   const statCards=document.querySelectorAll('.stat-card');
   if(statCards[0]) statCards[0].querySelector('.stat-card-val').textContent=fmt(d.totalReach);

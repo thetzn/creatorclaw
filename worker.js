@@ -1830,13 +1830,20 @@ function compactUnique(items, keyFn = x => x) {
 
 function extractUrlsFromText(text) {
   const found = [];
-  const re = /https?:\/\/[^\s<>"')]+/gi;
-  let m;
-  while ((m = re.exec(String(text || '')))) {
-    const url = normalizeCreatorUrl(m[0].replace(/[.,;!?]+$/, ''));
-    if (url) found.push(url);
+  const variants = [String(text || '').replace(/\\\//g, '/')];
+  try {
+    const decoded = decodeURIComponent(variants[0]);
+    if (decoded && decoded !== variants[0]) variants.push(decoded);
+  } catch (_) {}
+  for (const variant of variants) {
+    const re = /https?:\/\/[^\s<>"')\\]+/gi;
+    let m;
+    while ((m = re.exec(variant))) {
+      const url = normalizeCreatorUrl(m[0].replace(/[.,;!?]+$/, ''));
+      if (url) found.push(url);
+    }
   }
-  return found;
+  return compactUnique(found).slice(0, 80);
 }
 
 function extractBioLinksFromProfile(profile) {
@@ -1880,13 +1887,21 @@ function platformKind(url) {
 
 function extractTikTokCandidatesFromUrl(url, source = 'link') {
   const candidates = [];
+  const raw = String(url || '').replace(/\\\//g, '/');
+  const variants = [raw];
+  try {
+    const decoded = decodeURIComponent(raw);
+    if (decoded && decoded !== raw) variants.push(decoded);
+  } catch (_) {}
   const re = /(?:https?:\/\/)?(?:www\.|m\.)?tiktok\.com\/@([A-Za-z0-9._]{2,24})/gi;
-  let m;
-  while ((m = re.exec(String(url || '')))) {
-    const handle = m[1].replace(/\.+$/, '');
-    if (handle) candidates.push({ handle, url: normalizeCreatorUrl(url) || `https://www.tiktok.com/@${handle}`, source, confidence: source === 'instagram_profile' ? 0.98 : 0.92 });
+  for (const variant of variants) {
+    let m;
+    while ((m = re.exec(variant))) {
+      const handle = m[1].replace(/\.+$/, '');
+      if (handle) candidates.push({ handle, url: `https://www.tiktok.com/@${handle}`, source, confidence: source === 'instagram_profile' ? 0.98 : 0.92 });
+    }
   }
-  return candidates;
+  return compactUnique(candidates, x => x.handle);
 }
 
 async function fetchTextWithTimeout(url, ms = 5000) {
@@ -1928,6 +1943,9 @@ function parseLinkPage(url, html) {
     const href = normalizeCreatorUrl(decodeHtml(m[1]), url);
     if (!href) continue;
     anchors.push({ label: cleanText(decodeHtml(m[2]), 90), url: href, kind: platformKind(href) });
+  }
+  for (const href of extractUrlsFromText(decoded)) {
+    anchors.push({ label: '', url: href, kind: platformKind(href) });
   }
   const visibleText = cleanText(decoded.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' '), 600);
   return { url, title, description: metaDesc, links: compactUnique(anchors, x => x.url).slice(0, 40), textSample: visibleText };
