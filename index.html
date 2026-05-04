@@ -174,13 +174,8 @@ body.logged-out .chat-sidebar-backdrop,
 body.logged-out .chat-hamburger,
 body.logged-out .header-hamburger{display:none !important}
 body.logged-out #chat-view .chat-main{border-left:0}
-body.logged-out #chat-view .chat-composer{position:relative}
 body.logged-out #chat-view .chat-composer-inner{opacity:0.5;pointer-events:none;filter:grayscale(0.2)}
 body.logged-out #chat-view #chat-input{cursor:not-allowed}
-.chat-composer-signin{display:none}
-body.logged-out #chat-view .chat-composer-signin{display:flex;position:absolute;inset:16px 20px 20px;align-items:center;justify-content:center;gap:8px;background:transparent;border:1px dashed var(--gold-border);border-radius:14px;color:var(--gold);font-family:inherit;font-size:13px;font-weight:600;letter-spacing:0.02em;cursor:pointer;z-index:3;transition:background-color 0.2s,border-color 0.2s}
-body.logged-out #chat-view .chat-composer-signin:hover{background:rgba(218,182,107,0.06);border-color:var(--gold)}
-@media(max-width:768px){body.logged-out #chat-view .chat-composer-signin{inset:12px 14px}}
 
 /* Inline chat-bubble cards */
 .chat-msg-body .inline-analyzing{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--text)}
@@ -989,7 +984,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
           <img class="persona-reveal-img" alt="" loading="eager" decoding="async" fetchpriority="high">
         </div>
         <div class="persona-reveal-copy">
-          <div class="persona-reveal-kicker">Creator persona</div>
+          <div class="persona-reveal-kicker">First read</div>
           <div class="persona-reveal-title">Finding your profile</div>
           <div class="persona-reveal-sub">CreatorClaw is pulling the profile into focus.</div>
         </div>
@@ -1349,7 +1344,6 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
         </div>
         <div class="chat-hint">CreatorClaw can make mistakes. Consider verifying important info.</div>
       </div>
-      <button type="button" class="chat-composer-signin" onclick="promptOnboardingSignin()" aria-label="Sign in to continue the conversation">Sign in to continue the conversation</button>
     </div>
   </main>
 </div>
@@ -3357,7 +3351,7 @@ function personaRevealMarkup(handle = ''){
           <img class="persona-reveal-img" alt="" loading="eager" decoding="async" fetchpriority="high">
         </div>
         <div class="persona-reveal-copy">
-          <div class="persona-reveal-kicker">Creator persona</div>
+          <div class="persona-reveal-kicker">First read</div>
           <div class="persona-reveal-title">${escapeHtml(title)}</div>
           <div class="persona-reveal-sub">CreatorClaw is pulling the profile into focus.</div>
         </div>
@@ -3408,7 +3402,7 @@ function updatePersonaRevealProfile(card, profile = {}){
   const sub = card.querySelector('.persona-reveal-sub');
   const img = card.querySelector('.persona-reveal-img');
   if(title) title.textContent = titleText;
-  if(sub) sub.textContent = handle ? `Found @${handle}. Building your creator persona from public posts.` : 'Profile found. Building your creator persona from public posts.';
+  if(sub) sub.textContent = handle ? `Found @${handle}. Building the first read from public posts.` : 'Profile found. Building the first read from public posts.';
   if(img && pic){
     img.alt = titleText;
     card.classList.remove('is-refined');
@@ -3431,7 +3425,7 @@ function completePersonaReveal(card, persona = {}, profile = {}){
   const title = card.querySelector('.persona-reveal-title');
   const sub = card.querySelector('.persona-reveal-sub');
   const tags = card.querySelector('.persona-reveal-tags');
-  if(title) title.textContent = 'Creator persona ready';
+  if(title) title.textContent = 'First read locked';
   const pillars = (persona.pillars || []).map(p => typeof p === 'string' ? p : p.l || p.label).filter(Boolean).slice(0,3);
   const vibes = (persona.vibes || []).filter(Boolean).slice(0,3);
   const read = pillars.length
@@ -3491,24 +3485,6 @@ function setComposerLock(locked){
     input.placeholder = locked ? 'Sign in to continue the conversation…' : 'Ask anything…';
   }
   if(btn) btn.disabled = !!locked;
-}
-
-// Click handler for the "Sign in to continue the conversation" overlay that
-// covers the composer when logged out. Stashes any in-progress persona /
-// agent identity (so it survives the OAuth redirect) and kicks off Google
-// sign-in. Mirrors signInWithGoogle but is the explicit "skip onboarding,
-// go to sign-in" path the user takes from the locked composer.
-function promptOnboardingSignin(){
-  try {
-    const handle = (state.igData?.username || '').replace(/^@/,'');
-    if(handle && state.persona && state.igData){
-      sessionStorage.setItem('pendingPersona', JSON.stringify({
-        handle, scraped: state.igData, analysis: state.persona
-      }));
-    }
-    if(state.agent?.name || state.agent?.persona) rememberPendingAgentIdentity();
-  } catch {}
-  signInWithGoogle();
 }
 
 function startInlineLoading(bodyEl, key, estSec){
@@ -3578,49 +3554,21 @@ function agentNameSuggestions(profile = {}){
   return items.slice(0,3);
 }
 
-function detectCreatorNiche(profile = {}, persona = null){
-  const bio = String(profile?.bio || '').toLowerCase();
-  const display = String(profile?.displayName || '').toLowerCase();
-  const personaCat = String(persona?.topCategory || '').toLowerCase();
-  const personaPillars = (persona?.pillars || [])
-    .map(p => typeof p === 'string' ? p : (p?.l || p?.label || ''))
-    .join(' ').toLowerCase();
-  const bag = `${bio} ${display} ${personaCat} ${personaPillars}`;
-  if(/\b(fit(ness)?|gym|coach|trainer|workout|yoga|pilates|run(ning)?|strength|wellness|movement|athlete)\b/.test(bag)) return 'fitness';
-  if(/\b(beauty|makeup|skincare|hair|nails|aesthetic|glow|cosmetic|mua)\b/.test(bag)) return 'beauty';
-  if(/\b(business|ceo|founder|entrepreneur|startup|finance|investor|marketing|strategist|b2b|coach|consultant)\b/.test(bag)) return 'business';
-  if(/\b(comedy|funny|humor|skit|prank|meme|silly|chaotic)\b/.test(bag)) return 'playful';
-  return 'default';
-}
-
-function buildOnboardingAgentNamingCopy(profile = {}, persona = null){
-  const titleName = profile.displayName || (profile.username ? '@' + String(profile.username).replace(/^@/,'') : 'your profile');
-  const niche = detectCreatorNiche(profile, persona);
-  const variants = {
-    fitness:  { kicker: 'Your agent is coming online', title: `Got ${titleName} in focus. What should I be called?`, body: 'I am pairing up as your personal creator agent. While you pick a name, I am building your creator persona in the background so we can riff on collabs, fitness brand pitches, and reel ideas together.' },
-    beauty:   { kicker: 'Your agent is coming online', title: `Got ${titleName} in focus. What should I be called?`, body: 'I am pairing up as your personal creator agent. While you pick a name, I am building your creator persona in the background so we can sharpen launches, beauty brand pitches, and hooks together.' },
-    business: { kicker: 'Your agent is coming online', title: `Got ${titleName} in focus. What should I be called?`, body: 'I am pairing up as your personal creator agent. While you pick a name, I am building your creator persona in the background so we can tighten your positioning, sponsorship pitches, and rate strategy together.' },
-    playful:  { kicker: 'Your agent is coming online', title: `Got ${titleName} in focus. What should I be called?`, body: 'I am pairing up as your personal creator agent. While you pick a name, I am building your creator persona in the background so we can stretch premises, riff on hooks, and pitch playful brand work together.' },
-    default:  { kicker: 'Your agent is coming online', title: `I found ${titleName}. What should I be called?`, body: 'I am pairing up as your personal creator agent. While you pick a name, I am building your creator persona in the background so we can draft, pitch, and think with your context together.' },
-  };
-  return variants[niche] || variants.default;
-}
-
 function pushOnboardingAgentNamePrompt(profile = {}){
   if(state.agent.name){
-    appendMessage('assistant', `${state.agent.name} here. I am building your creator persona now.`);
+    appendMessage('assistant', `${state.agent.name} here. I have your profile in focus, and I am building the first read now.`);
     return;
   }
-  const copy = buildOnboardingAgentNamingCopy(profile, state.persona);
+  const titleName = profile.displayName || (profile.username ? '@' + String(profile.username).replace(/^@/,'') : 'your profile');
   const suggestions = agentNameSuggestions(profile);
   appendInlineCard('assistant', `
     <div class="onb-agent-name">
-      <div class="onb-agent-kicker">${escapeHtml(copy.kicker)}</div>
-      <div class="onb-agent-title">${escapeHtml(copy.title)}</div>
-      <div class="onb-agent-copy">${escapeHtml(copy.body)}</div>
+      <div class="onb-agent-kicker">Agent coming online</div>
+      <div class="onb-agent-title">I found ${escapeHtml(titleName)}. What should I be called?</div>
+      <div class="onb-agent-copy">I will keep building your creator read in the background while you name the agent that drafts, pitches, and thinks with your context.</div>
       <form class="onb-agent-name-form" onsubmit="submitOnboardingAgentName(event)">
         <input id="onb-agent-name-input" type="text" maxlength="${AGENT_NAME_MAX}" placeholder="${escapeHtml(DEFAULT_AGENT_NAME)}" autocomplete="off">
-        <button type="submit">Lock in name</button>
+        <button type="submit">Set name</button>
       </form>
       <div class="onb-agent-suggestions">
         ${suggestions.map(s => `<button type="button" class="onb-agent-suggestion" onclick="pickOnboardingAgentName(this)">${escapeHtml(s)}</button>`).join('')}
@@ -3651,40 +3599,17 @@ async function submitOnboardingAgentName(event){
   if(btn){ btn.disabled = true; btn.textContent = 'Saving'; }
   const { error } = await updateAgentName(name);
   if(error){
-    if(btn){ btn.disabled = false; btn.textContent = 'Lock in name'; }
+    if(btn){ btn.disabled = false; btn.textContent = 'Set name'; }
     if(input) input.style.borderColor = 'var(--red)';
     return;
   }
   const body = form.closest('.chat-msg-body');
   if(body){
     body.innerHTML = `
-      <div class="onb-agent-confirm"><strong>${escapeHtml(state.agent.name || name)}</strong> it is. I am your personal creator agent, locked in across chat, drafts, and outbound.</div>
+      <div class="onb-agent-confirm"><strong>${escapeHtml(state.agent.name || name)}</strong> it is. I will use that name across chat, drafts, and outbound settings.</div>
     `;
     requestAnimationFrame(()=>revealBubble(body));
   }
-  continueOnboardingAfterName().catch(e => console.warn('onboarding continuation failed', e));
-}
-
-async function continueOnboardingAfterName(){
-  if(chatState._onboardingContinued) return;
-  chatState._onboardingContinued = true;
-  const revealCard = chatState._onboardingRevealCard;
-  const revealSub = revealCard?.querySelector('.persona-reveal-sub');
-  let waitingMsg = null;
-  if(chatState._onboardingPersonaPromise && !chatState._onboardingPersonaSettled){
-    if(revealSub) revealSub.textContent = 'Pulling your persona together…';
-    waitingMsg = appendMessage('assistant', 'Pulling your persona together…');
-    waitingMsg.closest('.chat-msg')?.classList.add('is-loading');
-  }
-  try { await chatState._onboardingPersonaPromise; } catch {}
-  if(waitingMsg){
-    const wrap = waitingMsg.closest('.chat-msg');
-    wrap?.remove();
-  }
-  completePersonaReveal(revealCard, state.persona, state.igData);
-  await sleep(900);
-  streamOnboardingWelcome();
-  pushOnboardingPicker();
 }
 
 async function fetchIGProfileChunk(handle, lite = false){
@@ -3715,10 +3640,6 @@ function applyIGProfile(profile){
 async function enrichIGProfileInBackground(handle){
   const profile = await fetchIGProfileChunk(handle, false);
   applyIGProfile(profile);
-  // Wait for the onboarding foreground persona to settle before regenerating
-  // on top of richer igData; otherwise the second generatePersona is dropped
-  // by the _personaLoading guard.
-  try { if(chatState._onboardingPersonaPromise) await chatState._onboardingPersonaPromise; } catch {}
   if(state.persona){
     await generatePersona({ inlineMode: true });
   }
@@ -3767,12 +3688,6 @@ async function startOnboardingChat(handle){
     `top performing reels`,
   ]);
 
-  // Reset onboarding gate state for a fresh run.
-  chatState._onboardingPersonaPromise = null;
-  chatState._onboardingPersonaSettled = false;
-  chatState._onboardingRevealCard = null;
-  chatState._onboardingContinued = false;
-
   try {
     // 1. Fast shell: profile basics + photo, no reels/vision/LLM.
     const profile = await fetchIGProfileChunk(cleanHandle, true);
@@ -3781,9 +3696,9 @@ async function startOnboardingChat(handle){
     stopThinkingVerb(scanVerbHandle);
     updatePersonaRevealProfile(revealCard, profile);
     await sleep(550);
+    pushOnboardingAgentNamePrompt(profile);
 
-    // 2. Persona generation runs in parallel with the user's naming task.
-    //    The verb activity narrates the work in the reveal card.
+    // 2. Generate persona inline while the same reveal card keeps refining.
     if(revealSub) revealSub.textContent = '';
     const personaVerbHandle = startVerbActivity(revealSub, [
       `your voice`,
@@ -3795,24 +3710,25 @@ async function startOnboardingChat(handle){
       `tone calibration`,
       `the persona`,
     ]);
-    chatState._onboardingPersonaPromise = (async () => {
-      try { await generatePersona({ inlineMode: true }); }
-      finally { stopThinkingVerb(personaVerbHandle); chatState._onboardingPersonaSettled = true; }
-    })();
-    chatState._onboardingRevealCard = revealCard;
-
-    // 3. Rich scrape independent of persona; refines igData in the background.
-    enrichIGProfileInBackground(cleanHandle).catch(e => console.warn('background profile enrichment failed', e));
-
-    // 4. Naming card is the user's task. Submission triggers the rest of the
-    //    flow (welcome stream + picker) via continueOnboardingAfterName.
-    //    For returning users who already named the agent, advance immediately.
-    if(state.agent.name){
-      pushOnboardingAgentNamePrompt(profile);
-      await continueOnboardingAfterName();
-    } else {
-      pushOnboardingAgentNamePrompt(profile);
+    try {
+      await generatePersona({ inlineMode: true });
+    } finally {
+      stopThinkingVerb(personaVerbHandle);
     }
+    completePersonaReveal(revealCard, state.persona, state.igData);
+    await sleep(900);
+
+    // 3. Stream in-character welcome, fire and forget so the picker
+    //    can render immediately. The welcome bubble lands above the picker
+    //    (it appends first), then continues streaming while the user reads
+    //    or starts clicking. Saves 3-5s of perceived wait.
+    streamOnboardingWelcome();
+
+    // 4. Push picker (Create / Pitch), visible right away
+    pushOnboardingPicker();
+
+    // 5. Rich scrape + persona refresh happens after the user can interact.
+    enrichIGProfileInBackground(cleanHandle).catch(e => console.warn('background profile enrichment failed', e));
   } catch(e){
     stopThinkingVerb(scanVerbHandle);
     console.error('Onboarding error:', e);
