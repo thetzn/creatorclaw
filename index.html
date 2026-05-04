@@ -1208,7 +1208,12 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
         </div>
       </div>
       <div id="st-profile-vibes" class="st-vibes" style="margin-bottom:20px"></div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.6">To update your profile, re-run analytics from the <span style="color:var(--text);cursor:pointer;text-decoration:underline" onclick="switchTab('persona')">Analytics tab</span>. Manage linked accounts under <span style="color:var(--text);cursor:pointer;text-decoration:underline" onclick="openSettingsSection('connectors')">Connectors</span>.</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px">CreatorClaw refreshes recent Instagram signals weekly. Rebuild your creator persona when your positioning, niche, or content direction has changed.</div>
+      <div class="st-row" style="margin-top:0">
+        <button class="st-btn st-btn-primary" id="st-persona-refresh-btn" onclick="refreshCreatorPersonaFromSettings()">Rebuild creator persona</button>
+        <button class="st-btn st-btn-ghost" onclick="openSettingsSection('connectors')">Manage connectors</button>
+      </div>
+      <div id="st-persona-refresh-status" style="font-size:11px;color:var(--muted);line-height:1.5;margin-top:10px"></div>
     </div>
 
     <!-- Memory Summary -->
@@ -2040,6 +2045,44 @@ function stRenderProfile(){
   if(vibesEl){
     const vibes = p.vibes || [];
     vibesEl.innerHTML = vibes.map(v=>`<span class="st-vibe">${v}</span>`).join('');
+  }
+  const statusEl = document.getElementById('st-persona-refresh-status');
+  if(statusEl && state.lastRefreshAt) statusEl.textContent = `Last refreshed ${timeAgo(state.lastRefreshAt)}.`;
+}
+
+async function refreshCreatorPersonaFromSettings(){
+  const btn = document.getElementById('st-persona-refresh-btn');
+  const statusEl = document.getElementById('st-persona-refresh-status');
+  const handle = (state.igData?.username || state.igData?.handle || '').replace(/^@/,'').trim();
+  if(!handle){
+    if(statusEl) statusEl.textContent = 'Connect or analyze an Instagram profile first.';
+    openSettingsSection('connectors');
+    return;
+  }
+  if(state._personaLoading || _refreshIgInFlight) return;
+  const oldText = btn?.textContent || 'Rebuild creator persona';
+  if(btn){ btn.disabled = true; btn.textContent = 'Rebuilding...'; }
+  if(statusEl) statusEl.textContent = 'Refreshing public profile data...';
+  try {
+    _refreshIgInFlight = true;
+    const profile = await fetchIGProfileChunk(handle, false);
+    if(!profile?.username || !profile?.followers) throw new Error('Could not refresh this profile.');
+    applyIGProfile(profile);
+    if(statusEl) statusEl.textContent = 'Rebuilding your creator persona...';
+    await generatePersona({ inlineMode: true });
+    state.lastRefreshAt = new Date().toISOString();
+    await savePersona(handle, state.igData, state.persona);
+    renderPersona(state.persona);
+    stRenderProfile();
+    stLoadAgentPersona();
+    if(statusEl) statusEl.textContent = `Creator persona rebuilt ${timeAgo(state.lastRefreshAt)}.`;
+  } catch(e) {
+    console.warn('[settings] persona rebuild failed', e);
+    if(statusEl) statusEl.textContent = e.message || 'Could not rebuild right now.';
+    showError(e.message || 'Could not rebuild creator persona right now.');
+  } finally {
+    _refreshIgInFlight = false;
+    if(btn){ btn.disabled = false; btn.textContent = oldText; }
   }
 }
 
