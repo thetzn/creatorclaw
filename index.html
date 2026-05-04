@@ -3516,7 +3516,7 @@ function escapeHtml(s){
 
 function personaRevealMarkup(handle = ''){
   const clean = String(handle || '').replace(/^@/,'').trim();
-  const title = clean ? `Finding @${clean}` : 'Finding your profile';
+  const title = clean ? `Reading @${clean}` : 'Reading your profile';
   return `
     <div class="persona-reveal-card" data-persona-reveal>
       <div class="persona-reveal-main">
@@ -3567,6 +3567,21 @@ function renderPersonaRevealContext(card, items = [], activeIndex = 0){
   card.classList.add('has-context');
 }
 
+function personaRevealSourceItems(profile = state.igData || {}){
+  const d = profile || {};
+  const items = [];
+  if(d.username || d.followers || d.topPosts?.length || d.reelsScraped) items.push('Instagram read');
+  if((Array.isArray(d.bioLinks) && d.bioLinks.length) || d.linkContext?.sourceUrls?.length || d.linkContext?.outboundLinks?.length) items.push('Bio links read');
+  if(d.tiktok?.handle && !d.tiktok.error) items.push(`TikTok ${d.tiktok.handle}`);
+  else if(Array.isArray(d.linkContext?.tiktokCandidates) && d.linkContext.tiktokCandidates.length) items.push('TikTok link found');
+  return items;
+}
+
+function renderPersonaRevealSources(card, profile = state.igData || {}){
+  const items = personaRevealSourceItems(profile);
+  if(items.length) renderPersonaRevealContext(card, items, items.length);
+}
+
 function startPersonaRevealContext(card, items = []){
   if(!card) return null;
   let i = 0;
@@ -3590,7 +3605,7 @@ function resetPersonaReveal(card, handle = ''){
   const title = card.querySelector('.persona-reveal-title');
   const sub = card.querySelector('.persona-reveal-sub');
   const img = card.querySelector('.persona-reveal-img');
-  if(title) title.textContent = clean ? `Finding @${clean}` : 'Finding your profile';
+  if(title) title.textContent = clean ? `Reading @${clean}` : 'Reading your profile';
   if(sub) sub.textContent = 'CreatorClaw is pulling the profile into focus.';
   if(img){ img.removeAttribute('src'); img.alt = ''; }
   const setText = (sel, val) => { const el = card.querySelector(sel); if(el) el.textContent = val; };
@@ -3606,13 +3621,13 @@ function resetPersonaReveal(card, handle = ''){
 function updatePersonaRevealProfile(card, profile = {}){
   if(!card) return;
   const handle = String(profile.username || '').replace(/^@/,'');
-  const titleText = profile.displayName || (handle ? `@${handle}` : 'Profile found');
+  const titleText = profile.displayName || (handle ? `@${handle}` : 'Profile ready');
   const pic = profile.profilePicData || profile.profilePicUrl || '';
   const title = card.querySelector('.persona-reveal-title');
   const sub = card.querySelector('.persona-reveal-sub');
   const img = card.querySelector('.persona-reveal-img');
   if(title) title.textContent = titleText;
-  if(sub) sub.textContent = handle ? `Found @${handle}. Building your creator persona from public posts.` : 'Profile found. Building your creator persona from public posts.';
+  if(sub) sub.textContent = 'Building your creator persona from public posts.';
   if(img && pic){
     img.alt = titleText;
     card.classList.remove('is-refined');
@@ -3628,6 +3643,7 @@ function updatePersonaRevealProfile(card, profile = {}){
   setText('[data-reveal-followers]', profile.followers);
   setText('[data-reveal-engagement]', profile.engagementRate);
   setText('[data-reveal-posts]', profile.totalPosts);
+  renderPersonaRevealSources(card, profile);
 }
 
 function completePersonaReveal(card, persona = {}, profile = {}){
@@ -3646,7 +3662,7 @@ function completePersonaReveal(card, persona = {}, profile = {}){
     const items = [...vibes, ...pillars].slice(0,5);
     tags.innerHTML = items.map(x => `<span class="persona-reveal-tag">${escapeHtml(x)}</span>`).join('');
   }
-  renderPersonaRevealContext(card, [], 0);
+  renderPersonaRevealSources(card, profile);
   card.classList.add('is-refined');
 }
 
@@ -3839,14 +3855,13 @@ function detectCreatorNiche(profile = {}, persona = null){
 }
 
 function buildOnboardingAgentNamingCopy(profile = {}, persona = null){
-  const titleName = profile.displayName || (profile.username ? '@' + String(profile.username).replace(/^@/,'') : 'your profile');
   const niche = detectCreatorNiche(profile, persona);
   const variants = {
-    fitness:  { kicker: 'Your agent is coming online', title: `Got ${titleName} in focus. Want to give me a name?`, body: 'I am pairing up as your personal creator agent. While you pick a name, I am building your creator persona in the background so we can riff on collabs, fitness brand pitches, and reel ideas together.' },
-    beauty:   { kicker: 'Your agent is coming online', title: `Got ${titleName} in focus. Want to give me a name?`, body: 'I am pairing up as your personal creator agent. While you pick a name, I am building your creator persona in the background so we can sharpen launches, beauty brand pitches, and hooks together.' },
-    business: { kicker: 'Your agent is coming online', title: `Got ${titleName} in focus. Want to give me a name?`, body: 'I am pairing up as your personal creator agent. While you pick a name, I am building your creator persona in the background so we can tighten your positioning, sponsorship pitches, and rate strategy together.' },
-    playful:  { kicker: 'Your agent is coming online', title: `Got ${titleName} in focus. Want to give me a name?`, body: 'I am pairing up as your personal creator agent. While you pick a name, I am building your creator persona in the background so we can stretch premises, riff on hooks, and pitch playful brand work together.' },
-    default:  { kicker: 'Your agent is coming online', title: `I found ${titleName}. Want to give me a name?`, body: 'I am pairing up as your personal creator agent. While you pick a name, I am building your creator persona in the background so we can draft, pitch, and think with your context together.' },
+    fitness:  { kicker: 'Your agent is coming online', title: 'Your creator agent is taking shape. Want to give me a name?', body: 'I am pairing up as your personal creator agent. While you pick a name, I am building your creator persona in the background so we can riff on collabs, fitness brand pitches, and reel ideas together.' },
+    beauty:   { kicker: 'Your agent is coming online', title: 'Your creator agent is taking shape. Want to give me a name?', body: 'I am pairing up as your personal creator agent. While you pick a name, I am building your creator persona in the background so we can sharpen launches, beauty brand pitches, and hooks together.' },
+    business: { kicker: 'Your agent is coming online', title: 'Your creator agent is taking shape. Want to give me a name?', body: 'I am pairing up as your personal creator agent. While you pick a name, I am building your creator persona in the background so we can tighten your positioning, sponsorship pitches, and rate strategy together.' },
+    playful:  { kicker: 'Your agent is coming online', title: 'Your creator agent is taking shape. Want to give me a name?', body: 'I am pairing up as your personal creator agent. While you pick a name, I am building your creator persona in the background so we can stretch premises, riff on hooks, and pitch playful brand work together.' },
+    default:  { kicker: 'Your agent is coming online', title: 'Your creator agent is taking shape. Want to give me a name?', body: 'I am pairing up as your personal creator agent. While you pick a name, I am building your creator persona in the background so we can draft, pitch, and think with your context together.' },
   };
   return variants[niche] || variants.default;
 }
@@ -3962,6 +3977,7 @@ async function enrichIGProfileInBackground(handle){
   const hadTikTok = !!state.igData?.tiktok?.handle && !state.igData?.tiktok?.error;
   const profile = await fetchIGProfileChunk(handle, false);
   applyIGProfile(profile);
+  if(chatState._onboardingRevealCard) renderPersonaRevealSources(chatState._onboardingRevealCard, profile);
   announceTikTokContextIfFound(profile, hadTikTok);
   // Wait for the onboarding foreground persona to settle before regenerating
   // on top of richer igData; otherwise the second generatePersona is dropped
@@ -3977,13 +3993,13 @@ function announceTikTokContextIfFound(profile, hadTikTok = false){
   if(!tt?.handle || tt.error || hadTikTok || chatState._tiktokContextAnnounced) return;
   chatState._tiktokContextAnnounced = true;
   if(chatState._onboardingRevealCard){
-    renderPersonaRevealContext(chatState._onboardingRevealCard, ['Bio links read', 'TikTok videos scanned', 'Agent context updated'], 3);
+    renderPersonaRevealSources(chatState._onboardingRevealCard, profile);
   }
   const chatView = document.getElementById('chat-view');
   if(!chatView || chatView.classList.contains('hidden')) return;
   const videos = tt.videosScraped ? `${tt.videosScraped} recent TikToks` : 'your linked TikTok';
   const metrics = tt.avgViews ? `, including roughly ${formatCount(tt.avgViews)} average views on scraped videos` : '';
-  appendMessage('assistant', `Found ${tt.handle} too. I pulled ${videos}${metrics} into your agent context.`);
+  appendMessage('assistant', `TikTok context is in too: ${tt.handle}. I added ${videos}${metrics} to your agent context.`);
 }
 
 async function startOnboardingChat(handle){
@@ -4077,6 +4093,7 @@ async function startOnboardingChat(handle){
           chatState._onboardingRevealContext.stop(true);
           chatState._onboardingRevealContext = null;
         }
+        renderPersonaRevealSources(revealCard, state.igData);
         chatState._onboardingPersonaSettled = true;
       }
     })();
