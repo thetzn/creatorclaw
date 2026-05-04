@@ -4380,6 +4380,23 @@ function buildRecommendationContext(){
   if(affinities.length) lines.push(`Existing brand affinities, use as signal not recommendations: ${affinities.join(', ')}`);
   const sounds = list(d.topSounds, s => s.song_name ? `"${clean(s.song_name)}", ${clean(s.artist_name || 'Unknown')} (${s.count || 1} uses)` : null, 6);
   if(sounds.length) lines.push(`Reused reel audio: ${sounds.join('; ')}`);
+  if(d.linkContext?.summary) lines.push(`Link-in-bio context: ${clean(d.linkContext.summary)}`);
+  const offers = list(d.linkContext?.offers, o => o.label || o.url ? `${clean(o.label || o.kind || 'offer')} (${clean(o.url)})` : null, 6);
+  if(offers.length) lines.push(`Visible offers/CTAs from bio links: ${offers.join('; ')}`);
+  if(d.tiktok?.handle){
+    const tt = d.tiktok;
+    const ttBits = [
+      `${clean(tt.handle)} linked from Instagram bio context`,
+      tt.followers ? `${tt.followers} TikTok followers` : null,
+      tt.avgViews ? `${tt.avgViews} avg views on scraped videos` : null,
+      tt.avgLikes ? `${tt.avgLikes} avg likes` : null
+    ].filter(Boolean);
+    lines.push(`TikTok context: ${ttBits.join('; ')}`);
+    const ttTags = list(tt.topHashtags, h => h.name ? `#${clean(h.name)} (${h.count || 1})` : null, 8);
+    if(ttTags.length) lines.push(`TikTok repeated hashtags: ${ttTags.join(', ')}`);
+    const ttCaptions = list(tt.recentCaptions, c => `"${clean(c).slice(0, 160)}"`, 4);
+    if(ttCaptions.length) lines.push(`Recent TikTok captions: ${ttCaptions.join(' | ')}`);
+  }
   const topPosts = list(d.topPosts, (post, i) => {
     const caption = clean(post.caption).slice(0, 220);
     if(!caption) return null;
@@ -4892,6 +4909,8 @@ function getConnectedStats(){
       if(d.bio) bits.push('bio: "'+d.bio+'"');
       if((d.recentThemes||[]).length) bits.push('recent themes: '+d.recentThemes.join(', '));
       if((d.vibes||[]).length) bits.push('observed vibes: '+d.vibes.join(', '));
+      if(d.linkContext?.summary) bits.push('link-in-bio: '+d.linkContext.summary);
+      if(d.tiktok?.handle) bits.push('TikTok: '+d.tiktok.handle+(d.tiktok.followers ? ' ('+d.tiktok.followers+' followers)' : ''));
       parts.push('Instagram, '+bits.join('; '));
     } else {
       parts.push('Instagram: connected');

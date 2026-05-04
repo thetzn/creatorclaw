@@ -13,6 +13,7 @@ const CHAT_URL = 'https://api.openai.com/v1/chat/completions';
 const RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const APIFY_IG_URL = 'https://api.apify.com/v2/acts/apify~instagram-profile-scraper/run-sync-get-dataset-items';
 const APIFY_REEL_URL = 'https://api.apify.com/v2/acts/apify~instagram-reel-scraper/run-sync-get-dataset-items';
+const APIFY_TIKTOK_ACTOR = 'clockworks~tiktok-scraper';
 const MODEL = 'gpt-4o-mini';
 const MODEL_SEARCH = 'gpt-4o';
 
@@ -1788,6 +1789,304 @@ async function fetchImageDataUrl(url) {
   }
 }
 
+function normalizeCreatorUrl(raw, baseUrl = null) {
+  const s = String(raw || '').trim();
+  if (!s || /^mailto:|^tel:|^sms:|^javascript:/i.test(s)) return null;
+  try {
+    if (/^https?:\/\//i.test(s)) return new URL(s).toString();
+    if (/^\/\//.test(s)) return new URL('https:' + s).toString();
+    if (baseUrl) return new URL(s, baseUrl).toString();
+    if (/^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(s)) return new URL('https://' + s).toString();
+  } catch (_) {
+    return null;
+  }
+  return null;
+}
+
+function cleanText(raw, max = 180) {
+  return String(raw || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+function decodeHtml(raw) {
+  return String(raw || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, ' ');
+}
+
+function compactUnique(items, keyFn = x => x) {
+  const seen = new Set();
+  const out = [];
+  for (const item of items || []) {
+    const key = String(keyFn(item) || '').toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
+
+function extractUrlsFromText(text) {
+  const found = [];
+  const re = /https?:\/\/[^\s<>"')]+/gi;
+  let m;
+  while ((m = re.exec(String(text || '')))) {
+    const url = normalizeCreatorUrl(m[0].replace(/[.,;!?]+$/, ''));
+    if (url) found.push(url);
+  }
+  return found;
+}
+
+function extractBioLinksFromProfile(profile) {
+  const candidates = [];
+  const push = (value, source = 'profile') => {
+    if (!value) return;
+    if (typeof value === 'string') {
+      const direct = normalizeCreatorUrl(value);
+      if (direct) candidates.push({ url: direct, source });
+      for (const url of extractUrlsFromText(value)) candidates.push({ url, source });
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const entry of value) push(entry, source);
+      return;
+    }
+    if (typeof value === 'object') {
+      push(value.url || value.href || value.link || value.externalUrl || value.external_url, source);
+    }
+  };
+
+  push(profile.externalUrl || profile.external_url || profile.website || profile.bioUrl || profile.bioLink, 'instagram_profile');
+  push(profile.externalUrls || profile.external_urls || profile.bioLinks || profile.links, 'instagram_profile');
+  push(profile.biography || profile.bio || '', 'instagram_bio');
+  return compactUnique(candidates, x => x.url).slice(0, 5);
+}
+
+function platformKind(url) {
+  let host = '';
+  try { host = new URL(url).hostname.replace(/^www\./, '').toLowerCase(); } catch (_) { return 'link'; }
+  if (host.includes('tiktok.com')) return 'tiktok';
+  if (host.includes('youtube.com') || host.includes('youtu.be')) return 'youtube';
+  if (host.includes('instagram.com')) return 'instagram';
+  if (host.includes('linktr.ee') || host.includes('beacons.ai') || host.includes('hoo.be') || host.includes('solo.to') || host.includes('msha.ke')) return 'link_in_bio';
+  if (host.includes('stan.store') || host.includes('shopify.com') || host.includes('gumroad.com') || host.includes('shop')) return 'commerce';
+  if (host.includes('substack.com') || host.includes('beehiiv.com') || host.includes('convertkit.com')) return 'newsletter';
+  if (host.includes('spotify.com') || host.includes('podcasts.apple.com')) return 'podcast';
+  if (host.includes('calendly.com') || host.includes('cal.com')) return 'booking';
+  return 'link';
+}
+
+function extractTikTokCandidatesFromUrl(url, source = 'link') {
+  const candidates = [];
+  const re = /(?:https?:\/\/)?(?:www\.|m\.)?tiktok\.com\/@([A-Za-z0-9._]{2,24})/gi;
+  let m;
+  while ((m = re.exec(String(url || '')))) {
+    const handle = m[1].replace(/\.+$/, '');
+    if (handle) candidates.push({ handle, url: normalizeCreatorUrl(url) || `https://www.tiktok.com/@${handle}`, source, confidence: source === 'instagram_profile' ? 0.98 : 0.92 });
+  }
+  return candidates;
+}
+
+async function fetchTextWithTimeout(url, ms = 5000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
+  try {
+    const res = await fetch(url, {
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: {
+        'Accept': 'text/html,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.5',
+        'User-Agent': 'CreatorClawBot/1.0 (+https://creatorclaw.co)',
+      },
+    });
+    if (!res.ok) return null;
+    const contentType = res.headers.get('content-type') || '';
+    if (!/text|html|json/i.test(contentType)) return null;
+    return { finalUrl: res.url || url, html: (await res.text()).slice(0, 180000), contentType };
+  } catch (e) {
+    console.log('[links] fetch failed:', url, e && e.message);
+    return null;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+function parseLinkPage(url, html) {
+  const decoded = decodeHtml(html || '');
+  const title = cleanText((decoded.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1], 120);
+  const metaDesc = cleanText(
+    (decoded.match(/<meta[^>]+(?:name|property)=["'](?:description|og:description)["'][^>]+content=["']([^"']+)["']/i) || [])[1] ||
+    (decoded.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:name|property)=["'](?:description|og:description)["']/i) || [])[1],
+    220
+  );
+  const anchors = [];
+  const re = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let m;
+  while ((m = re.exec(decoded)) && anchors.length < 120) {
+    const href = normalizeCreatorUrl(decodeHtml(m[1]), url);
+    if (!href) continue;
+    anchors.push({ label: cleanText(decodeHtml(m[2]), 90), url: href, kind: platformKind(href) });
+  }
+  const visibleText = cleanText(decoded.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' '), 600);
+  return { url, title, description: metaDesc, links: compactUnique(anchors, x => x.url).slice(0, 40), textSample: visibleText };
+}
+
+async function crawlCreatorLinks(profile) {
+  const sourceLinks = extractBioLinksFromProfile(profile);
+  if (!sourceLinks.length) return { sourceUrls: [], pages: [], outboundLinks: [], platforms: [], offers: [], tiktokCandidates: [], summary: '' };
+
+  const pages = [];
+  const outboundLinks = [];
+  const tiktokCandidates = [];
+  const sourcesToCrawl = sourceLinks.slice(0, 3);
+  for (const src of sourcesToCrawl) {
+    tiktokCandidates.push(...extractTikTokCandidatesFromUrl(src.url, src.source));
+  }
+  const fetchedPages = await Promise.all(sourcesToCrawl.map(async src => ({ src, fetched: await fetchTextWithTimeout(src.url, 4500) })));
+  for (const { src, fetched } of fetchedPages) {
+    if (!fetched) continue;
+    const page = parseLinkPage(fetched.finalUrl || src.url, fetched.html);
+    pages.push(page);
+    outboundLinks.push(...page.links);
+    tiktokCandidates.push(...extractTikTokCandidatesFromUrl(page.url, src.source));
+    for (const link of page.links) {
+      tiktokCandidates.push(...extractTikTokCandidatesFromUrl(link.url, link.kind === 'tiktok' ? 'bio_link_tiktok' : 'bio_link_page'));
+    }
+  }
+
+  const uniqueOutbound = compactUnique(outboundLinks, x => x.url).slice(0, 30);
+  const platforms = compactUnique(
+    [...sourceLinks.map(x => ({ kind: platformKind(x.url), url: x.url })), ...uniqueOutbound.map(x => ({ kind: x.kind, url: x.url }))],
+    x => `${x.kind}:${x.url}`
+  ).filter(x => x.kind !== 'link').slice(0, 12);
+  const offerRe = /(shop|store|course|newsletter|podcast|subscribe|booking|book|consult|coaching|media kit|collab|partnership|affiliate)/i;
+  const offers = uniqueOutbound.filter(x => offerRe.test(`${x.label} ${x.url}`)).map(x => ({ label: x.label || x.kind, url: x.url, kind: x.kind })).slice(0, 10);
+  const uniqueTikTok = compactUnique(tiktokCandidates, x => x.handle).slice(0, 3);
+  const summaryBits = [];
+  if (platforms.length) summaryBits.push(`Linked platforms: ${platforms.map(p => p.kind).filter(Boolean).slice(0, 8).join(', ')}`);
+  if (offers.length) summaryBits.push(`Visible offers/CTAs: ${offers.map(o => o.label || o.kind).filter(Boolean).slice(0, 6).join(', ')}`);
+  if (uniqueTikTok.length) summaryBits.push(`TikTok linked: @${uniqueTikTok[0].handle}`);
+
+  return {
+    sourceUrls: sourceLinks.map(x => x.url),
+    pages: pages.map(p => ({ ...p, links: p.links.slice(0, 12) })),
+    outboundLinks: uniqueOutbound.slice(0, 18),
+    platforms,
+    offers,
+    tiktokCandidates: uniqueTikTok,
+    summary: summaryBits.join('; '),
+  };
+}
+
+function numberFrom(...values) {
+  for (const value of values) {
+    let n = Number(value);
+    if (!Number.isFinite(n) && typeof value === 'string') {
+      const compact = value.replace(/[, ]/g, '').trim();
+      const m = compact.match(/^([\d.]+)([KMB])?$/i);
+      if (m) {
+        n = Number(m[1]);
+        const suffix = (m[2] || '').toUpperCase();
+        if (suffix === 'K') n *= 1_000;
+        if (suffix === 'M') n *= 1_000_000;
+        if (suffix === 'B') n *= 1_000_000_000;
+      }
+    }
+    if (Number.isFinite(n) && n >= 0) return n;
+  }
+  return 0;
+}
+
+function topCounts(values, limit = 10) {
+  const m = new Map();
+  for (const raw of values || []) {
+    const key = String(raw || '').trim().replace(/^#|^@/, '');
+    if (!key) continue;
+    const lk = key.toLowerCase();
+    m.set(lk, { name: key, count: (m.get(lk)?.count || 0) + 1 });
+  }
+  return Array.from(m.values()).sort((a, b) => b.count - a.count).slice(0, limit);
+}
+
+async function runTikTokProfileScrape(candidate, env) {
+  const handle = String(candidate?.handle || '').replace(/^@/, '').trim();
+  if (!handle || !env.APIFY_TOKEN) return null;
+  const actor = String(env.APIFY_TIKTOK_ACTOR || APIFY_TIKTOK_ACTOR).replace('/', '~');
+  const url = `https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items?token=${env.APIFY_TOKEN}&timeout=75`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        profiles: [handle],
+        resultsPerPage: 12,
+        profileScrapeSections: ['videos'],
+        profileSorting: 'latest',
+        shouldDownloadVideos: false,
+        shouldDownloadCovers: false,
+        shouldDownloadSubtitles: false,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      console.log('[tiktok] actor non-ok:', res.status, err.slice(0, 240));
+      return { handle: '@' + handle, url: `https://www.tiktok.com/@${handle}`, foundFrom: candidate.source, error: 'tiktok_scrape_failed', status: res.status };
+    }
+    const items = await res.json();
+    if (!Array.isArray(items) || !items.length) {
+      return { handle: '@' + handle, url: `https://www.tiktok.com/@${handle}`, foundFrom: candidate.source, videosScraped: 0 };
+    }
+    const author = items.map(x => x.authorMeta || x.author || x.authorStats || null).find(Boolean) || {};
+    const captions = items.map(x => cleanText(x.text || x.desc || x.description || x.caption, 220)).filter(Boolean).slice(0, 8);
+    const hashtags = [];
+    const sounds = [];
+    let totalViews = 0, totalLikes = 0, totalComments = 0, totalShares = 0, metricCount = 0;
+    for (const item of items) {
+      const stats = item.stats || item.statistics || {};
+      const views = numberFrom(item.playCount, item.videoPlayCount, item.views, stats.playCount, stats.viewCount);
+      const likes = numberFrom(item.diggCount, item.likes, stats.diggCount, stats.likeCount);
+      const comments = numberFrom(item.commentCount, item.comments, stats.commentCount);
+      const shares = numberFrom(item.shareCount, item.shares, stats.shareCount);
+      if (views || likes || comments || shares) {
+        totalViews += views; totalLikes += likes; totalComments += comments; totalShares += shares; metricCount++;
+      }
+      if (Array.isArray(item.hashtags)) {
+        for (const h of item.hashtags) hashtags.push(typeof h === 'string' ? h : (h.name || h.title));
+      }
+      const textTags = String(item.text || item.desc || '').match(/#[A-Za-z0-9_]+/g) || [];
+      hashtags.push(...textTags.map(h => h.slice(1)));
+      const music = item.musicMeta || item.music || {};
+      const sound = cleanText([music.musicName || music.name || music.title, music.musicAuthor || music.authorName || music.author].filter(Boolean).join(' - '), 100);
+      if (sound) sounds.push(sound);
+    }
+    const followers = numberFrom(author.fans, author.followers, author.followerCount, author.stats?.followerCount, items[0]?.authorStats?.followerCount);
+    const likesTotal = numberFrom(author.heart, author.hearts, author.likes, author.stats?.heartCount, items[0]?.authorStats?.heartCount);
+    return {
+      handle: '@' + (author.name || author.uniqueId || handle),
+      nickname: author.nickName || author.nickname || author.displayName || '',
+      url: `https://www.tiktok.com/@${author.name || handle}`,
+      foundFrom: candidate.source,
+      confidence: candidate.confidence,
+      followers,
+      likes: likesTotal,
+      videosScraped: items.length,
+      avgViews: metricCount ? Math.round(totalViews / metricCount) : 0,
+      avgLikes: metricCount ? Math.round(totalLikes / metricCount) : 0,
+      avgComments: metricCount ? Math.round(totalComments / metricCount) : 0,
+      avgShares: metricCount ? Math.round(totalShares / metricCount) : 0,
+      recentCaptions: captions,
+      topHashtags: topCounts(hashtags, 12),
+      topSounds: topCounts(sounds, 8),
+      _raw: { actor, items: items.length },
+    };
+  } catch (e) {
+    console.log('[tiktok] scrape failed:', e && e.message);
+    return { handle: '@' + handle, url: `https://www.tiktok.com/@${handle}`, foundFrom: candidate.source, error: 'tiktok_scrape_failed' };
+  }
+}
+
 async function runIGScrapeLite(rawHandle, env, origin, allowed) {
   const handle = String(rawHandle || '').replace(/^@/, '').replace(/^(https?:\/\/)?(www\.)?instagram\.com\//, '').replace(/\/$/, '').trim();
   if (!handle) {
@@ -1872,6 +2171,12 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   if (!p) {
     return json({ error: { message: 'Profile not found or is private' } }, 404, origin, allowed);
   }
+  const linkContext = await crawlCreatorLinks(p).catch(e => {
+    console.log('[links] crawl failed:', e && e.message);
+    return { sourceUrls: [], pages: [], outboundLinks: [], platforms: [], offers: [], tiktokCandidates: [], summary: '' };
+  });
+  const tiktokCandidate = Array.isArray(linkContext.tiktokCandidates) ? linkContext.tiktokCandidates[0] : null;
+  const tiktokPromise = tiktokCandidate ? runTikTokProfileScrape(tiktokCandidate, env) : Promise.resolve(null);
 
   // Parse reels, soft fail. Empty list if the scraper errored or the creator has no reels.
   let reels = [];
@@ -2054,6 +2359,9 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
       `@${handle}${p.verified ? ' (verified)' : ''}`,
       (p.biography || p.bio) ? `Bio: ${String(p.biography || p.bio).slice(0, 300)}` : null,
       (p.externalUrl || p.external_url) ? `Link in bio: ${p.externalUrl || p.external_url}` : null,
+      linkContext.summary ? `Link-in-bio context: ${linkContext.summary}` : null,
+      Array.isArray(linkContext.offers) && linkContext.offers.length ? `Visible link-in-bio offers/CTAs: ${linkContext.offers.map(o => `${o.label || o.kind}: ${o.url}`).join(' | ')}` : null,
+      Array.isArray(linkContext.outboundLinks) && linkContext.outboundLinks.length ? `Selected outbound links from bio page: ${linkContext.outboundLinks.slice(0, 8).map(l => `${l.label || l.kind}: ${l.url}`).join(' | ')}` : null,
       p.businessCategoryName ? `IG business category: ${p.businessCategoryName}` : null,
       `Followers: ${followers} · Following: ${following} · Total posts: ${totalPosts}`,
       posts.length ? `Recent-post mix (of ${posts.length} scraped): ${typeCounts.reel} reels, ${typeCounts.carousel} carousels, ${typeCounts.image} feed/photos${typeCounts.video ? ', ' + typeCounts.video + ' videos' : ''}${typeCounts.other ? ', ' + typeCounts.other + ' other' : ''}` : null,
@@ -2173,7 +2481,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     }
   };
 
-  await Promise.all([runTextInterp(), runVisionInterp()]);
+  const [, , tiktokProfile] = await Promise.all([runTextInterp(), runVisionInterp(), tiktokPromise]);
 
   // Fetch the profile pic server-side and embed as base64 data URL,
   // since Instagram's CDN blocks direct browser loads from non-Instagram referrers.
@@ -2223,6 +2531,9 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     avgVideoViews,
     topPosts,
     externalUrl: p.externalUrl || p.external_url || null,
+    bioLinks: linkContext.sourceUrls || [],
+    linkContext,
+    tiktok: tiktokProfile,
     businessCategoryName: p.businessCategoryName || null,
     // LLM-inferred fields from chunk 3.
     audienceHints: interpretation.audienceHints || null,
@@ -3500,6 +3811,23 @@ function buildRecommendationContextServer(ig) {
   if (affinities.length) lines.push(`Existing brand affinities, use as signal not recommendations: ${affinities.join(', ')}`);
   const sounds = list(ig.topSounds, s => s.song_name ? `"${clean(s.song_name)}", ${clean(s.artist_name || 'Unknown')} (${s.count || 1} uses)` : null, 6);
   if (sounds.length) lines.push(`Reused reel audio: ${sounds.join('; ')}`);
+  if (ig.linkContext?.summary) lines.push(`Link-in-bio context: ${clean(ig.linkContext.summary)}`);
+  const offers = list(ig.linkContext?.offers, o => o.label || o.url ? `${clean(o.label || o.kind || 'offer')} (${clean(o.url)})` : null, 6);
+  if (offers.length) lines.push(`Visible offers/CTAs from bio links: ${offers.join('; ')}`);
+  if (ig.tiktok?.handle) {
+    const tt = ig.tiktok;
+    const ttBits = [
+      `${clean(tt.handle)} linked from Instagram bio context`,
+      tt.followers ? `${tt.followers} TikTok followers` : null,
+      tt.avgViews ? `${tt.avgViews} avg views on scraped videos` : null,
+      tt.avgLikes ? `${tt.avgLikes} avg likes` : null,
+    ].filter(Boolean);
+    lines.push(`TikTok context: ${ttBits.join('; ')}`);
+    const ttTags = list(tt.topHashtags, h => h.name ? `#${clean(h.name)} (${h.count || 1})` : null, 8);
+    if (ttTags.length) lines.push(`TikTok repeated hashtags: ${ttTags.join(', ')}`);
+    const ttCaptions = list(tt.recentCaptions, c => `"${clean(c).slice(0, 160)}"`, 4);
+    if (ttCaptions.length) lines.push(`Recent TikTok captions: ${ttCaptions.join(' | ')}`);
+  }
   const topPosts = list(ig.topPosts, (post, i) => {
     const caption = clean(post.caption).slice(0, 220);
     if (!caption) return null;
