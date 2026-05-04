@@ -197,7 +197,8 @@ body.logged-out #chat-view .chat-composer-auth{display:flex}
 .chat-msg-body .inline-persona-head{display:flex;gap:14px;align-items:center}
 .chat-msg-body .inline-persona-avatar{width:48px;height:48px;border-radius:50%;background-size:cover;background-position:center;flex-shrink:0;border:1px solid var(--border2);background-color:var(--card)}
 .chat-msg-body .inline-persona-info{flex:1;min-width:0}
-.chat-msg-body .inline-persona-name{font-weight:600;font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-msg-body .inline-persona-name{font-weight:600;font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
+.chat-msg-body .inline-verified-badge{width:15px;height:15px;flex-shrink:0;display:inline-block}
 .chat-msg-body .inline-persona-handle{font-size:11px;color:var(--muted);letter-spacing:0.05em}
 .chat-msg-body .inline-persona-stats{display:flex;gap:16px;padding-top:6px;border-top:1px solid var(--border);flex-wrap:wrap;row-gap:10px}
 .chat-msg-body .inline-persona-stat{font-size:9px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase}
@@ -3744,6 +3745,10 @@ function renderMarkdown(text){
   return html;
 }
 
+function verifiedBadgeMarkup(cls = 'inline-verified-badge'){
+  return `<svg class="${cls}" viewBox="0 0 40 40" aria-label="Verified"><path fill="#0095F6" d="M19.998 3.094 14.638 0l-2.972 5.15H5.432v6.354L0 14.64 3.096 20 0 25.359l5.432 3.137v5.905h5.975L14.638 40l5.36-3.094L25.358 40l3.232-5.6h6.162v-6.01L40 25.359 36.04 20 40 14.641l-5.248-3.03v-6.46h-6.419L25.358 0z"/><path fill="#fff" d="M16.49 27.456 8.823 19.79l2.69-2.69 4.978 4.978 11.713-11.713 2.69 2.69z"/></svg>`;
+}
+
 function setComposerLock(locked){
   const input = document.getElementById('chat-input');
   const btn = document.getElementById('chat-send-btn');
@@ -4006,7 +4011,21 @@ async function fetchIGProfileChunk(handle, lite = false){
 }
 
 function applyIGProfile(profile){
-  state.igData = { ...(state.igData || {}), ...(profile || {}) };
+  const prev = state.igData || {};
+  const incoming = profile || {};
+  const prevHandle = String(prev.username || '').replace(/^@/,'').toLowerCase();
+  const incomingHandle = String(incoming.username || '').replace(/^@/,'').toLowerCase();
+  const sameHandle = !prevHandle || !incomingHandle || prevHandle === incomingHandle;
+  const incomingVerified = !!(
+    incoming.verified ||
+    incoming.isVerified ||
+    incoming.is_verified ||
+    incoming.isVerifiedAccount ||
+    incoming.is_verified_account ||
+    String(incoming.verifiedStatus || incoming.verificationStatus || '').toLowerCase() === 'verified'
+  );
+  state.igData = { ...prev, ...incoming };
+  state.igData.verified = incomingVerified || (sameHandle && !!prev.verified);
   state.igConnected = true;
   refreshUserAvatars();
   const setText = (id,v)=>{ const e=document.getElementById(id); if(e) e.textContent = v||'N/A'; };
@@ -4184,12 +4203,13 @@ function renderInlinePersonaCard(persona, igData){
   const topAge = (p.age||[]).slice().sort((a,b)=>(b.pct||0)-(a.pct||0))[0]?.age || 'N/A';
   const topCity = (p.locations||[])[0]?.city || 'N/A';
   const audienceHints = String(d.audienceHints || '').trim();
+  const verified = !!d.verified;
   return `
     <div class="inline-persona">
       <div class="inline-persona-head">
         <div class="inline-persona-avatar"${avatarSrc?` style="background-image:url('${escapeHtml(avatarSrc)}')"`:''}></div>
         <div class="inline-persona-info">
-          <div class="inline-persona-name">${escapeHtml(name)}</div>
+          <div class="inline-persona-name"><span>${escapeHtml(name)}</span>${verified ? verifiedBadgeMarkup() : ''}</div>
           <div class="inline-persona-handle">${escapeHtml(handle)}${tier?' · '+escapeHtml(tier):''}</div>
         </div>
       </div>
@@ -5866,7 +5886,7 @@ function renderPersona(d){
   document.querySelector('.persona-name h2').textContent=d.name||'Creator';
   document.querySelector('.persona-desc').textContent=d.bio||'';
   // Show verified badge only if Apify confirmed the IG profile is verified
-  document.querySelector('.verified-badge').classList.toggle('hidden', !state.igData?.verified);
+  document.querySelector('.persona-name .verified-badge')?.classList.toggle('hidden', !state.igData?.verified);
   document.querySelector('.vibe-tags').innerHTML=(d.vibes||[]).map(v=>`<span class="vibe-tag">${v}</span>`).join('');
   renderCreatorContextSources();
   // Stats

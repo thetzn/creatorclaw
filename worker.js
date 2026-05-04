@@ -1769,6 +1769,18 @@ function formatIGCount(n) {
   return String(n);
 }
 
+function isIGVerified(profile) {
+  if (!profile) return false;
+  return !!(
+    profile.verified ||
+    profile.isVerified ||
+    profile.is_verified ||
+    profile.isVerifiedAccount ||
+    profile.is_verified_account ||
+    String(profile.verifiedStatus || profile.verificationStatus || '').toLowerCase() === 'verified'
+  );
+}
+
 async function fetchImageDataUrl(url) {
   if (!url) return null;
   try {
@@ -2146,7 +2158,7 @@ async function runIGScrapeLite(rawHandle, env, origin, allowed) {
     totalPosts: formatIGCount(totalPosts),
     engagementRate: engagementPct > 0 ? (engagementPct < 1 ? engagementPct.toFixed(2) : engagementPct.toFixed(1)) + '%' : null,
     bio: p.biography || p.bio || null,
-    verified: !!p.verified,
+    verified: isIGVerified(p),
     _raw: { followers, following, posts: totalPosts, avgLikes, avgComments, private: !!p.private },
   };
   console.log('[scrape-lite]', JSON.stringify({ handle, ms: Date.now() - started, posts: posts.length, hasPic: !!profilePicData }));
@@ -2374,7 +2386,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   let analysisContext = '';
   try {
     const lines = [
-      `@${handle}${p.verified ? ' (verified)' : ''}`,
+      `@${handle}${isIGVerified(p) ? ' (verified)' : ''}`,
       (p.biography || p.bio) ? `Bio: ${String(p.biography || p.bio).slice(0, 300)}` : null,
       (p.externalUrl || p.external_url) ? `Link in bio: ${p.externalUrl || p.external_url}` : null,
       linkContext.summary ? `Link-in-bio context: ${linkContext.summary}` : null,
@@ -2539,7 +2551,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     bio: p.biography || p.bio || null,
     postingFrequency: postsCadence(posts),
     recentThemes: interpretation.recentThemes,
-    verified: !!p.verified,
+    verified: isIGVerified(p),
     // Deterministic signals from scraped posts.
     topHashtags,
     topMentions,
