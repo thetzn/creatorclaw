@@ -222,6 +222,13 @@ body.logged-out #chat-view .chat-composer-auth{display:flex}
 .chat-msg-body .onb-agent-suggestion{background:var(--card2);border:1px solid var(--border2);border-radius:999px;padding:6px 10px;color:var(--muted);font-size:11px;line-height:1;cursor:pointer;font-family:inherit}
 .chat-msg-body .onb-agent-suggestion:hover{border-color:var(--gold);color:var(--gold)}
 .chat-msg-body .onb-agent-confirm{font-size:13px;color:var(--text);line-height:1.55}
+.chat-msg-body .onb-ready{display:flex;flex-direction:column;gap:12px;white-space:normal}
+.chat-msg-body .onb-ready-title{font-size:14px;line-height:1.45;color:var(--text)}
+.chat-msg-body .onb-ready-note{font-size:13px;line-height:1.55;color:var(--muted)}
+.chat-msg-body .onb-agent-context{border:1px solid var(--gold-border);background:var(--gold-dim);border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.45;color:var(--text)}
+.chat-msg-body .onb-agent-context-label{display:block;font-size:9px;letter-spacing:0.13em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
+.chat-msg-body .onb-agent-context .source{font-weight:650}
+.chat-msg-body .onb-ready .inline-picker{margin-top:2px}
 .chat-msg-body .inline-persona-vibe{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:4px 9px;border-radius:999px;background:var(--card);border:1px solid var(--border2);color:var(--muted)}
 .chat-msg-body .inline-picker{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
 .chat-msg-body .inline-pick-tile{background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:16px;cursor:pointer;text-align:left;transition:all 0.2s;font-family:inherit;color:var(--text);display:flex;flex-direction:column;gap:6px;align-items:flex-start}
@@ -3868,7 +3875,10 @@ function buildOnboardingAgentNamingCopy(profile = {}, persona = null){
 
 function pushOnboardingAgentNamePrompt(profile = {}){
   if(state.agent.name){
-    appendMessage('assistant', `${state.agent.name} here. I am building your creator persona now.`);
+    chatState._onboardingNameBody = appendInlineCard('assistant', `
+      <div class="onb-agent-confirm"><strong>${escapeHtml(state.agent.name)}</strong> is ready. Pulling your creator context together…</div>
+    `);
+    chatState._onboardingNameBody.closest('.chat-msg')?.classList.add('is-loading');
     return;
   }
   const copy = buildOnboardingAgentNamingCopy(profile, state.persona);
@@ -3917,9 +3927,11 @@ async function submitOnboardingAgentName(event){
   }
   const body = form.closest('.chat-msg-body');
   if(body){
+    chatState._onboardingNameBody = body;
     body.innerHTML = `
-      <div class="onb-agent-confirm"><strong>${escapeHtml(state.agent.name || name)}</strong> it is. I am your personal creator agent, locked in across chat, drafts, and outbound.</div>
+      <div class="onb-agent-confirm"><strong>${escapeHtml(state.agent.name || name)}</strong> it is. Pulling your creator context together…</div>
     `;
+    body.closest('.chat-msg')?.classList.add('is-loading');
     requestAnimationFrame(()=>revealBubble(body));
   }
   continueOnboardingAfterName().catch(e => console.warn('onboarding continuation failed', e));
@@ -3930,21 +3942,20 @@ async function continueOnboardingAfterName(){
   chatState._onboardingContinued = true;
   const revealCard = chatState._onboardingRevealCard;
   const revealSub = revealCard?.querySelector('.persona-reveal-sub');
-  let waitingMsg = null;
+  let readyBody = chatState._onboardingNameBody || null;
+  if(!readyBody){
+    readyBody = appendInlineCard('assistant', `<div class="onb-agent-confirm">Pulling your creator context together…</div>`);
+    chatState._onboardingNameBody = readyBody;
+  }
   if(chatState._onboardingPersonaPromise && !chatState._onboardingPersonaSettled){
     if(revealSub) revealSub.textContent = 'Pulling your persona together…';
-    waitingMsg = appendMessage('assistant', 'Pulling your persona together…');
-    waitingMsg.closest('.chat-msg')?.classList.add('is-loading');
+    readyBody.closest('.chat-msg')?.classList.add('is-loading');
   }
   try { await chatState._onboardingPersonaPromise; } catch {}
-  if(waitingMsg){
-    const wrap = waitingMsg.closest('.chat-msg');
-    wrap?.remove();
-  }
+  readyBody.closest('.chat-msg')?.classList.remove('is-loading');
   completePersonaReveal(revealCard, state.persona, state.igData);
-  await sleep(900);
-  await streamOnboardingWelcome();
-  pushOnboardingNextStep();
+  await sleep(350);
+  renderOnboardingReadyMessage(readyBody);
 }
 
 async function fetchIGProfileChunk(handle, lite = false){
@@ -3978,6 +3989,7 @@ async function enrichIGProfileInBackground(handle){
   const profile = await fetchIGProfileChunk(handle, false);
   applyIGProfile(profile);
   if(chatState._onboardingRevealCard) renderPersonaRevealSources(chatState._onboardingRevealCard, profile);
+  updateOnboardingReadyContext();
   announceTikTokContextIfFound(profile, hadTikTok);
   // Wait for the onboarding foreground persona to settle before regenerating
   // on top of richer igData; otherwise the second generatePersona is dropped
@@ -3994,6 +4006,10 @@ function announceTikTokContextIfFound(profile, hadTikTok = false){
   chatState._tiktokContextAnnounced = true;
   if(chatState._onboardingRevealCard){
     renderPersonaRevealSources(chatState._onboardingRevealCard, profile);
+  }
+  if(chatState._onboardingNameBody || chatState._onboardingReadyBody){
+    updateOnboardingReadyContext();
+    return;
   }
   const chatView = document.getElementById('chat-view');
   if(!chatView || chatView.classList.contains('hidden')) return;
@@ -4051,6 +4067,8 @@ async function startOnboardingChat(handle){
   chatState._onboardingRevealCard = null;
   chatState._onboardingContinued = false;
   chatState._onboardingNextStepShown = false;
+  chatState._onboardingNameBody = null;
+  chatState._onboardingReadyBody = null;
   chatState._tiktokContextAnnounced = false;
   if(chatState._onboardingRevealContext){
     chatState._onboardingRevealContext.stop();
@@ -4153,6 +4171,66 @@ function renderInlinePersonaCard(persona, igData){
     </div>`;
 }
 
+function onboardingAgentContextSources(){
+  const d = state.igData || {};
+  const sources = [];
+  if(d.username || d.followers || state.persona) sources.push('Instagram');
+  if((Array.isArray(d.bioLinks) && d.bioLinks.length) || d.linkContext?.sourceUrls?.length || d.linkContext?.outboundLinks?.length) sources.push('Bio links');
+  if(d.tiktok?.handle && !d.tiktok.error) sources.push('TikTok');
+  return sources.length ? sources : ['Instagram'];
+}
+
+function onboardingAgentContextMarkup(){
+  const sources = onboardingAgentContextSources();
+  return `
+    <div class="onb-agent-context" data-onb-agent-context>
+      <span class="onb-agent-context-label">Agent context</span>
+      ${sources.map(s => `<span class="source">${escapeHtml(s)}</span>`).join(' + ')}
+    </div>
+  `;
+}
+
+function updateOnboardingReadyContext(){
+  const body = chatState._onboardingReadyBody || chatState._onboardingNameBody;
+  const el = body?.querySelector?.('[data-onb-agent-context]');
+  if(el) el.outerHTML = onboardingAgentContextMarkup();
+}
+
+function onboardingPickerMarkup(){
+  return `
+    <div class="inline-picker">
+      <button class="inline-pick-tile" id="onb-pick-create" onclick="onboardingPickCreate(this)">
+        <div class="inline-pick-icon">◎</div>
+        <div class="inline-pick-label">Create</div>
+        <div class="inline-pick-title">See content ideas for you</div>
+        <div class="inline-pick-desc">Trending formats matched to your pillars.</div>
+      </button>
+      <button class="inline-pick-tile" id="onb-pick-pitch" onclick="onboardingPickPitch(this)">
+        <div class="inline-pick-icon">♢</div>
+        <div class="inline-pick-label">Pitch</div>
+        <div class="inline-pick-title">Find brands worth pitching</div>
+        <div class="inline-pick-desc">Brand matches ranked by audience fit.</div>
+      </button>
+    </div>
+  `;
+}
+
+function renderOnboardingReadyMessage(body){
+  if(!body) return;
+  const agentName = state.agent.name || DEFAULT_AGENT_NAME;
+  body.classList.add('has-card');
+  body.innerHTML = `
+    <div class="onb-ready">
+      <div class="onb-ready-title"><strong>${escapeHtml(agentName)}</strong> it is. I am your personal creator agent.</div>
+      <div class="onb-ready-note">I'll use this context when I draft, pitch, and plan for you.</div>
+      ${onboardingAgentContextMarkup()}
+      ${onboardingPickerMarkup()}
+    </div>
+  `;
+  chatState._onboardingReadyBody = body;
+  requestAnimationFrame(()=>revealBubble(body));
+}
+
 async function streamOnboardingWelcome(){
   const bodyEl = appendMessage('assistant', '');
   const wrap = bodyEl.closest('.chat-msg');
@@ -4226,38 +4304,16 @@ async function streamOnboardingWelcome(){
 
 function pushOnboardingPicker(){
   appendInlineCard('assistant', `
-    <div>Want a taste of what I can do? Pick one:</div>
-    <div class="inline-picker">
-      <button class="inline-pick-tile" id="onb-pick-create" onclick="onboardingPickCreate(this)">
-        <div class="inline-pick-icon">◎</div>
-        <div class="inline-pick-label">Create</div>
-        <div class="inline-pick-title">See content ideas for you</div>
-        <div class="inline-pick-desc">Trending formats matched to your pillars.</div>
-      </button>
-      <button class="inline-pick-tile" id="onb-pick-pitch" onclick="onboardingPickPitch(this)">
-        <div class="inline-pick-icon">♢</div>
-        <div class="inline-pick-label">Pitch</div>
-        <div class="inline-pick-title">Find brands worth pitching</div>
-        <div class="inline-pick-desc">Brand matches ranked by audience fit.</div>
-      </button>
-    </div>
+    <div>Pick what we build first:</div>
+    ${onboardingPickerMarkup()}
   `);
 }
 
 function pushOnboardingNextStep(){
   if(chatState._onboardingNextStepShown) return;
   chatState._onboardingNextStepShown = true;
-  appendInlineCard('assistant', `
-    <div>Ready to put your personal creator agent to work?</div>
-    <div class="inline-picker">
-      <button class="inline-pick-tile" onclick="onboardingOpenPicker(this)">
-        <div class="inline-pick-icon">→</div>
-        <div class="inline-pick-label">Next</div>
-        <div class="inline-pick-title">Choose what we build first</div>
-        <div class="inline-pick-desc">Content ideas or brand matches, one step at a time.</div>
-      </button>
-    </div>
-  `);
+  const body = chatState._onboardingNameBody || appendInlineCard('assistant', '');
+  renderOnboardingReadyMessage(body);
 }
 
 function onboardingOpenPicker(btn){
