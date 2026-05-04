@@ -167,6 +167,10 @@ body.in-tool .nav{display:none}
 .chat-send-btn:hover:not(:disabled){background:var(--gold2)}
 .chat-send-btn svg{width:16px;height:16px}
 .chat-hint{text-align:center;font-size:10px;color:var(--muted2);margin-top:8px;letter-spacing:0.05em}
+.chat-composer-auth{display:none;margin:10px auto 0;align-items:center;justify-content:center;gap:8px;font-size:11px;color:var(--muted);letter-spacing:0.02em}
+.chat-composer-auth button{border:1px solid var(--gold-border);background:var(--gold-dim);color:var(--gold);border-radius:999px;padding:7px 12px;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer}
+.chat-composer-auth button:hover{border-color:var(--gold);background:rgba(218,182,107,0.1)}
+.chat-composer-auth button:disabled{opacity:0.65;cursor:wait}
 
 /* Onboarding (signed-out chat-view) */
 body.logged-out .chat-sidebar,
@@ -176,6 +180,7 @@ body.logged-out .header-hamburger{display:none !important}
 body.logged-out #chat-view .chat-main{border-left:0}
 body.logged-out #chat-view .chat-composer-inner{opacity:0.5;pointer-events:none;filter:grayscale(0.2)}
 body.logged-out #chat-view #chat-input{cursor:not-allowed}
+body.logged-out #chat-view .chat-composer-auth{display:flex}
 
 /* Inline chat-bubble cards */
 .chat-msg-body .inline-analyzing{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--text)}
@@ -1343,6 +1348,10 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
           </button>
         </div>
         <div class="chat-hint">CreatorClaw can make mistakes. Consider verifying important info.</div>
+      </div>
+      <div class="chat-composer-auth">
+        <span>Want to skip the preview?</span>
+        <button type="button" onclick="promptOnboardingSignin(this)">Sign in</button>
       </div>
     </div>
   </main>
@@ -3492,7 +3501,8 @@ function setComposerLock(locked){
 function promptOnboardingSignin(btn){
   if(btn){
     btn.disabled = true;
-    btn.style.opacity = '0.72';
+    btn.dataset.originalText = btn.textContent || '';
+    btn.textContent = 'Signing in';
   }
   try {
     const handle = (state.igData?.username || '').replace(/^@/,'');
@@ -3507,10 +3517,33 @@ function promptOnboardingSignin(btn){
     console.warn('onboarding sign-in failed', e);
     if(btn){
       btn.disabled = false;
-      btn.style.opacity = '';
+      btn.textContent = btn.dataset.originalText || 'Sign in';
     }
   });
 }
+
+const INLINE_VERB_ACTIVITIES = {
+  pulse: [
+    'trend formats',
+    'hook angles',
+    'audio fits',
+    'caption patterns',
+    'pillar matches',
+    'reel premises',
+    'save-worthy ideas',
+    'creator voice',
+  ],
+  brands: [
+    'brand signals',
+    'partnership clues',
+    'audience fit',
+    'deal angles',
+    'category matches',
+    'collab history',
+    'pitch hooks',
+    'sponsor orbit',
+  ],
+};
 
 function startInlineLoading(bodyEl, key, estSec){
   const sub = bodyEl.querySelector('.inline-loading-sub');
@@ -3518,14 +3551,22 @@ function startInlineLoading(bodyEl, key, estSec){
   const wrap = bodyEl.closest('.chat-msg');
   if(wrap) wrap.classList.add('is-loading');
   const msgs = LOADING_MESSAGES[key] || [];
+  const activities = INLINE_VERB_ACTIVITIES[key] || null;
+  let verbHandle = null;
+  let msgInterval = null;
   let i = 0;
-  if(sub && msgs.length) sub.textContent = msgs[0];
-  const msgInterval = setInterval(()=>{
-    if(!sub || !msgs.length) return;
-    i = (i + 1) % msgs.length;
-    sub.style.opacity = '0';
-    setTimeout(()=>{ sub.textContent = msgs[i]; sub.style.opacity = '1'; }, 180);
-  }, 4158);  // inline preview rotation (slowed 35% from 3080)
+  if(sub && activities){
+    sub.textContent = '';
+    verbHandle = startVerbActivity(sub, activities);
+  } else {
+    if(sub && msgs.length) sub.textContent = msgs[0];
+    msgInterval = setInterval(()=>{
+      if(!sub || !msgs.length) return;
+      i = (i + 1) % msgs.length;
+      sub.style.opacity = '0';
+      setTimeout(()=>{ sub.textContent = msgs[i]; sub.style.opacity = '1'; }, 180);
+    }, 4158);  // inline preview rotation (slowed 35% from 3080)
+  }
   const start = Date.now();
   if(bar) bar.style.width = '0%';
   const barInterval = setInterval(()=>{
@@ -3535,8 +3576,9 @@ function startInlineLoading(bodyEl, key, estSec){
   }, 180);
   return {
     stop(){
-      clearInterval(msgInterval);
+      if(msgInterval) clearInterval(msgInterval);
       clearInterval(barInterval);
+      if(verbHandle) stopThinkingVerb(verbHandle);
       if(bar) bar.style.width = '100%';
       if(wrap) wrap.classList.remove('is-loading');
     }
