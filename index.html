@@ -227,7 +227,9 @@ body.logged-out #chat-view .chat-composer-auth{display:flex}
 .chat-msg-body .onb-ready-note{font-size:13px;line-height:1.55;color:var(--muted)}
 .chat-msg-body .onb-agent-context{border:1px solid var(--gold-border);background:var(--gold-dim);border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.45;color:var(--text)}
 .chat-msg-body .onb-agent-context-label{display:block;font-size:9px;letter-spacing:0.13em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
-.chat-msg-body .onb-agent-context .source{font-weight:650}
+.chat-msg-body .onb-agent-context-sources{display:flex;gap:7px;flex-wrap:wrap}
+.chat-msg-body .onb-agent-context-source{display:inline-flex;align-items:center;gap:6px;font-weight:650;color:var(--text)}
+.chat-msg-body .onb-agent-context-plus{color:var(--muted);font-weight:650}
 .chat-msg-body .onb-ready .inline-picker{margin-top:2px}
 .chat-msg-body .inline-persona-vibe{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:4px 9px;border-radius:999px;background:var(--card);border:1px solid var(--border2);color:var(--muted)}
 .chat-msg-body .inline-picker{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
@@ -470,11 +472,16 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .persona-refresh{margin-top:14px;font-size:11px;color:var(--muted);letter-spacing:0.04em}
 .context-sources{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .context-source{border:1px solid var(--border);background:var(--card2);border-radius:8px;padding:8px 10px;min-width:128px}
-.context-source-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+.context-source-head{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.context-source-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)}
 .context-source-value{font-size:12px;line-height:1.35;color:var(--text);font-weight:600}
 .context-source-sub{font-size:10px;line-height:1.35;color:var(--muted);margin-top:3px}
 .context-source.is-active{border-color:var(--gold-border);background:var(--gold-dim)}
 .context-source.is-muted{opacity:0.72}
+.platform-icon{width:15px;height:15px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.platform-icon svg{width:15px;height:15px;display:block}
+.context-source-head .platform-icon{width:14px;height:14px}
+.context-source-head .platform-icon svg{width:14px;height:14px}
 .media-kit-btn{position:absolute;top:18px;right:18px;display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--gold-border);border-radius:8px;padding:8px 12px;color:var(--gold);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-family:inherit;transition:all 0.18s ease}
 .media-kit-btn:hover{background:var(--gold);color:var(--bg);border-color:var(--gold)}
 .media-kit-btn svg{width:13px;height:13px;flex-shrink:0}
@@ -2052,6 +2059,7 @@ function buildCreatorContextSourceItems(){
       Array.isArray(d.topPosts) && d.topPosts.length ? `${d.topPosts.length} top posts` : null
     ].filter(Boolean);
     items.push({
+      icon: 'instagram',
       label: 'Instagram',
       value: handle || 'Profile read',
       sub: bits.join(' / ') || 'Public profile data',
@@ -2067,11 +2075,21 @@ function buildCreatorContextSourceItems(){
       ? linkContext.platforms.map(p=>p.kind).filter(Boolean).slice(0,4)
       : [];
     items.push({
+      icon: 'link',
       label: 'Bio links',
       value: `${sourceCount || 1} source${(sourceCount || 1) === 1 ? '' : 's'} read`,
       sub: linkContext.summary || (platforms.length ? platforms.join(', ') : `${outboundCount} outbound links`),
       active: true
     });
+    if(platforms.includes('youtube')){
+      items.push({
+        icon: 'youtube',
+        label: 'YouTube',
+        value: 'Linked channel',
+        sub: 'Included through bio links',
+        active: true
+      });
+    }
   }
 
   const tiktok = d.tiktok || null;
@@ -2081,6 +2099,7 @@ function buildCreatorContextSourceItems(){
       ? `${tiktok.videosScraped} videos${tiktok.avgViews ? ` / ${formatCount(tiktok.avgViews)} avg views` : ''}`
       : 'Linked profile found';
     items.push({
+      icon: 'tiktok',
       label: 'TikTok',
       value: tiktok.handle,
       sub: videoLine,
@@ -2088,6 +2107,7 @@ function buildCreatorContextSourceItems(){
     });
   } else if(tiktok?.handle || tiktokCandidates.length){
     items.push({
+      icon: 'tiktok',
       label: 'TikTok',
       value: tiktok?.handle || '@' + tiktokCandidates[0].handle,
       sub: 'Linked account found; video scrape did not complete',
@@ -2095,6 +2115,7 @@ function buildCreatorContextSourceItems(){
     });
   } else if(sourceCount){
     items.push({
+      icon: 'tiktok',
       label: 'TikTok',
       value: 'No linked profile',
       sub: 'We only scrape TikTok when IG or bio links prove the handle',
@@ -2104,10 +2125,22 @@ function buildCreatorContextSourceItems(){
   return items;
 }
 
+function platformIconSvg(kind){
+  const k = String(kind || '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  if(k === 'instagram'){
+    const gid = 'igGrad' + Math.random().toString(36).slice(2, 8);
+    return `<span class="platform-icon platform-icon-instagram" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><defs><linearGradient id="${gid}" x1="2" y1="22" x2="22" y2="2"><stop offset="0" stop-color="#F58529"/><stop offset="0.45" stop-color="#DD2A7B"/><stop offset="1" stop-color="#515BD4"/></linearGradient></defs><rect x="3" y="3" width="18" height="18" rx="5" stroke="url(#${gid})" stroke-width="2"/><circle cx="12" cy="12" r="4" stroke="url(#${gid})" stroke-width="2"/><circle cx="17.2" cy="6.8" r="1.2" fill="#DD2A7B"/></svg></span>`;
+  }
+  if(k === 'tiktok') return `<span class="platform-icon platform-icon-tiktok" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M15.1 3v11.05a4.55 4.55 0 1 1-4.55-4.55c.38 0 .75.05 1.1.14v2.92a1.76 1.76 0 1 0 1.18 1.66V3h2.27Z" fill="#25F4EE"/><path d="M16.3 4.15c.64 1.92 2.18 3.43 4.15 3.98v2.9a8.02 8.02 0 0 1-4.15-1.16v4.37a5.74 5.74 0 1 1-5.74-5.74c.28 0 .56.02.83.06v2.95a2.93 2.93 0 1 0 2.02 2.78V4.15h2.89Z" fill="#FE2C55"/><path d="M15.1 3c.62 1.88 2.15 3.39 4.1 3.94v2.15a7.72 7.72 0 0 1-4.1-1.17v6.17a4.55 4.55 0 1 1-4.55-4.55c.38 0 .75.05 1.1.14v2.1a2.48 2.48 0 1 0 1.18 2.11V3h2.27Z" fill="currentColor"/></svg></span>`;
+  if(k === 'youtube') return `<span class="platform-icon platform-icon-youtube" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="2.5" y="6" width="19" height="12" rx="3.4" fill="#FF0033"/><path d="M10 9.2v5.6l5-2.8-5-2.8Z" fill="#fff"/></svg></span>`;
+  if(k === 'link' || k === 'bio-links') return `<span class="platform-icon platform-icon-link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l2.12-2.12a5 5 0 0 0-7.07-7.07L10.9 5.03"/><path d="M14 11a5 5 0 0 0-7.07 0L4.81 13.12a5 5 0 0 0 7.07 7.07l1.22-1.22"/></svg></span>`;
+  return `<span class="platform-icon platform-icon-default" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.3 2.4 3.5 5.4 3.5 9S14.3 18.6 12 21c-2.3-2.4-3.5-5.4-3.5-9S9.7 5.4 12 3Z"/></svg></span>`;
+}
+
 function renderCreatorContextSources(){
   const markup = buildCreatorContextSourceItems().map(item => `
     <div class="context-source ${item.active ? 'is-active' : ''} ${item.muted ? 'is-muted' : ''}">
-      <div class="context-source-label">${escapeHtml(item.label)}</div>
+      <div class="context-source-head">${platformIconSvg(item.icon || item.label)}<div class="context-source-label">${escapeHtml(item.label)}</div></div>
       <div class="context-source-value">${escapeHtml(item.value)}</div>
       ${item.sub ? `<div class="context-source-sub">${escapeHtml(item.sub)}</div>` : ''}
     </div>
@@ -4173,11 +4206,14 @@ function renderInlinePersonaCard(persona, igData){
 
 function onboardingAgentContextSources(){
   const d = state.igData || {};
+  const linkContext = d.linkContext || {};
+  const platforms = Array.isArray(linkContext.platforms) ? linkContext.platforms.map(p=>p.kind).filter(Boolean) : [];
   const sources = [];
-  if(d.username || d.followers || state.persona) sources.push('Instagram');
-  if((Array.isArray(d.bioLinks) && d.bioLinks.length) || d.linkContext?.sourceUrls?.length || d.linkContext?.outboundLinks?.length) sources.push('Bio links');
-  if(d.tiktok?.handle && !d.tiktok.error) sources.push('TikTok');
-  return sources.length ? sources : ['Instagram'];
+  if(d.username || d.followers || state.persona) sources.push({ label: 'Instagram', icon: 'instagram' });
+  if((Array.isArray(d.bioLinks) && d.bioLinks.length) || d.linkContext?.sourceUrls?.length || d.linkContext?.outboundLinks?.length) sources.push({ label: 'Bio links', icon: 'link' });
+  if(platforms.includes('youtube')) sources.push({ label: 'YouTube', icon: 'youtube' });
+  if(d.tiktok?.handle && !d.tiktok.error) sources.push({ label: 'TikTok', icon: 'tiktok' });
+  return sources.length ? sources : [{ label: 'Instagram', icon: 'instagram' }];
 }
 
 function onboardingAgentContextMarkup(){
@@ -4185,7 +4221,9 @@ function onboardingAgentContextMarkup(){
   return `
     <div class="onb-agent-context" data-onb-agent-context>
       <span class="onb-agent-context-label">Agent context</span>
-      ${sources.map(s => `<span class="source">${escapeHtml(s)}</span>`).join(' + ')}
+      <span class="onb-agent-context-sources">
+        ${sources.map((s, i) => `<span class="onb-agent-context-source">${platformIconSvg(s.icon || s.label)}${escapeHtml(s.label)}</span>${i < sources.length - 1 ? '<span class="onb-agent-context-plus">+</span>' : ''}`).join('')}
+      </span>
     </div>
   `;
 }
