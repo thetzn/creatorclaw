@@ -213,6 +213,10 @@ body.logged-out #chat-view .chat-composer-auth{display:flex}
 .chat-msg-body .onb-agent-kicker{font-size:10px;color:var(--gold);letter-spacing:0.16em;text-transform:uppercase}
 .chat-msg-body .onb-agent-title{font-size:16px;font-weight:650;color:var(--text);line-height:1.35}
 .chat-msg-body .onb-agent-copy{font-size:13px;color:var(--muted);line-height:1.55}
+.chat-msg-body .onb-agent-working{display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:center;background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:9px;padding:9px 10px;margin-top:2px;overflow:hidden}
+.chat-msg-body .onb-agent-working-dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 0 rgba(218,182,107,0.45);animation:onbWorkingPulse 1.8s ease-out infinite}
+.chat-msg-body .onb-agent-working-text{min-width:0;font-size:11px;color:var(--muted);letter-spacing:0.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@keyframes onbWorkingPulse{0%{box-shadow:0 0 0 0 rgba(218,182,107,0.45)}70%{box-shadow:0 0 0 8px rgba(218,182,107,0)}100%{box-shadow:0 0 0 0 rgba(218,182,107,0)}}
 .chat-msg-body .onb-agent-name-form{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
 .chat-msg-body .onb-agent-name-form input{min-width:0;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;transition:border-color 0.2s}
 .chat-msg-body .onb-agent-name-form input:focus{border-color:var(--gold)}
@@ -1228,7 +1232,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
         <div class="st-label">Instructions</div>
         <button type="button" onclick="stPrefillPersona()" style="background:transparent;border:none;color:var(--gold);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;padding:0;margin-top:14px">Prefill from profile</button>
       </div>
-      <textarea id="st-agent-instructions" class="st-input st-textarea" maxlength="2000" placeholder="Tone, expertise, what to avoid. Left blank, defaults apply."></textarea>
+      <textarea id="st-agent-instructions" class="st-input st-textarea" maxlength="2000" placeholder="Auto-generated from your creator persona. Edit the tone, expertise, and boundaries."></textarea>
       <div style="font-size:11px;color:var(--muted);margin-top:6px;margin-bottom:4px">Up to 2000 characters.</div>
       <div class="st-row">
         <button class="st-btn st-btn-primary" id="st-agent-save-btn" onclick="saveAgentStyleFromSettings()">Save</button>
@@ -1838,9 +1842,29 @@ function agentPersonaSuggestion(){
   return lines.join(' ');
 }
 
+function hasCreatorPersonaForAgent(){
+  const p = state.persona || {};
+  return !!(p.name || p.bio || (p.vibes||[]).length || (p.pillars||[]).length);
+}
+
+function ensureAgentPersonaFromPersona(options = {}){
+  if(state.agent.persona) return state.agent.persona;
+  if(!hasCreatorPersonaForAgent()) return '';
+  const suggestion = agentPersonaSuggestion();
+  if(!suggestion) return '';
+  state.agent.persona = suggestion;
+  refreshAgentUI();
+  if(options.persist){
+    saveAgentIdentity(state.agent.name || '', suggestion).catch(e => console.warn('auto-save agent persona failed', e));
+  } else {
+    rememberPendingAgentIdentity();
+  }
+  return suggestion;
+}
+
 function openAgentSettings(){
   const name = state.agent.name || '';
-  const persona = state.agent.persona || '';
+  const persona = ensureAgentPersonaFromPersona() || agentPersonaSuggestion();
   const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   showModal(`
     <div class="modal-title">Your agent</div>
@@ -1851,7 +1875,7 @@ function openAgentSettings(){
       <span>Persona</span>
       <button type="button" onclick="document.getElementById('agent-persona-input').value=agentPersonaSuggestion()" style="background:transparent;border:none;color:var(--gold);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;padding:0">Prefill from my persona</button>
     </div>
-    <textarea id="agent-persona-input" maxlength="${AGENT_PERSONA_MAX}" rows="7" placeholder="Tone, expertise, catchphrases, what it should (and shouldn’t) do. Left blank, your agent uses defaults." style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;line-height:1.55;outline:none;resize:vertical;margin-bottom:6px" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'">${esc(persona)}</textarea>
+    <textarea id="agent-persona-input" maxlength="${AGENT_PERSONA_MAX}" rows="7" placeholder="Auto-generated from your creator persona. Edit the tone, expertise, catchphrases, and boundaries." style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;line-height:1.55;outline:none;resize:vertical;margin-bottom:6px" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'">${esc(persona)}</textarea>
     <div style="font-size:11px;color:var(--muted);margin-bottom:18px">Up to ${AGENT_PERSONA_MAX} characters. Manage Gmail and other connections in the Connect tab.</div>
     <div class="modal-row">
       <button class="modal-cancel-btn" type="button" onclick="resetAgentSettings()">Reset to default</button>
@@ -2123,7 +2147,7 @@ function stLoadAgentPersona(){
   const nameEl = document.getElementById('st-agent-name');
   const instrEl = document.getElementById('st-agent-instructions');
   if(nameEl) nameEl.value = state.agent.name || '';
-  if(instrEl) instrEl.value = state.agent.persona || '';
+  if(instrEl) instrEl.value = ensureAgentPersonaFromPersona({ persist: true }) || '';
 }
 
 function stPrefillPersona(){
@@ -2145,7 +2169,7 @@ async function saveAgentStyleFromSettings(){
 
 async function resetAgentStyleFromSettings(){
   if(!confirm('Reset agent name and instructions to defaults?')) return;
-  await saveAgentIdentity('', '');
+  await saveAgentIdentity('', agentPersonaSuggestion());
   stLoadAgentPersona();
 }
 
@@ -2325,7 +2349,7 @@ async function submitAgentSettings(){
 async function resetAgentSettings(){
   const btn = document.getElementById('agent-save-btn');
   if(btn){ btn.disabled = true; btn.textContent = 'Resetting…'; }
-  await saveAgentIdentity('', '');
+  await saveAgentIdentity('', agentPersonaSuggestion());
   closeModal();
   streamAgentAcknowledgement();
 }
@@ -2608,9 +2632,10 @@ async function loadLatestPersona(){
 async function saveAgentIdentity(name, persona){
   const user = await getCurrentUser();
   if(!user) return { error: new Error('Not signed in') };
+  const personaText = (persona||'').trim() || (hasCreatorPersonaForAgent() ? agentPersonaSuggestion() : '');
   const clean = {
     name: (name||'').trim().slice(0, AGENT_NAME_MAX) || null,
-    persona: (persona||'').trim().slice(0, AGENT_PERSONA_MAX) || null
+    persona: personaText.slice(0, AGENT_PERSONA_MAX) || null
   };
   const igHandle = (state.igData?.username || '').replace(/^@/,'') || '';
   const { error } = await sb.from('personas').upsert({
@@ -2769,6 +2794,7 @@ async function initAuth(){
       state.igConnected = true;
       state.igData = saved.scraped_data;
       state.persona = saved.ai_analysis;
+      if(!state.agent.persona) ensureAgentPersonaFromPersona({ persist: true });
       state.personaGen = true;
       state.lastRefreshAt = saved.updated_at || null;
       await persistPendingAgentIdentity();
@@ -2792,6 +2818,7 @@ async function initAuth(){
           state.igConnected = true;
           state.igData = p.scraped;
           state.persona = p.analysis;
+          if(!state.agent.persona) ensureAgentPersonaFromPersona({ persist: true });
           state.personaGen = true;
           await persistPendingAgentIdentity();
           refreshUserAvatars();
@@ -2822,6 +2849,7 @@ async function initAuth(){
     if(event === 'SIGNED_IN' && session?.user && !handledSignIn){
       handledSignIn = true;
       if(state.persona && state.igData){
+        if(!state.agent.persona) ensureAgentPersonaFromPersona();
         const handle = (state.igData.username || '').replace(/^@/,'');
         if(handle) await savePersona(handle, state.igData, state.persona);
       }
@@ -3656,11 +3684,15 @@ function pushOnboardingAgentNamePrompt(profile = {}){
   }
   const copy = buildOnboardingAgentNamingCopy(profile, state.persona);
   const suggestions = agentNameSuggestions(profile);
-  appendInlineCard('assistant', `
+  const body = appendInlineCard('assistant', `
     <div class="onb-agent-name">
       <div class="onb-agent-kicker">${escapeHtml(copy.kicker)}</div>
       <div class="onb-agent-title">${escapeHtml(copy.title)}</div>
       <div class="onb-agent-copy">${escapeHtml(copy.body)}</div>
+      <div class="onb-agent-working">
+        <span class="onb-agent-working-dot"></span>
+        <span class="onb-agent-working-text" data-onb-agent-working>Building your creator persona in the background</span>
+      </div>
       <form class="onb-agent-name-form" onsubmit="submitOnboardingAgentName(event)">
         <input id="onb-agent-name-input" type="text" maxlength="${AGENT_NAME_MAX}" placeholder="${escapeHtml(DEFAULT_AGENT_NAME)}" autocomplete="off">
         <button type="submit">Lock in name</button>
@@ -3670,6 +3702,19 @@ function pushOnboardingAgentNamePrompt(profile = {}){
       </div>
     </div>
   `);
+  const working = body.querySelector('[data-onb-agent-working]');
+  if(working){
+    chatState._onboardingNameVerbHandle = startVerbActivity(working, [
+      'your creator persona',
+      'voice signals',
+      'content pillars',
+      'brand-fit clues',
+      'audience context',
+      'caption patterns',
+      'profile signals',
+      'agent memory',
+    ]);
+  }
 }
 
 function pickOnboardingAgentName(btn){
@@ -3692,6 +3737,10 @@ async function submitOnboardingAgentName(event){
     return;
   }
   if(btn){ btn.disabled = true; btn.textContent = 'Saving'; }
+  if(chatState._onboardingNameVerbHandle){
+    stopThinkingVerb(chatState._onboardingNameVerbHandle);
+    chatState._onboardingNameVerbHandle = null;
+  }
   const { error } = await updateAgentName(name);
   if(error){
     if(btn){ btn.disabled = false; btn.textContent = 'Lock in name'; }
@@ -3816,6 +3865,10 @@ async function startOnboardingChat(handle){
   chatState._onboardingRevealCard = null;
   chatState._onboardingContinued = false;
   chatState._onboardingNextStepShown = false;
+  if(chatState._onboardingNameVerbHandle){
+    stopThinkingVerb(chatState._onboardingNameVerbHandle);
+    chatState._onboardingNameVerbHandle = null;
+  }
 
   try {
     // 1. Fast shell: profile basics + photo, no reels/vision/LLM.
@@ -5414,6 +5467,12 @@ pillars p must sum to 100. Keep 4-5 pillars.`;
       if(state.igData.engagementRate) data.avgEngagement=state.igData.engagementRate;
     }
     state.persona=data;
+    ensureAgentPersonaFromPersona();
+    getCurrentUser()
+      .then(user => {
+        if(user && state.agent.persona) return saveAgentIdentity(state.agent.name || '', state.agent.persona);
+      })
+      .catch(() => {});
     completePersonaReveal(document.querySelector('#persona-loading [data-persona-reveal]'), data, state.igData);
     if(!inlineMode){
       stopLoading('persona');
