@@ -22,7 +22,7 @@
 }
 :root[data-theme="light"]{
   --bg:#F5F1E8;--card:#FFFEF9;--card2:#F0EAD8;--border:#E5DDC9;--border2:#D4CAB0;
-  --text:#2A251D;--muted:#7A6F5F;--muted2:#A09484;
+  --text:#2A251D;--muted:#6A5F4F;--muted2:#8B7F70;
   --gold:#A67B3D;--gold2:#C99B5A;--gold3:#8A6431;
   --gold-dim:rgba(166,123,61,0.10);--gold-border:rgba(166,123,61,0.25);
   --green:#5A8A5A;--green-dim:rgba(90,138,90,0.12);
@@ -130,6 +130,8 @@ body.in-tool .nav{display:none}
 .chat-suggestions{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:28px;max-width:560px;width:100%}
 .chat-suggestion{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:12px;color:var(--text);cursor:pointer;text-align:left;transition:all 0.2s;line-height:1.4}
 .chat-suggestion:hover{border-color:var(--gold-border);background:var(--card2)}
+.chat-persona-cta{margin-top:24px;background:linear-gradient(180deg,var(--gold2),var(--gold));border:none;border-radius:10px;color:#17120A;padding:14px 20px;font-size:12px;font-weight:750;letter-spacing:0.08em;text-transform:uppercase;min-height:46px;box-shadow:0 10px 24px rgba(201,169,110,0.16)}
+.chat-persona-cta:hover{background:linear-gradient(180deg,var(--gold2),var(--gold3));transform:translateY(-1px)}
 .chat-msg{max-width:720px;width:100%;margin:0 auto;display:flex;gap:14px;align-items:flex-start}
 .chat-msg-avatar{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600}
 .chat-msg.user .chat-msg-avatar{background:var(--card2);border:1px solid var(--border2);color:var(--text)}
@@ -171,6 +173,11 @@ body.in-tool .nav{display:none}
 .chat-composer-auth button{border:1px solid var(--gold-border);background:var(--gold-dim);color:var(--gold);border-radius:999px;padding:7px 12px;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer}
 .chat-composer-auth button:hover{border-color:var(--gold);background:rgba(218,182,107,0.1)}
 .chat-composer-auth button:disabled{opacity:0.65;cursor:wait}
+.chat-composer-lock-cta{display:none;max-width:720px;width:100%;margin:0 auto;align-items:center;justify-content:space-between;gap:14px;text-align:left;background:var(--card);border:1px solid var(--gold-border);border-radius:12px;padding:14px 16px;color:var(--text);font-family:inherit;min-height:56px}
+.chat-composer-lock-cta span{font-size:13px;font-weight:700;letter-spacing:0.02em}
+.chat-composer-lock-cta small{display:block;margin-top:3px;font-size:11px;font-weight:400;color:var(--muted);line-height:1.35;letter-spacing:0}
+.chat-composer-lock-cta strong{font-size:11px;font-weight:800;color:var(--gold);letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap}
+body.logged-out #chat-view .chat-composer-lock-cta{display:flex}
 
 /* Onboarding (signed-out chat-view) */
 body.logged-out .chat-sidebar,
@@ -178,9 +185,9 @@ body.logged-out .chat-sidebar-backdrop,
 body.logged-out .chat-hamburger,
 body.logged-out .header-hamburger{display:none !important}
 body.logged-out #chat-view .chat-main{border-left:0}
-body.logged-out #chat-view .chat-composer-inner{opacity:0.5;pointer-events:none;filter:grayscale(0.2)}
+body.logged-out #chat-view .chat-composer-inner{display:none}
 body.logged-out #chat-view #chat-input{cursor:not-allowed}
-body.logged-out #chat-view .chat-composer-auth{display:flex}
+body.logged-out #chat-view .chat-composer-auth{display:none}
 
 /* Inline chat-bubble cards */
 .chat-msg-body .inline-analyzing{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--text)}
@@ -265,7 +272,7 @@ body.logged-out #chat-view .chat-composer-auth{display:flex}
 .chat-msg-body .inline-pulse-grid .pulse-tags{display:none}
 .chat-msg-body .inline-pulse-grid .pulse-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:1px}
 .chat-msg-body .inline-pulse-grid .pulse-save-btn,
-.chat-msg-body .inline-pulse-grid .pulse-draft-btn{min-height:34px;padding:8px 9px;border-radius:7px;font-size:9px;line-height:1;letter-spacing:0.07em;justify-content:center;gap:6px}
+.chat-msg-body .inline-pulse-grid .pulse-draft-btn{min-height:44px;padding:9px 10px;border-radius:7px;font-size:9px;line-height:1;letter-spacing:0.07em;justify-content:center;gap:6px}
 .chat-msg-body .inline-pulse-grid .pulse-action-icon{display:inline-flex;width:12px;height:12px;align-items:center;justify-content:center;color:currentColor;flex-shrink:0}
 .chat-msg-body .inline-pulse-grid .pulse-action-icon svg{width:12px;height:12px;display:block}
 /* Tighter brand cards when rendered inline in chat, default 28px padding is too airy here */
@@ -292,7 +299,7 @@ body.logged-out #chat-view .chat-composer-auth{display:flex}
 @media(max-width:560px){
   .chat-msg-body .inline-brand-grid{display:flex;grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;gap:10px;padding:2px 16px 8px;scrollbar-width:none;align-items:stretch}
   .chat-msg-body .inline-brand-grid::-webkit-scrollbar{display:none}
-  .chat-msg-body .inline-brand-grid .brand-card{flex:0 0 86%;scroll-snap-align:center;min-width:260px}
+  .chat-msg-body .inline-brand-grid .brand-card{flex:0 0 86%;scroll-snap-align:center;min-width:240px}
 }
 .chat-msg-body .inline-signin{background:var(--card2);border:1px solid var(--gold-border);border-radius:12px;padding:22px 20px;text-align:center;margin-top:6px}
 .chat-msg-body .inline-signin h4{font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text);letter-spacing:0.01em}
@@ -323,6 +330,7 @@ body.logged-out .teaser-section::after{content:'';position:absolute;left:0;right
 .teaser-gate{display:none}
 body.logged-out .teaser-gate{display:flex;position:absolute;left:0;right:0;bottom:0;top:25%;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center;z-index:5;pointer-events:auto}
 .teaser-gate-icon{width:44px;height:44px;border-radius:50%;background:var(--gold-dim);border:1px solid var(--gold-border);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:18px;margin-bottom:14px}
+.teaser-gate-icon svg{width:20px;height:20px}
 .teaser-gate h3{font-size:20px;font-weight:500;margin-bottom:6px;color:var(--text);letter-spacing:-0.01em}
 .teaser-gate p{font-size:13px;color:var(--muted);margin-bottom:18px;max-width:360px;line-height:1.5}
 .teaser-gate .google-btn{display:inline-flex;align-items:center;gap:10px;padding:12px 22px;background:var(--gold);border-radius:8px;color:#1a1a1a;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;border:none;cursor:pointer;transition:all 0.3s;white-space:nowrap}
@@ -393,6 +401,7 @@ body:not(.logged-out) .is-locked{filter:none;pointer-events:auto;user-select:aut
 /* Center CTA */
 .center-cta{text-align:center;padding:80px 0}
 .center-icon{width:64px;height:64px;border-radius:16px;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:24px;color:var(--gold)}
+.center-icon svg{width:28px;height:28px}
 .center-cta h2{font-size:28px;font-weight:300;margin-bottom:12px;letter-spacing:-0.01em}
 .center-cta p{color:var(--muted);margin-bottom:24px;max-width:420px;margin-left:auto;margin-right:auto;line-height:1.7;font-size:13px}
 .center-cta-meta{color:var(--muted2,#666);font-size:11px;margin-top:18px;letter-spacing:0.02em}
@@ -559,8 +568,8 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .pipeline-stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
 .pipeline-stat-label{font-size:10px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px}
 .pipeline-stat-val{font-size:22px;font-weight:700;color:var(--text);letter-spacing:-0.01em}
-.pipeline-board{display:grid;grid-template-columns:repeat(7,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:8px}
-.pipeline-col{position:relative;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:280px;overflow:hidden}
+.pipeline-board{display:grid;grid-template-columns:repeat(7,minmax(130px,1fr));gap:10px;overflow-x:auto;padding-bottom:8px}
+.pipeline-col{position:relative;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:280px;overflow:hidden}
 /* Stage accent, top gradient line, color-coded per stage so the board
    reads as a progression instead of seven identical grey boxes. */
 .pipeline-col::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold-dim)}
@@ -595,6 +604,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .pipeline-card-act.danger:hover{color:var(--red);border-color:var(--red)}
 .pipeline-empty{text-align:center;padding:80px 24px;background:var(--card);border:1px dashed var(--border2);border-radius:14px;margin-top:8px}
 .pipeline-empty-icon{font-size:36px;color:var(--gold);margin-bottom:12px}
+.pipeline-empty-icon svg{width:36px;height:36px}
 .pipeline-empty h2{font-size:22px;font-weight:400;margin-bottom:8px}
 .pipeline-empty p{color:var(--muted);font-size:13px;max-width:400px;margin:0 auto 24px;line-height:1.6}
 .pipeline-empty-btn{background:var(--gold);border:none;border-radius:8px;padding:12px 22px;color:var(--bg);font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;font-family:inherit;transition:opacity 0.2s}
@@ -615,6 +625,11 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   .pipeline-rollup .pipeline-stat:first-child{grid-column:1/-1}
 }
 .chart-title{font-size:10px;font-weight:600;margin-bottom:20px;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase}
+.chart-title.with-pill{display:flex;align-items:center;justify-content:space-between;gap:10px;letter-spacing:0.14em}
+.estimate-pill{display:inline-flex;align-items:center;border:1px solid var(--gold-border);border-radius:999px;padding:2px 7px;background:var(--gold-dim);color:var(--gold);font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap}
+.estimate-placeholder{min-height:110px;display:flex;align-items:center;justify-content:center;text-align:center;border:1px dashed var(--border2);border-radius:10px;padding:18px;color:var(--muted);font-size:12px;line-height:1.55;background:var(--card2)}
+.estimate-footnote{margin-top:12px;color:var(--muted);font-size:11px;line-height:1.55;text-align:center}
+.estimate-link{background:transparent;border:none;color:var(--gold);font:inherit;text-decoration:underline;text-underline-offset:3px;padding:0;cursor:pointer}
 
 .pie-container{display:flex;justify-content:center;margin-bottom:16px}
 .pie{width:110px;height:110px;border-radius:50%;background:conic-gradient(var(--gold) 0deg 223.2deg,var(--plum) 223.2deg 345.6deg,var(--muted2) 345.6deg 360deg);position:relative}
@@ -741,7 +756,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   .pulse-trend-badge,.brand-cat,.center-cta-meta,.tool-start-card .tool-start-label,
   .chat-context-badge,.match-meter-lbl,.stat-card-label{letter-spacing:0.08em}
   .main{padding:24px 16px 60px}
-  .main{display:flex;flex-direction:column;justify-content:center;min-height:calc(100vh - 52px)}
+  .main{display:flex;flex-direction:column;justify-content:flex-start;min-height:calc(100vh - 52px)}
   .page-title{font-size:22px}
   .page-sub{font-size:13px;margin-bottom:28px}
   /* Keep stats as 2x2 on mobile, reads as a dashboard at a glance */
@@ -751,7 +766,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   .brand-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;padding:4px 0 12px;margin:0 -16px;padding-left:16px;padding-right:16px;-webkit-overflow-scrolling:touch}
   .brand-grid::-webkit-scrollbar{display:none}
   .brand-grid{scrollbar-width:none}
-  .brand-card{flex:0 0 86%;scroll-snap-align:center;min-width:280px;display:flex;flex-direction:column}
+  .brand-card{flex:0 0 86%;scroll-snap-align:center;min-width:240px;display:flex;flex-direction:column}
   .brand-card .brand-footer{margin-top:auto}
   .brand-card:last-child{margin-right:16px}
   .pulse-grid{grid-template-columns:1fr}
@@ -776,9 +791,9 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   .brand-footer{flex-direction:column;gap:12px;align-items:stretch}
   .brand-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .brand-actions .outreach-btn:only-child{grid-column:1/-1}
-  .outreach-btn{padding:12px 14px;font-size:10px;min-height:42px;justify-content:center}
+  .outreach-btn{padding:12px 14px;font-size:10px;min-height:44px;justify-content:center}
   .pulse-actions{flex-wrap:wrap;gap:8px}
-  .pulse-save-btn,.pulse-draft-btn{padding:11px 14px;min-height:40px;flex:1;justify-content:center}
+  .pulse-save-btn,.pulse-draft-btn{padding:11px 14px;min-height:44px;flex:1;justify-content:center}
   /* Chat content cards should read like compact message attachments, not
      full dashboard panels. Keep tap targets, remove the vertical air. */
   .chat-msg-body .inline-pulse-grid{grid-template-columns:1fr;gap:8px;margin-top:8px}
@@ -789,7 +804,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   .chat-msg-body .inline-pulse-grid .pulse-meta{grid-template-columns:1fr 1fr}
   .chat-msg-body .inline-pulse-grid .pulse-actions{grid-template-columns:1fr 1fr}
   .chat-msg-body .inline-pulse-grid .pulse-save-btn,
-  .chat-msg-body .inline-pulse-grid .pulse-draft-btn{min-height:36px;padding:8px 9px}
+  .chat-msg-body .inline-pulse-grid .pulse-draft-btn{min-height:44px;padding:9px 10px}
   .vbar-container{height:90px}
   /* Modal tap targets + content fit */
   .modal-box{padding:28px;max-height:94vh}
@@ -821,9 +836,9 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .intro-auth-btn svg{width:18px;height:18px;flex-shrink:0}
 .intro-auth-btn.google{background:#fff;color:#1a1a1a;border-color:#fff}
 .intro-auth-btn.google:hover{background:#f3f3f3;border-color:#f3f3f3}
-.intro-auth-btn.ig{background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff;border-color:transparent}
-.intro-auth-btn.ig:hover{filter:brightness(1.05)}
-.intro-auth-soon{position:absolute;top:6px;right:8px;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;background:rgba(0,0,0,0.35);color:#fff;padding:2px 6px;border-radius:999px;backdrop-filter:blur(4px)}
+.intro-auth-btn.ig{background:transparent;color:var(--muted);border-color:var(--border2)}
+.intro-auth-btn.ig:hover{border-color:var(--muted2);color:var(--text);filter:none}
+.intro-auth-soon{position:absolute;top:6px;right:8px;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;background:var(--card2);color:var(--muted);border:1px solid var(--border2);padding:2px 6px;border-radius:999px}
 .intro-divider{display:flex;align-items:center;gap:12px;margin:8px 0;font-size:10px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase}
 .intro-divider::before,.intro-divider::after{content:'';flex:1;height:1px;background:var(--border2)}
 .intro-form{display:flex;gap:8px}
@@ -868,15 +883,13 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 /* ── Settings tab ─────────────────────────────────────────────────────────── */
 #tab-settings:not(.hidden){display:flex;height:calc(100vh - 52px);overflow:hidden}
 .st-nav{width:240px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto;padding:8px 0}
-.st-nav-item{display:flex;align-items:center;gap:14px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px;position:relative;transition:background 0.12s}
+.st-nav-item{appearance:none;-webkit-appearance:none;width:100%;border:0;background:transparent;text-align:left;font-family:inherit;display:flex;align-items:center;gap:14px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px;position:relative;transition:background 0.12s}
 .st-nav-item:hover{background:var(--card)}
 .st-nav-item.active{background:var(--card)}
 .st-nav-item svg{width:18px;height:18px;flex-shrink:0;color:var(--muted)}
 .st-nav-item.active svg{color:var(--text)}
 .st-nav-label{flex:1}
 .st-nav-soon{font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;opacity:0.6}
-.st-nav-item.st-disabled{cursor:default;opacity:0.45}
-.st-nav-item.st-disabled:hover{background:transparent}
 .st-nav-chevron{color:var(--muted);opacity:0.4}
 .st-nav-sep{height:1px;background:var(--border);margin:6px 0}
 .st-nav-sub{padding-left:52px;font-size:13px;color:var(--muted)}
@@ -920,11 +933,21 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .st-vibes{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 .st-vibe{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:var(--card);border:1px solid var(--border2);color:var(--muted)}
 .st-edit-fact-wrap{background:var(--card2);border:1px solid var(--gold-border);border-radius:10px;padding:16px;margin-top:12px}
-@media(max-width:640px){
-  #tab-settings{flex-direction:column;height:auto}
-  .st-nav{width:100%;border-right:none;border-bottom:1px solid var(--border);padding:4px 0}
-  .st-nav-item{padding:11px 16px;font-size:13px}
-  .st-content{padding:20px 16px}
+@media(max-width:768px){
+  #tab-settings:not(.hidden){display:block;height:auto;min-height:calc(100vh - 52px);overflow:visible}
+  .st-nav{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8px;border-right:none;border-bottom:0;overflow:visible;padding:0 0 18px}
+  .st-nav-sep,.st-nav-item[data-stsuper="capabilities"]{display:none}
+  #st-cap-group{display:contents!important}
+  .st-nav-item{min-height:48px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);font-size:12px;gap:10px;line-height:1.25}
+  .st-nav-item:hover{background:var(--card2)}
+  .st-nav-item.active{border-color:var(--gold-border);background:var(--gold-dim);color:var(--gold)}
+  .st-nav-item.active svg{color:var(--gold)}
+  .st-nav-item svg{width:16px;height:16px}
+  .st-nav-chevron{display:none}
+  .st-nav-sub{padding:11px 12px;color:var(--text)}
+  .st-content{padding:18px 0 0;overflow:visible;max-width:none}
+  .st-row{flex-direction:column}
+  .st-row .st-btn{width:100%;min-height:44px}
   .st-fact-key{min-width:100px}
 }
 </style>
@@ -943,7 +966,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
         <span>Sign in with Google</span>
       </button>
       <button class="intro-auth-btn ig" type="button" onclick="introSignInInstagramSoon()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="#fff"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></svg>
         <span>Continue with Instagram</span>
         <span class="intro-auth-soon">Soon</span>
       </button>
@@ -1012,7 +1035,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 
 <!-- PERSONA TAB -->
 <div id="tab-persona" class="hidden">
-  <div id="persona-cta" class="center-cta"><div class="center-icon">✦</div><h2>Build your creator brief</h2><p>Analyze a public Instagram profile to generate your persona, content pillars, rate card, and pitch context. Usually takes 10-15 seconds.</p><button class="gen-btn" onclick="generatePersona()">Build your agent</button><div class="center-cta-meta">Uses public profile data. Audience estimates are labeled clearly.</div></div>
+  <div id="persona-cta" class="center-cta"><div class="center-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"/><path d="M19 16l.7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16z"/></svg></div><h2>Build your creator brief</h2><p>Analyze a public Instagram profile to generate your persona, content pillars, rate card, and pitch context. Usually takes 10-15 seconds.</p><button class="gen-btn" onclick="generatePersona()">Build your agent</button><div class="center-cta-meta">Uses public profile data. Audience estimates are labeled clearly.</div></div>
   <div id="persona-loading" class="loading hidden">
     <div class="persona-reveal-card" data-persona-reveal>
       <div class="persona-reveal-main">
@@ -1035,7 +1058,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
       <div class="persona-reveal-tags"></div>
     </div>
     <div class="loading-title">Analyzing your content…</div>
-    <div class="loading-sub" id="persona-loading-sub">Scanning your recent posts…</div>
+    <div class="loading-sub" id="persona-loading-sub">Reading your public profile signals…</div>
     <div class="loading-progress"><div class="loading-progress-fill" id="persona-loading-bar"></div></div>
   </div>
   <div id="persona-result" class="hidden">
@@ -1058,8 +1081,8 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
       </div>
     </div>
     <div class="grid-3">
-      <div class="stat-card reach"><div class="stat-card-icon" style="background:var(--gold-dim);color:var(--gold)">◎</div><div class="stat-card-val">549K</div><div class="stat-card-label">Total Reach<span class="stat-card-sub">+12%</span></div></div>
-      <div class="stat-card engagement"><div class="stat-card-icon" style="background:var(--plum-dim);color:var(--plum)">♡</div><div class="stat-card-val">5.3%</div><div class="stat-card-label">Avg Engagement<span class="stat-card-sub">+0.8%</span></div></div>
+      <div class="stat-card reach"><div class="stat-card-icon" style="background:var(--gold-dim);color:var(--gold)">◎</div><div class="stat-card-val">549K</div><div class="stat-card-label">Total Reach</div></div>
+      <div class="stat-card engagement"><div class="stat-card-icon" style="background:var(--plum-dim);color:var(--plum)">♡</div><div class="stat-card-val">5.3%</div><div class="stat-card-label">Avg Engagement</div></div>
       <div class="stat-card tier"><div class="stat-card-icon" style="background:var(--gold-dim);color:var(--gold)">★</div><div class="stat-card-val">Rising Star</div><div class="stat-card-label">Creator Tier</div></div>
     </div>
     <div class="card" style="margin-bottom:20px;padding:28px"><div class="chart-title">Content Pillars</div><div class="pillars" id="pillars-container"></div></div>
@@ -1074,14 +1097,14 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
     <div class="teaser-section">
       <div class="teaser-content">
         <div class="grid-3">
-          <div class="chart-card"><div class="chart-title">Gender Split</div><div class="pie-container"><div class="pie"><div class="pie-hole"></div></div></div><div class="pie-legend"><span class="pie-legend-item"><span class="pie-dot" style="background:var(--gold)"></span>Female 62%</span><span class="pie-legend-item"><span class="pie-dot" style="background:var(--plum)"></span>Male 34%</span><span class="pie-legend-item"><span class="pie-dot" style="background:var(--muted2)"></span>Other 4%</span></div></div>
-          <div class="chart-card"><div class="chart-title">Age Distribution</div><div class="vbar-container" id="age-bars"></div></div>
-          <div class="chart-card"><div class="chart-title">Top Locations</div><div id="loc-bars" style="padding-top:8px"></div></div>
+          <div class="chart-card"><div class="chart-title with-pill"><span>Audience Demographics</span><span class="estimate-pill">Estimated</span></div><div class="estimate-placeholder">Public Instagram profiles do not expose audience gender data. Connect first-party analytics or a paid estimation source before showing a split.</div></div>
+          <div class="chart-card"><div class="chart-title with-pill"><span>Age Distribution</span><span class="estimate-pill">Estimated</span></div><div class="vbar-container" id="age-bars"></div></div>
+          <div class="chart-card"><div class="chart-title with-pill"><span>Top Locations</span><span class="estimate-pill">Estimated</span></div><div id="loc-bars" style="padding-top:8px"></div></div>
         </div>
-        <div class="chart-card"><div class="chart-title">Creator Profile</div><div id="radar-bars" style="padding-top:4px"></div></div>
+        <div class="chart-card"><div class="chart-title with-pill"><span>Creator Profile</span><span class="estimate-pill">Estimated</span></div><div id="radar-bars" style="padding-top:4px"></div><div class="estimate-footnote">Follower count, engagement, posts, bio, and profile photo are scraped signals. Audience demographics and profile radar are directional estimates. <button type="button" class="estimate-link" onclick="showEstimateInfo()">How we calculate this.</button></div></div>
       </div>
       <div class="teaser-gate">
-        <div class="teaser-gate-icon">✦</div>
+        <div class="teaser-gate-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"/><path d="M19 16l.7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16z"/></svg></div>
         <h3>Unlock your full persona</h3>
         <p>Sign in to see your audience demographics, creator profile radar, and growth trajectory.</p>
         <div class="gate-actions">
@@ -1103,12 +1126,12 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 <div id="tab-brands" class="hidden">
   <h1 class="page-title">Your <span class="gold-text">Pitch</span> matches</h1>
   <p class="page-sub">Brands aligned with your persona, ranked by audience fit and content compatibility.</p>
-  <div id="brands-cta" class="center-cta"><div class="center-icon">♢</div><h2>Find brands that fit</h2><p>Match your audience and content style to brands, then draft outreach in your voice.</p><button class="gen-btn" onclick="generateBrands()">Find Brands</button></div>
-  <div id="brands-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Matching brands to your persona…</div><div class="loading-sub" id="brands-loading-sub">Scanning 12,000+ brand profiles…</div><div class="loading-progress"><div class="loading-progress-fill" id="brands-loading-bar"></div></div></div>
+  <div id="brands-cta" class="center-cta"><div class="center-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/><path d="M10 12v2h4v-2"/></svg></div><h2>Find brands that fit</h2><p>Match your audience and content style to brands, then draft outreach in your voice.</p><button class="gen-btn" onclick="generateBrands()">Find Brands</button></div>
+  <div id="brands-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Matching brands to your persona…</div><div class="loading-sub" id="brands-loading-sub">Matching brands to your audience signals…</div><div class="loading-progress"><div class="loading-progress-fill" id="brands-loading-bar"></div></div></div>
   <div style="position:relative">
     <div id="brands-result" class="brand-grid hidden"></div>
     <div class="teaser-gate" id="brands-gate" style="top:auto;bottom:-20px;padding:60px 24px 40px">
-      <div class="teaser-gate-icon">♢</div>
+      <div class="teaser-gate-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/><path d="M10 12v2h4v-2"/></svg></div>
       <h3>See all your brand matches</h3>
       <p>Sign in to unlock the full list of brands ranked by audience fit, plus AI-drafted pitch emails in your voice.</p>
       <div class="gate-actions">
@@ -1148,7 +1171,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   </div>
   <div class="pipeline-board hidden" id="pipeline-board"></div>
   <div class="pipeline-empty hidden" id="pipeline-empty">
-    <div class="pipeline-empty-icon">◇</div>
+    <div class="pipeline-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 9-8 9-8-9 8-9z"/></svg></div>
     <h2>Track every deal from first DM to paid</h2>
     <p>Add brand conversations, deal value, deliverables, and payment status in one clean board.</p>
     <button class="pipeline-empty-btn" onclick="openDealModal()">Add First Deal</button>
@@ -1159,61 +1182,41 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 <div id="tab-pulse" class="hidden">
   <h1 class="page-title">What to <span class="gold-text">Create</span></h1>
   <p class="page-sub">Content ideas matched to your persona and what's trending right now.</p>
-  <div id="pulse-cta" class="center-cta"><div class="center-icon">◎</div><h2>Generate ideas matched to your audience</h2><p>Turn your persona and current trend signals into post ideas, hooks, formats, and draftable scripts.</p><button class="gen-btn" onclick="generatePulse()">Create Ideas</button></div>
-  <div id="pulse-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Scanning trends across platforms…</div><div class="loading-sub" id="pulse-loading-sub">Analyzing 50K+ trending posts…</div><div class="loading-progress"><div class="loading-progress-fill" id="pulse-loading-bar"></div></div></div>
-  <div id="pulse-result" class="hidden"><div class="pulse-filters" id="pulse-filters"></div><div class="pulse-section-label"><span class="dot" style="background:var(--gold)"></span> Trending Now, Matched to Your Persona</div><div style="position:relative"><div class="pulse-grid" id="pulse-grid"></div><div class="teaser-gate" id="pulse-gate" style="top:auto;bottom:-20px;padding:60px 24px 40px"><div class="teaser-gate-icon">◎</div><h3>Unlock all 10 content ideas</h3><p>Sign in to see the full list of AI-generated ideas, save them to your calendar, and auto-draft scripts in your voice.</p><div class="gate-actions"><button class="google-btn" onclick="signInWithGoogle()"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>Sign in with Google</button><button class="ig-btn" onclick="connectInstagram()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></svg>Connect Instagram</button></div></div></div></div>
+  <div id="pulse-cta" class="center-cta"><div class="center-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 10-13h-7l1-7z"/></svg></div><h2>Generate ideas matched to your audience</h2><p>Turn your persona and current trend signals into post ideas, hooks, formats, and draftable scripts.</p><button class="gen-btn" onclick="generatePulse()">Create Ideas</button></div>
+  <div id="pulse-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Scanning trends across platforms…</div><div class="loading-sub" id="pulse-loading-sub">Matching current formats to your creator persona…</div><div class="loading-progress"><div class="loading-progress-fill" id="pulse-loading-bar"></div></div></div>
+  <div id="pulse-result" class="hidden"><div class="pulse-filters" id="pulse-filters"></div><div class="pulse-section-label"><span class="dot" style="background:var(--gold)"></span> Trending Now, Matched to Your Persona</div><div style="position:relative"><div class="pulse-grid" id="pulse-grid"></div><div class="teaser-gate" id="pulse-gate" style="top:auto;bottom:-20px;padding:60px 24px 40px"><div class="teaser-gate-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 10-13h-7l1-7z"/></svg></div><h3>Unlock all 10 content ideas</h3><p>Sign in to see the full list of AI-generated ideas, save them to your calendar, and auto-draft scripts in your voice.</p><div class="gate-actions"><button class="google-btn" onclick="signInWithGoogle()"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>Sign in with Google</button><button class="ig-btn" onclick="connectInstagram()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></svg>Connect Instagram</button></div></div></div></div>
 </div>
 
 <!-- SETTINGS TAB -->
 <div id="tab-settings" class="hidden">
   <!-- Left nav -->
   <div class="st-nav">
-    <div class="st-nav-item active" data-stnav="profile" onclick="openSettingsSection('profile')">
+    <button type="button" class="st-nav-item active" data-stnav="profile" onclick="openSettingsSection('profile')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
       <span class="st-nav-label">Profile</span>
       <svg class="st-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="9 18 15 12 9 6"/></svg>
-    </div>
-    <div class="st-nav-item st-disabled">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>
-      <span class="st-nav-label">Billing</span>
-      <span class="st-nav-soon">Soon</span>
-    </div>
-    <div class="st-nav-item st-disabled">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      <span class="st-nav-label">Usage</span>
-      <span class="st-nav-soon">Soon</span>
-    </div>
+    </button>
     <div class="st-nav-sep"></div>
-    <div class="st-nav-item" data-stsuper="capabilities" onclick="toggleSettingsGroup('capabilities')">
+    <button type="button" class="st-nav-item" data-stsuper="capabilities" onclick="toggleSettingsGroup('capabilities')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/><circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="8" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg>
       <span class="st-nav-label">Capabilities</span>
       <svg id="st-cap-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;transition:transform 0.2s;transform:rotate(90deg)"><polyline points="9 18 15 12 9 6"/></svg>
-    </div>
+    </button>
     <div id="st-cap-group" style="display:block">
-      <div class="st-nav-item st-nav-sub" data-stnav="memory" onclick="openSettingsSection('memory')">What your agent knows</div>
-      <div class="st-nav-item st-nav-sub" data-stnav="agent-persona" onclick="openSettingsSection('agent-persona')">Agent style</div>
+      <button type="button" class="st-nav-item st-nav-sub" data-stnav="memory" onclick="openSettingsSection('memory')">What your agent knows</button>
+      <button type="button" class="st-nav-item st-nav-sub" data-stnav="agent-persona" onclick="openSettingsSection('agent-persona')">Agent style</button>
     </div>
-    <div class="st-nav-item" data-stnav="connectors" onclick="openSettingsSection('connectors')">
+    <button type="button" class="st-nav-item" data-stnav="connectors" onclick="openSettingsSection('connectors')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
       <span class="st-nav-label">Connectors</span>
       <svg class="st-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="9 18 15 12 9 6"/></svg>
-    </div>
-    <div class="st-nav-item st-disabled">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="6"/><circle cx="16" cy="12" r="4" fill="currentColor" stroke="none"/></svg>
-      <span class="st-nav-label">Permissions</span>
-      <span class="st-nav-soon">Soon</span>
-    </div>
+    </button>
     <div class="st-nav-sep"></div>
-    <div class="st-nav-item" onclick="toggleTheme()" title="Toggle light/dark mode">
+    <button type="button" class="st-nav-item" onclick="toggleTheme()" title="Toggle light/dark mode">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       <span class="st-nav-label">Appearance</span>
       <span class="st-nav-soon" id="st-appearance-label">Dark</span>
-    </div>
-    <div class="st-nav-item st-disabled">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a4.5 4.5 0 0 1 0 9 4.5 4.5 0 0 1 0 9"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
-      <span class="st-nav-label">Language</span>
-      <span class="st-nav-soon">Soon</span>
-    </div>
+    </button>
   </div>
 
   <!-- Right content -->
@@ -1368,18 +1371,17 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
     </div>
     <div class="chat-messages" id="chat-messages">
       <div class="chat-empty" id="chat-empty">
-        <div class="chat-empty-icon"><img data-crab-img alt=""></div>
-        <h2 id="chat-empty-greeting">How can I help today?</h2>
-        <p id="chat-empty-sub">Ask anything about your content, audience, brand deals, or creative strategy.</p>
-        <div class="chat-suggestions">
-          <button class="chat-suggestion" onclick="sendSuggestion('What should I post this week to grow my reach?')">What should I post this week to grow my reach?</button>
-          <button class="chat-suggestion" onclick="sendSuggestion('Draft a follow-up email to a brand that ghosted me.')">Draft a follow-up email to a brand that ghosted me.</button>
-          <button class="chat-suggestion" onclick="sendSuggestion('Give me 3 Reel hooks in my voice.')">Give me 3 Reel hooks in my voice.</button>
-          <button class="chat-suggestion" onclick="sendSuggestion('Which of my recent posts performed best, and why?')">Which of my recent posts performed best, and why?</button>
-        </div>
+        <div class="chat-empty-icon"><img data-crab-img alt="CreatorClaw agent"></div>
+        <h2 id="chat-empty-greeting">Build your persona to get personalized help</h2>
+        <p id="chat-empty-sub">CreatorClaw needs a creator profile before it can answer questions about posts, audience, brand fit, or content strategy.</p>
+        <button class="chat-persona-cta" type="button" onclick="openTool('persona')">Build your persona</button>
       </div>
     </div>
     <div class="chat-composer">
+      <button class="chat-composer-lock-cta" type="button" onclick="promptOnboardingSignin(this)">
+        <span>Sign in to keep chatting<small>Save this persona, unlock memory, and continue the conversation.</small></span>
+        <strong>Sign in</strong>
+      </button>
       <div class="chat-composer-inner">
         <div class="chat-input-wrap">
           <textarea class="chat-input" id="chat-input" placeholder="Ask anything…" rows="1" onkeydown="handleChatKey(event)" oninput="autoResizeChat(this)"></textarea>
@@ -1518,14 +1520,14 @@ const LOADING_MESSAGES={
     'Measuring engagement patterns…',
     'Analyzing sentiment in your comments…',
     'Identifying your content pillars…',
-    'Mapping audience demographics…',
+    'Labeling estimated audience signals…',
     'Detecting your creator vibes…',
     'Calculating growth signals…',
     'Stitching your media kit together…'
   ],
   brands:[
-    'Indexing partnership opportunities…',
-    'Matching your niche to advertisers…',
+    'Matching brands to your audience signals…',
+    'Comparing your niche to advertiser fit…',
     'Scoring audience overlap…',
     'Calculating compatibility scores…',
     'Ranking by engagement fit…',
@@ -1534,7 +1536,7 @@ const LOADING_MESSAGES={
   pulse:[
     'Scanning trending audio and formats…',
     'Cross-referencing your pillars…',
-    'Measuring hashtag momentum…',
+    'Matching formats to your creator persona…',
     'Identifying high-match opportunities…',
     'Estimating reach potential…',
     'Curating your top 10 picks…'
@@ -1789,6 +1791,15 @@ function showModal(innerHTML){
 }
 function closeModal(){ const m=document.getElementById('active-modal'); if(m) m.remove(); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+function showEstimateInfo(){
+  showModal(`
+    <div class="modal-title">How audience estimates work</div>
+    <div class="modal-sub">Instagram does not expose audience gender, age, or city data for public profiles. CreatorClaw labels those sections as estimates because they are inferred from public profile signals, captions, niche, and content themes.</div>
+    <div class="modal-sub" style="margin-bottom:24px">Follower count, engagement rate, post count, bio, verified status, and profile image come from the scraped public profile. For real audience demographics, connect first-party Instagram analytics or a paid estimation source.</div>
+    <div class="modal-row"><button class="modal-save-btn" onclick="closeModal()">Got it</button></div>
+  `);
+}
 
 // ── Bug reporter ─────────────────────────────────────────────────────────────
 // Opens a small modal with description + optional category. Captures runtime
@@ -2834,7 +2845,59 @@ async function saveAgentIdentity(name, persona){
   return { error: null };
 }
 
+function hasPersonaContext(){
+  return !!(state.persona && (state.igData || state.persona.name || state.persona.bio));
+}
+
+function escapeJsAttr(s){
+  return String(s ?? '')
+    .replace(/\\/g,'\\\\')
+    .replace(/'/g,"\\'")
+    .replace(/"/g,'&quot;')
+    .replace(/\r?\n/g,' ');
+}
+
+function chatEmptyMarkup(){
+  const name = state.agent.name || DEFAULT_AGENT_NAME;
+  const hasPersona = hasPersonaContext();
+  const handle = state.igData?.username ? '@' + String(state.igData.username).replace(/^@/,'') : '';
+  if(!hasPersona && (chatState.activeTool || 'main') === 'main'){
+    return `
+      <div class="chat-empty" id="chat-empty">
+        <div class="chat-empty-icon"><img data-crab-img alt="CreatorClaw agent"></div>
+        <h2 id="chat-empty-greeting">Build your persona to get personalized help</h2>
+        <p id="chat-empty-sub">CreatorClaw needs a creator profile before it can answer questions about posts, audience, brand fit, or content strategy.</p>
+        <button class="chat-persona-cta" type="button" onclick="openTool('persona')">Build your persona</button>
+      </div>`;
+  }
+  const chips = [
+    'What should I post this week to grow my reach?',
+    'Draft a follow-up email to a brand that ghosted me.',
+    'Give me 3 Reel hooks in my voice.',
+    handle ? `Which recent ${handle} posts performed best, and why?` : 'Which of my recent posts performed best, and why?'
+  ];
+  return `
+    <div class="chat-empty" id="chat-empty">
+      <div class="chat-empty-icon"><img data-crab-img alt="CreatorClaw agent"></div>
+      <h2 id="chat-empty-greeting">${escapeHtml(name)} here, how can I help?</h2>
+      <p id="chat-empty-sub">${state.agent.persona ? 'Ask anything. I\'ll stay in character.' : 'Ask anything about your content, audience, brand deals, or creative strategy.'}</p>
+      <div class="chat-suggestions">
+        ${chips.map(c => `<button class="chat-suggestion" onclick="sendSuggestion('${escapeJsAttr(c)}')">${escapeHtml(c)}</button>`).join('')}
+      </div>
+    </div>`;
+}
+
+function hydrateChatEmpty(){
+  document.querySelectorAll('#chat-empty [data-crab-img]').forEach(el=>{ el.src=LOGO_DATA_URI; });
+}
+
 function refreshAgentUI(){
+  const empty = document.getElementById('chat-empty');
+  if(empty && (chatState.activeTool || 'main') === 'main'){
+    empty.outerHTML = chatEmptyMarkup();
+    hydrateChatEmpty();
+    return;
+  }
   const name = state.agent.name || DEFAULT_AGENT_NAME;
   const greet = document.getElementById('chat-empty-greeting');
   if(greet) greet.textContent = name + ' here, how can I help?';
@@ -3181,7 +3244,12 @@ const TOOL_CONFIG = {
     placeholder: 'Ask anything…',
     greeting: null,
     headline: null,
-    chips: [],
+    chips: [
+      'What should I post this week to grow my reach?',
+      'Draft a follow-up email to a brand that ghosted me.',
+      'Give me 3 Reel hooks in my voice.',
+      'Which of my recent posts performed best, and why?'
+    ],
   },
   create: {
     label: 'Create',
@@ -3410,19 +3478,8 @@ function renderMessages(){
   container.innerHTML = '';
   const visibleMessages = chatState.messages.filter(m => !m.hidden);
   if(visibleMessages.length === 0){
-    container.innerHTML = `
-      <div class="chat-empty" id="chat-empty">
-        <div class="chat-empty-icon"><img data-crab-img alt=""></div>
-        <h2 id="chat-empty-greeting">How can I help today?</h2>
-        <p id="chat-empty-sub">Ask anything about your content, audience, brand deals, or creative strategy.</p>
-        <div class="chat-suggestions">
-          <button class="chat-suggestion" onclick="sendSuggestion('What should I post this week to grow my reach?')">What should I post this week to grow my reach?</button>
-          <button class="chat-suggestion" onclick="sendSuggestion('Draft a follow-up email to a brand that ghosted me.')">Draft a follow-up email to a brand that ghosted me.</button>
-          <button class="chat-suggestion" onclick="sendSuggestion('Give me 3 Reel hooks in my voice.')">Give me 3 Reel hooks in my voice.</button>
-          <button class="chat-suggestion" onclick="sendSuggestion('Which of my recent posts performed best, and why?')">Which of my recent posts performed best, and why?</button>
-        </div>
-      </div>`;
-    container.querySelectorAll('[data-crab-img]').forEach(el=>{ el.src=LOGO_DATA_URI; });
+    container.innerHTML = chatEmptyMarkup();
+    hydrateChatEmpty();
     refreshAgentUI();
     return;
   }
@@ -4492,7 +4549,7 @@ async function runInlineBrandsPreview(){
     <div class="inline-loader">
       <div class="inline-loader-text">
         <div class="inline-loader-title">Matching brands to your persona</div>
-        <div class="inline-loading-sub">Indexing partnership opportunities…</div>
+        <div class="inline-loading-sub">Matching brands to your audience signals…</div>
         <div class="inline-loading-progress"><div class="inline-loading-bar"></div></div>
       </div>
     </div>
