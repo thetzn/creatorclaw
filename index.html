@@ -481,7 +481,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .vibe-tags{display:flex;gap:6px;flex-wrap:wrap}
 .persona-refresh{margin-top:14px;font-size:11px;color:var(--muted);letter-spacing:0.04em}
 .context-sources{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-.context-source{border:1px solid var(--border);background:var(--card2);border-radius:8px;padding:8px 10px;min-width:128px}
+.context-source{border:1px solid var(--border);background:var(--card2);border-radius:8px;padding:8px 10px;min-width:128px;max-width:100%;overflow:hidden}
 .context-source-head{display:flex;align-items:center;gap:6px;margin-bottom:3px}
 .context-source-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)}
 .context-source-value{font-size:12px;line-height:1.35;color:var(--text);font-weight:600}
@@ -898,6 +898,9 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .st-content{flex:1;overflow-y:auto;padding:32px 36px;max-width:680px}
 .st-section-title{font-size:18px;font-weight:500;color:var(--text);margin-bottom:4px;letter-spacing:0.01em}
 .st-section-sub{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:28px}
+.st-profile-card{background:linear-gradient(180deg,rgba(255,255,255,0.025),rgba(255,255,255,0)),var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.035)}
+.st-profile-note{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px}
+.st-profile-actions{margin-top:0}
 .st-label{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;margin-top:22px}
 .st-label:first-of-type{margin-top:0}
 .st-input{width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;box-sizing:border-box}
@@ -934,18 +937,42 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .st-vibe{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:var(--card);border:1px solid var(--border2);color:var(--muted)}
 .st-edit-fact-wrap{background:var(--card2);border:1px solid var(--gold-border);border-radius:10px;padding:16px;margin-top:12px}
 @media(max-width:768px){
+  body.in-tool .header-inner{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;max-width:none}
+  body.in-tool .header-hamburger{width:44px;height:44px;padding:0;justify-self:start}
+  body.in-tool .logo{display:none}
+  body.in-tool .mobile-title{font-size:17px;font-weight:650;text-align:center;padding:0;justify-self:center}
+  body.in-tool .header-inner > div:last-child{justify-self:end;gap:0}
+  body.in-tool .theme-toggle{width:44px;height:44px;align-items:center;justify-content:center;padding:0;border-radius:12px}
   #tab-settings:not(.hidden){display:block;height:auto;min-height:calc(100vh - 52px);overflow:visible}
-  .st-nav{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8px;border-right:none;border-bottom:0;overflow:visible;padding:0 0 18px}
+  .st-nav{width:auto;display:flex;gap:8px;border-right:none;border-bottom:0;overflow-x:auto;overflow-y:hidden;padding:0 16px 12px;margin:0 -16px 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .st-nav::-webkit-scrollbar{display:none}
   .st-nav-sep,.st-nav-item[data-stsuper="capabilities"]{display:none}
   #st-cap-group{display:contents!important}
-  .st-nav-item{min-height:48px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);font-size:12px;gap:10px;line-height:1.25}
+  .st-nav-item{width:auto;flex:0 0 auto;min-height:38px;padding:9px 12px;border:1px solid var(--border);border-radius:999px;background:var(--card);font-size:11px;gap:8px;line-height:1.2;white-space:nowrap}
   .st-nav-item:hover{background:var(--card2)}
   .st-nav-item.active{border-color:var(--gold-border);background:var(--gold-dim);color:var(--gold)}
   .st-nav-item.active svg{color:var(--gold)}
   .st-nav-item svg{width:16px;height:16px}
   .st-nav-chevron{display:none}
   .st-nav-sub{padding:11px 12px;color:var(--text)}
-  .st-content{padding:18px 0 0;overflow:visible;max-width:none}
+  .st-content{padding:18px 0 calc(112px + env(safe-area-inset-bottom));overflow:visible;max-width:none}
+  .st-section-title{font-size:26px;font-weight:650;letter-spacing:-0.02em;margin-bottom:6px}
+  .st-section-sub{font-size:14px;line-height:1.45;margin-bottom:18px;max-width:300px}
+  .st-profile-card{border-radius:18px;padding:16px;margin-bottom:16px;background:linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0)),var(--card)}
+  .st-profile-row{gap:12px;margin-bottom:14px}
+  .st-avatar{width:58px;height:58px}
+  .st-profile-name{font-size:21px;line-height:1.15;letter-spacing:-0.02em}
+  .st-profile-handle{font-size:13px;margin-top:4px}
+  .st-vibes{gap:6px;margin:2px 0 14px!important}
+  .st-vibe{font-size:9px;letter-spacing:0.08em;padding:5px 9px;background:transparent}
+  #st-profile-context-sources{display:grid;grid-template-columns:1fr;gap:10px;margin:0!important}
+  #st-profile-context-sources .context-source{border-radius:13px;padding:12px 14px;background:var(--card2);min-width:0}
+  #st-profile-context-sources .context-source.is-muted{display:none}
+  #st-profile-context-sources .context-source-head{margin-bottom:6px}
+  #st-profile-context-sources .context-source-label{font-size:10px;letter-spacing:0.12em}
+  #st-profile-context-sources .context-source-value{font-size:14px;line-height:1.25}
+  #st-profile-context-sources .context-source-sub{font-size:12px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .st-profile-note{font-size:13px;line-height:1.5;margin:2px 0 14px}
   .st-row{flex-direction:column}
   .st-row .st-btn{width:100%;min-height:44px}
   .st-fact-key{min-width:100px}
@@ -1226,17 +1253,19 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
     <div id="st-panel-profile">
       <div class="st-section-title">Profile</div>
       <div class="st-section-sub">Your connected accounts and public creator info.</div>
-      <div class="st-profile-row" id="st-profile-summary">
-        <div class="st-avatar" id="st-profile-avatar">CC</div>
-        <div>
-          <div class="st-profile-name" id="st-profile-name">N/A</div>
-          <div class="st-profile-handle" id="st-profile-handle">N/A</div>
+      <div class="st-profile-card">
+        <div class="st-profile-row" id="st-profile-summary">
+          <div class="st-avatar" id="st-profile-avatar">CC</div>
+          <div>
+            <div class="st-profile-name" id="st-profile-name">N/A</div>
+            <div class="st-profile-handle" id="st-profile-handle">N/A</div>
+          </div>
         </div>
+        <div id="st-profile-vibes" class="st-vibes"></div>
+        <div class="context-sources" id="st-profile-context-sources"></div>
       </div>
-      <div id="st-profile-vibes" class="st-vibes" style="margin-bottom:14px"></div>
-      <div class="context-sources" id="st-profile-context-sources" style="margin-bottom:20px"></div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px">CreatorClaw refreshes recent Instagram signals weekly. Rebuild your creator persona when your positioning, niche, or content direction has changed.</div>
-      <div class="st-row" style="margin-top:0">
+      <div class="st-profile-note">CreatorClaw refreshes recent Instagram signals weekly. Rebuild when your positioning, niche, or content direction changes.</div>
+      <div class="st-row st-profile-actions">
         <button class="st-btn st-btn-primary" id="st-persona-refresh-btn" onclick="refreshCreatorPersonaFromSettings()">Rebuild creator persona</button>
         <button class="st-btn st-btn-ghost" onclick="openSettingsSection('connectors')">Manage connectors</button>
       </div>
@@ -2060,6 +2089,56 @@ function toggleSettingsGroup(group){
   }
 }
 
+function cleanContextLabel(value){
+  const raw = String(value || '').trim();
+  if(!raw) return '';
+  const compact = raw
+    .replace(/^https?:\/\//i,'')
+    .replace(/^www\./i,'')
+    .replace(/[_-]+/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+  if(!compact || /^link in bio$/i.test(compact) || compact === 'link') return '';
+  const words = compact.split(' ');
+  if(words.length <= 3){
+    return words.map(w => w.length <= 3 && w === w.toLowerCase() ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  }
+  return compact.charAt(0).toUpperCase() + compact.slice(1);
+}
+
+function compactContextList(items, max = 3){
+  const unique = [];
+  const seen = new Set();
+  for(const item of items){
+    const label = cleanContextLabel(item);
+    if(!label) continue;
+    const key = label.toLowerCase();
+    if(seen.has(key)) continue;
+    seen.add(key);
+    unique.push(label);
+  }
+  if(!unique.length) return '';
+  const visible = unique.slice(0, max).join(', ');
+  const more = unique.length > max ? ` +${unique.length - max}` : '';
+  return visible + more;
+}
+
+function summarizeBioLinkContext(linkContext = {}, outboundCount = 0){
+  const offers = Array.isArray(linkContext.offers)
+    ? linkContext.offers.map(o => o?.label || o?.kind).filter(Boolean)
+    : [];
+  const offerText = compactContextList(offers, 3);
+  if(offerText) return `Offers: ${offerText}`;
+
+  const platforms = Array.isArray(linkContext.platforms)
+    ? linkContext.platforms.map(p => p?.kind).filter(Boolean)
+    : [];
+  const platformText = compactContextList(platforms, 3);
+  if(platformText) return `Detected: ${platformText}`;
+
+  return outboundCount ? `${outboundCount} linked destination${outboundCount === 1 ? '' : 's'}` : 'Bio link context indexed';
+}
+
 function buildCreatorContextSourceItems(){
   const d = state.igData || {};
   const items = [];
@@ -2089,8 +2168,8 @@ function buildCreatorContextSourceItems(){
     items.push({
       icon: 'link',
       label: 'Bio links',
-      value: `${sourceCount || 1} source${(sourceCount || 1) === 1 ? '' : 's'} read`,
-      sub: linkContext.summary || (platforms.length ? platforms.join(', ') : `${outboundCount} outbound links`),
+      value: sourceCount > 1 ? `${sourceCount} pages indexed` : 'Link hub indexed',
+      sub: summarizeBioLinkContext(linkContext, outboundCount),
       active: true
     });
     if(platforms.includes('youtube')){
@@ -2147,17 +2226,18 @@ function platformIconSvg(kind){
 }
 
 function renderCreatorContextSources(){
-  const markup = buildCreatorContextSourceItems().map(item => `
+  const items = buildCreatorContextSourceItems();
+  const renderItems = (list) => list.map(item => `
     <div class="context-source ${item.active ? 'is-active' : ''} ${item.muted ? 'is-muted' : ''}">
       <div class="context-source-head">${platformIconSvg(item.icon || item.label)}<div class="context-source-label">${escapeHtml(item.label)}</div></div>
       <div class="context-source-value">${escapeHtml(item.value)}</div>
       ${item.sub ? `<div class="context-source-sub">${escapeHtml(item.sub)}</div>` : ''}
     </div>
   `).join('');
-  ['persona-context-sources','st-profile-context-sources'].forEach(id=>{
-    const el = document.getElementById(id);
-    if(el) el.innerHTML = markup;
-  });
+  const personaEl = document.getElementById('persona-context-sources');
+  if(personaEl) personaEl.innerHTML = renderItems(items);
+  const settingsEl = document.getElementById('st-profile-context-sources');
+  if(settingsEl) settingsEl.innerHTML = renderItems(items.filter(item => !item.muted));
 }
 
 function stRenderProfile(){
@@ -2168,7 +2248,8 @@ function stRenderProfile(){
   const avatarEl = document.getElementById('st-profile-avatar');
   const vibesEl = document.getElementById('st-profile-vibes');
   const fullName = p.name || d.full_name || 'N/A';
-  const handle = d.username ? '@' + d.username : (d.handle ? '@' + d.handle : 'N/A');
+  const rawHandle = d.username || d.handle || '';
+  const handle = rawHandle ? '@' + String(rawHandle).replace(/^@+/,'') : 'N/A';
   if(nameEl) nameEl.textContent = fullName;
   if(handleEl) handleEl.textContent = handle;
   const initials = fullName.split(' ').filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase() || 'CC';
@@ -2186,7 +2267,9 @@ function stRenderProfile(){
   }
   if(vibesEl){
     const vibes = p.vibes || [];
-    vibesEl.innerHTML = vibes.map(v=>`<span class="st-vibe">${escapeHtml(v)}</span>`).join('');
+    const visible = vibes.slice(0, 4);
+    const extra = vibes.length > visible.length ? [`+${vibes.length - visible.length}`] : [];
+    vibesEl.innerHTML = [...visible, ...extra].map(v=>`<span class="st-vibe">${escapeHtml(v)}</span>`).join('');
   }
   renderCreatorContextSources();
   const statusEl = document.getElementById('st-persona-refresh-status');
