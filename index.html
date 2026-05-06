@@ -298,6 +298,11 @@ body.logged-out #chat-view .chat-composer-auth{display:none}
 .chat-msg-body .inline-brand-grid .brand-deal{font-size:12px}
 .chat-msg-body .inline-brand-grid .outreach-btn{padding:6px 12px;font-size:9px}
 .chat-msg-body .inline-brand-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.chat-msg-body .inline-teaser-unlock{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+.chat-msg-body .inline-teaser-unlock span{font-size:11px;color:var(--muted)}
+.sample-card .outreach-btn,
+.sample-card .pulse-save-btn,
+.sample-card .pulse-draft-btn{cursor:pointer}
 /* Mobile: brand cards swipe horizontally instead of stacking */
 @media(max-width:560px){
   .chat-msg-body .inline-brand-grid{display:flex;grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;gap:10px;padding:2px 16px 8px;scrollbar-width:none;align-items:stretch}
@@ -3084,6 +3089,7 @@ function updateAuthUI(user){
   const igBtn = document.getElementById('ig-connect-btn');
   const navAccounts = document.getElementById('nav-accounts');
   document.body.classList.toggle('logged-out', !user);
+  if(user) clearLoggedOutTeasers();
   if(backToChat) backToChat.style.display = user ? '' : 'none';
   if(igBtn) igBtn.style.display = user ? '' : 'none';
   if(navAccounts) navAccounts.classList.toggle('hidden', !user);
@@ -3374,6 +3380,188 @@ function activeToolConfig(){
   return TOOL_CONFIG[chatState.activeTool] || TOOL_CONFIG.main;
 }
 
+function teaserNiche(){
+  return detectCreatorNiche(state.igData || {}, state.persona || null);
+}
+
+function samplePulseIdeas(){
+  const sets = {
+    fitness: [
+      { title: 'The 3-move reset I would film today', hook: 'Open with the mistake most people make, then show the cleaner version in 20 seconds.', trend: 'hot', match: 94, persona: ['Fitness', 'Wellness'], format: 'Reel', estReach: '18K-42K', platform: 'IG', cat: 'reels', tags: ['routine', 'coach'] },
+      { title: 'A realistic week of training decisions', hook: 'Turn your actual schedule into a carousel that explains what you skipped, kept, and changed.', trend: 'rising', match: 91, persona: ['Lifestyle', 'Fitness'], format: 'Carousel', estReach: '9K-24K', platform: 'IG', cat: 'carousel', tags: ['behind the scenes'] },
+      { title: 'Gym bag product audit', hook: 'Rank the products you would rebuy, skip, or only use on shoot days.', trend: 'steady', match: 88, persona: ['Wellness'], format: 'Reel', estReach: '12K-30K', platform: 'IG', cat: 'reels', tags: ['gear'] },
+      { title: 'Client myth vs. reality', hook: 'Use one common audience misconception as the setup, then correct it with receipts.', trend: 'new', match: 86, persona: ['Education'], format: 'Story', estReach: '6K-15K', platform: 'IG', cat: 'story', tags: ['myth'] },
+    ],
+    beauty: [
+      { title: 'One product, three real-life lighting tests', hook: 'Show the same look in bathroom, window, and outdoor light before giving the verdict.', trend: 'hot', match: 93, persona: ['Beauty', 'Lifestyle'], format: 'Reel', estReach: '16K-38K', platform: 'IG', cat: 'reels', tags: ['review'] },
+      { title: 'The routine step I stopped overthinking', hook: 'Start with the old routine, cut to the simpler version, then explain what changed.', trend: 'rising', match: 90, persona: ['Beauty'], format: 'Carousel', estReach: '8K-22K', platform: 'IG', cat: 'carousel', tags: ['routine'] },
+      { title: 'GRWM with a decision point', hook: 'Let the audience choose between two styling directions and save the reveal for the end.', trend: 'steady', match: 87, persona: ['Style'], format: 'Reel', estReach: '11K-28K', platform: 'IG', cat: 'reels', tags: ['grwm'] },
+      { title: 'Trend I would adapt, not copy', hook: 'Call out the trend, then show the version that actually fits your lane.', trend: 'new', match: 85, persona: ['Aesthetic'], format: 'Reel', estReach: '7K-18K', platform: 'IG', cat: 'reels', tags: ['trend'] },
+    ],
+    business: [
+      { title: 'The positioning mistake costing creators deals', hook: 'Name the mistake in the first sentence, then rewrite the pitch live.', trend: 'hot', match: 94, persona: ['Business', 'Strategy'], format: 'Reel', estReach: '14K-32K', platform: 'IG', cat: 'reels', tags: ['strategy'] },
+      { title: 'My rate-card logic in five slides', hook: 'Turn pricing into a simple framework a brand manager can understand fast.', trend: 'rising', match: 91, persona: ['Education'], format: 'Carousel', estReach: '8K-21K', platform: 'IG', cat: 'carousel', tags: ['pricing'] },
+      { title: 'Brand email teardown', hook: 'Blur the sender, show the ask, and explain what you would negotiate before saying yes.', trend: 'steady', match: 88, persona: ['Creator business'], format: 'Reel', estReach: '10K-26K', platform: 'IG', cat: 'reels', tags: ['deals'] },
+      { title: 'The 15-minute content planning sprint', hook: 'Show the exact notes-to-post workflow instead of talking about productivity abstractly.', trend: 'new', match: 86, persona: ['Workflow'], format: 'Story', estReach: '5K-14K', platform: 'IG', cat: 'story', tags: ['planning'] },
+    ],
+    default: [
+      { title: 'The honest version of a polished moment', hook: 'Start with the final shot, then reveal the messy decision that made it work.', trend: 'hot', match: 92, persona: ['Lifestyle', 'Voice'], format: 'Reel', estReach: '12K-34K', platform: 'IG', cat: 'reels', tags: ['story'] },
+      { title: 'Three things I would repeat from this week', hook: 'Make a saveable carousel from what performed, what surprised you, and what you would change.', trend: 'rising', match: 89, persona: ['Content pillars'], format: 'Carousel', estReach: '7K-20K', platform: 'IG', cat: 'carousel', tags: ['weekly'] },
+      { title: 'A mini guide from one follower question', hook: 'Answer a real audience question, then turn the answer into a repeatable checklist.', trend: 'steady', match: 87, persona: ['Education'], format: 'Reel', estReach: '9K-24K', platform: 'IG', cat: 'reels', tags: ['q&a'] },
+      { title: 'The brand-fit test I use before saying yes', hook: 'Give your audience the simple filter behind the partnerships you would actually take.', trend: 'new', match: 85, persona: ['Brand fit'], format: 'Story', estReach: '5K-16K', platform: 'IG', cat: 'story', tags: ['deals'] },
+    ],
+  };
+  return sets[teaserNiche()] || sets.default;
+}
+
+function sampleBrandMatches(){
+  const sets = {
+    fitness: [
+      { name: 'Alo Yoga', cat: 'Activewear', domain: 'aloyoga.com', match: 94, deal: '$3K-$8K', pitch_angle: 'Lead with practical movement content that still feels premium.', reasons: ['Wellness audience fit', 'Reel-friendly products', 'Lifestyle crossover'] },
+      { name: 'Liquid I.V.', cat: 'Hydration', domain: 'liquid-iv.com', match: 91, deal: '$2K-$6K', pitch_angle: 'Pitch routine-based integrations before and after workouts.', reasons: ['Routine placement', 'High repeat use', 'Easy story series'] },
+      { name: 'Oura', cat: 'Wearables', domain: 'ouraring.com', match: 88, deal: '$4K-$10K', pitch_angle: 'Connect recovery data to real creator lifestyle decisions.', reasons: ['Wellness credibility', 'Premium audience', 'Data-led hook'] },
+      { name: 'Thrive Market', cat: 'Wellness grocery', domain: 'thrivemarket.com', match: 85, deal: '$2K-$5K', pitch_angle: 'Build around weekly staples and healthy swaps.', reasons: ['Home routine fit', 'Repeatable content', 'Broad audience'] },
+    ],
+    beauty: [
+      { name: 'Glossier', cat: 'Beauty', domain: 'glossier.com', match: 93, deal: '$3K-$8K', pitch_angle: 'Anchor the pitch in approachable, real-life beauty routines.', reasons: ['Routine-friendly', 'Strong aesthetic fit', 'UGC-ready'] },
+      { name: 'Merit', cat: 'Clean beauty', domain: 'meritbeauty.com', match: 90, deal: '$3K-$7K', pitch_angle: 'Pitch simple before/after looks with a premium tone.', reasons: ['Minimal routine fit', 'High save value', 'Beauty audience'] },
+      { name: 'Summer Fridays', cat: 'Skincare', domain: 'summerfridays.com', match: 88, deal: '$2K-$6K', pitch_angle: 'Use honest routine testing instead of a straight product plug.', reasons: ['Skincare overlap', 'Lifestyle content', 'Aesthetic packaging'] },
+      { name: 'Reformation', cat: 'Fashion', domain: 'thereformation.com', match: 85, deal: '$3K-$9K', pitch_angle: 'Connect outfit decisions to creator lifestyle moments.', reasons: ['Style crossover', 'Premium positioning', 'Carousel-friendly'] },
+    ],
+    business: [
+      { name: 'Notion', cat: 'Productivity', domain: 'notion.so', match: 94, deal: '$3K-$8K', pitch_angle: 'Show the creator operating system behind planning, pitching, and delivery.', reasons: ['Workflow audience', 'Tutorial-friendly', 'Creator business fit'] },
+      { name: 'Canva', cat: 'Design tools', domain: 'canva.com', match: 91, deal: '$2K-$7K', pitch_angle: 'Build around fast campaign assets and content templates.', reasons: ['Creator tool fit', 'Educational hook', 'Broad utility'] },
+      { name: 'Later', cat: 'Social tools', domain: 'later.com', match: 88, deal: '$2K-$6K', pitch_angle: 'Pitch a planning workflow that turns ideas into scheduled posts.', reasons: ['Platform-native', 'Workflow proof', 'Clear demo'] },
+      { name: 'ConvertKit', cat: 'Creator email', domain: 'convertkit.com', match: 86, deal: '$3K-$8K', pitch_angle: 'Tie sponsorship independence to owned-audience strategy.', reasons: ['Creator monetization', 'Strategic angle', 'High-intent audience'] },
+    ],
+    default: [
+      { name: 'Away', cat: 'Travel', domain: 'awaytravel.com', match: 91, deal: '$3K-$9K', pitch_angle: 'Build the pitch around real creator routines in motion.', reasons: ['Lifestyle fit', 'Visual product', 'Travel crossover'] },
+      { name: 'Seed', cat: 'Wellness', domain: 'seed.com', match: 89, deal: '$3K-$7K', pitch_angle: 'Lead with habit-building content instead of a one-off product mention.', reasons: ['Routine fit', 'Premium audience', 'Education angle'] },
+      { name: 'Shopify', cat: 'Creator commerce', domain: 'shopify.com', match: 87, deal: '$4K-$10K', pitch_angle: 'Connect the creator audience to launching and selling directly.', reasons: ['Creator business fit', 'Strong value prop', 'Educational content'] },
+      { name: 'Mejuri', cat: 'Jewelry', domain: 'mejuri.com', match: 84, deal: '$2K-$6K', pitch_angle: 'Use everyday styling moments rather than a hard product review.', reasons: ['Lifestyle placement', 'Giftable product', 'Aesthetic fit'] },
+    ],
+  };
+  return sets[teaserNiche()] || sets.default;
+}
+
+function teaserTrendClass(trend){
+  return String(trend || 'new').replace(/[^a-z0-9_-]/gi, '') || 'new';
+}
+
+function teaserTrendLabel(trend){
+  return {hot:'Hot',rising:'Rising',steady:'Steady',new:'New'}[trend] || trend || 'New';
+}
+
+function samplePulseCardHtml(idea, i){
+  return `
+    <div class="pulse-card fade-up sample-card${i>=2?' is-locked':''}" style="animation-delay:${i*60}ms">
+      <div class="pulse-trend-badge ${escapeHtml(teaserTrendClass(idea.trend))}">${escapeHtml(teaserTrendLabel(idea.trend))}</div>
+      <div class="pulse-idea-title">${escapeHtml(idea.title || '')}</div>
+      <div class="pulse-idea-hook">${escapeHtml(idea.hook || '')}</div>
+      <div class="pulse-persona-match">
+        <div class="match-score">${escapeHtml(String(idea.match || ''))}%</div>
+        <div class="match-text">persona match, aligns with <strong style="color:var(--text)">${escapeHtml((idea.persona||[]).join(' + '))}</strong></div>
+      </div>
+      <div class="pulse-meta">
+        <div class="pulse-meta-item">Format: <span class="val">${escapeHtml(idea.format || '')}</span></div>
+        <div class="pulse-meta-item">Est. reach: <span class="val">${escapeHtml(idea.estReach || '')}</span></div>
+        <div class="pulse-meta-item">Platform: <span class="val">${escapeHtml(idea.platform || '')}</span></div>
+      </div>
+      <div class="pulse-tags">${(idea.tags||[]).map(t=>`<span class="pulse-tag">${escapeHtml(t)}</span>`).join('')}${(idea.persona||[]).map(p=>`<span class="pulse-tag persona">${escapeHtml(p)}</span>`).join('')}</div>
+      <div class="pulse-actions">
+        <button class="pulse-save-btn" onclick="signInWithGoogle()">${iconCalendar()}Save</button>
+        <button class="pulse-draft-btn" onclick="signInWithGoogle()">${iconScript()}Script</button>
+      </div>
+    </div>`;
+}
+
+function sampleBrandCardHtml(brand, i){
+  const safeMatch = Math.max(0, Math.min(100, Number(brand.match) || 0));
+  const initial = escapeHtml((brand.name || '?')[0]).toUpperCase();
+  const logoMarkup = brand.domain
+    ? `<img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(brand.domain)}&sz=128" alt="${escapeHtml(brand.name || '')}" onerror="this.parentElement.style.background='var(--card2)';this.parentElement.textContent='${initial}'">`
+    : initial;
+  return `
+    <div class="brand-card fade-up sample-card${i>=2?' is-locked':''}" style="animation-delay:${i*80}ms">
+      <div class="brand-head">
+        <div class="brand-info">
+          <div class="brand-logo" style="background:#fff;border:1px solid var(--border2);color:var(--gold)">${logoMarkup}</div>
+          <div><div class="brand-name">${escapeHtml(brand.name || '')}</div><div class="brand-cat">${escapeHtml(brand.cat || '')}</div></div>
+        </div>
+        <div class="match-meter"><div class="match-meter-ring" style="--deg:${safeMatch*3.6}deg"></div><div class="match-meter-inner"><span class="match-meter-val">${safeMatch}</span><span class="match-meter-lbl">Match</span></div></div>
+      </div>
+      ${brandTrustHtml(brand)}
+      <div class="brand-reasons">${(brand.reasons||[]).slice(0,3).map(r=>`<div class="brand-reason"><span class="chk">✓</span>${escapeHtml(r)}</div>`).join('')}</div>
+      <div class="brand-footer">
+        <div class="brand-deal">${escapeHtml(brand.deal || '')}</div>
+        <div class="brand-actions">
+          <button class="outreach-btn primary" onclick="signInWithGoogle()">Draft Pitch</button>
+          <button class="outreach-btn secondary" onclick="signInWithGoogle()">Pipeline</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderLoggedOutInlineToolTeaser(body, tool){
+  if(!document.body.classList.contains('logged-out') || !body) return;
+  if(tool === 'create'){
+    body.insertAdjacentHTML('beforeend', `
+      <div class="inline-preview">
+        <div class="inline-preview-grid inline-pulse-grid">${samplePulseIdeas().map(samplePulseCardHtml).join('')}</div>
+      </div>
+      <div class="inline-teaser-unlock"><span>Unlock the full idea board, script drafts, and calendar saves.</span><button class="tool-chip" type="button" onclick="signInWithGoogle()">Sign in</button></div>
+    `);
+  } else if(tool === 'pitch'){
+    body.insertAdjacentHTML('beforeend', `
+      <div class="inline-preview">
+        <div class="inline-preview-grid inline-brand-grid">${sampleBrandMatches().map(sampleBrandCardHtml).join('')}</div>
+      </div>
+      <div class="inline-teaser-unlock"><span>Unlock the full brand list, outreach drafts, and pipeline tracking.</span><button class="tool-chip" type="button" onclick="signInWithGoogle()">Sign in</button></div>
+    `);
+  }
+}
+
+function clearLoggedOutTeasers(){
+  const brandsGrid = document.getElementById('brands-result');
+  if(brandsGrid?.dataset?.teaser === 'true' && !state.brandsGen){
+    brandsGrid.innerHTML = '';
+    brandsGrid.classList.add('hidden');
+    delete brandsGrid.dataset.teaser;
+    document.getElementById('brands-cta')?.classList.remove('hidden');
+  }
+  const pulseGrid = document.getElementById('pulse-grid');
+  if(pulseGrid?.dataset?.teaser === 'true' && !state.pulseGen){
+    pulseGrid.innerHTML = '';
+    delete pulseGrid.dataset.teaser;
+    document.getElementById('pulse-result')?.classList.add('hidden');
+    document.getElementById('pulse-cta')?.classList.remove('hidden');
+  }
+}
+
+function renderLoggedOutBrandTeaser(){
+  if(!document.body.classList.contains('logged-out') || state.brandsGen) return;
+  document.getElementById('brands-cta')?.classList.add('hidden');
+  document.getElementById('brands-loading')?.classList.add('hidden');
+  const grid = document.getElementById('brands-result');
+  if(!grid) return;
+  grid.dataset.teaser = 'true';
+  grid.classList.remove('hidden');
+  grid.innerHTML = sampleBrandMatches().map(sampleBrandCardHtml).join('');
+}
+
+function renderLoggedOutPulseTeaser(){
+  if(!document.body.classList.contains('logged-out') || state.pulseGen) return;
+  document.getElementById('pulse-cta')?.classList.add('hidden');
+  document.getElementById('pulse-loading')?.classList.add('hidden');
+  document.getElementById('pulse-result')?.classList.remove('hidden');
+  const filters = document.getElementById('pulse-filters');
+  if(filters) filters.innerHTML = '';
+  const grid = document.getElementById('pulse-grid');
+  if(!grid) return;
+  grid.dataset.teaser = 'true';
+  grid.innerHTML = samplePulseIdeas().map(samplePulseCardHtml).join('');
+}
+
 function showChatView(tool){
   // tool is optional. Undefined = keep current.
   document.getElementById('intro-screen')?.remove();
@@ -3461,6 +3649,7 @@ function renderToolGreeting(){
   body?.querySelectorAll('.tool-chip').forEach(btn => {
     btn.addEventListener('click', () => useToolChip(btn.dataset.chip || ''));
   });
+  renderLoggedOutInlineToolTeaser(body, chatState.activeTool);
 }
 
 function useToolChip(text){
@@ -5538,6 +5727,8 @@ function switchTab(id){
   document.querySelectorAll('#nav .nav-btn').forEach(b=>{b.classList.toggle('active',b.dataset.tab===id)});
   ['persona','brands','pulse','pipeline','accounts','settings'].forEach(t=>{document.getElementById('tab-'+t)?.classList.toggle('hidden',t!==id)});
   if(id === 'settings') openSettingsSection(stCurrentSection || 'profile');
+  if(id === 'brands') renderLoggedOutBrandTeaser();
+  if(id === 'pulse') renderLoggedOutPulseTeaser();
   // Mobile header title, replaces the hidden logo text + nav so the user
   // always knows which surface they're on. Desktop uses the inline nav.
   const TAB_TITLES = { persona: 'Analytics', pulse: 'Create', brands: 'Pitch', pipeline: 'Pipeline', accounts: 'Connect', settings: 'Settings' };
