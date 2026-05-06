@@ -439,14 +439,14 @@ Rules:
   const response = frames.length
     ? frames.map((f, i) => {
       const lines = [
-        `${i + 1}. ${f.name || 'Frame'}`,
-        f.hook ? `Hook:\n${f.hook}` : null,
-        f.execution ? `Execution:\n${f.execution}` : null,
-        f.twist ? `Twist:\n${f.twist}` : null,
-        f.why_it_works ? `Why it works:\n${f.why_it_works}` : null,
-        f.caption ? `Caption punch:\n${f.caption}` : null,
+        `### ${i + 1}. ${f.name || 'Frame'}`,
+        f.hook ? `**Hook:** ${f.hook}` : null,
+        f.execution ? `**Execution:** ${f.execution}` : null,
+        f.twist ? `**Twist:** ${f.twist}` : null,
+        f.why_it_works ? `**Why it works:** ${f.why_it_works}` : null,
+        f.caption ? `**Caption punch:** ${f.caption}` : null,
       ].filter(Boolean);
-      return lines.join('\n\n');
+      return lines.join('\n');
     }).join('\n\n')
     : 'This is a premise-framing request, not a generic idea-card request. Keep the supplied premise and develop hooks, execution, twist, why it works, and caption punch.';
   return { stage: 'premise_framing', frames, response };

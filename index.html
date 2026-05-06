@@ -159,6 +159,9 @@ body.in-tool .nav{display:none}
 .chat-msg-body .md-bullet-mark{color:var(--gold);flex-shrink:0;line-height:1.6;font-size:14px}
 .chat-msg-body .md-bullet-num{color:var(--muted);flex-shrink:0;font-variant-numeric:tabular-nums;min-width:18px;line-height:1.6}
 .chat-msg-body .md-bullet-text{flex:1;min-width:0}
+.chat-msg-body .md-field{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:start;margin:3px 0;line-height:1.55}
+.chat-msg-body .md-field-label{color:var(--gold);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;line-height:1.8;white-space:nowrap}
+.chat-msg-body .md-field-text{min-width:0;color:var(--text)}
 .chat-composer{border-top:1px solid var(--border);padding:16px 20px 20px;background:var(--bg);flex-shrink:0}
 .chat-composer-inner{max-width:720px;margin:0 auto}
 .chat-input-wrap{position:relative}
@@ -3605,7 +3608,11 @@ const TOOL_CONFIG = {
     placeholder: 'Ask Create…',
     headline: 'Plan the next thing worth posting.',
     greeting: 'I can turn trends, audience signals, and your content pillars into ideas you can actually shoot.',
-    chips: ['Find ideas for this week', 'Give me Reel hooks', 'Use my persona'],
+    chips: [
+      { label: 'Ideas from recent posts', prompt: 'Find ideas for this week using my recent posts, creator voice, and strongest content lanes.' },
+      { label: 'Reel hooks in my voice', prompt: 'Give me 5 Reel hooks in my voice, grounded in my recent themes and audience.' },
+      { label: 'Angles for my audience', prompt: 'Give me sharp content angles for my audience, using my agent memory and creator brief.' },
+    ],
   },
   pitch: {
     label: 'Pitch',
@@ -3878,9 +3885,11 @@ function setActiveTool(tool){
 function renderToolGreeting(){
   const cfg = activeToolConfig();
   if(!cfg.greeting) return;
-  const chipsHtml = (cfg.chips || []).map(c =>
-    `<button class="tool-chip" type="button" data-chip="${escapeHtml(c)}">${escapeHtml(c)}</button>`
-  ).join('');
+  const chipsHtml = (cfg.chips || []).map(c => {
+    const label = typeof c === 'string' ? c : (c.label || '');
+    const prompt = typeof c === 'string' ? c : (c.prompt || c.label || '');
+    return `<button class="tool-chip" type="button" data-chip="${escapeHtml(prompt)}">${escapeHtml(label)}</button>`;
+  }).join('');
   // Structured premium card for Create/Pitch first impression. Falls back
   // to a plain greeting paragraph if a tool ever skips the headline field.
   const cardHtml = cfg.headline
@@ -4317,9 +4326,11 @@ function renderMarkdown(text){
   html = html.replace(/^##\s+(.+)$/gm, '<div class="md-h2">$1</div>');
   html = html.replace(/^#\s+(.+)$/gm, '<div class="md-h1">$1</div>');
   // Bullet lists: lines starting with -, *, or • followed by a space.
-  html = html.replace(/^[-*•]\s+(.+)$/gm, '<div class="md-bullet"><span class="md-bullet-mark">•</span><span class="md-bullet-text">$1</span></div>');
+  html = html.replace(/^\s*[-*•]\s+(.+)$/gm, '<div class="md-bullet"><span class="md-bullet-mark">•</span><span class="md-bullet-text">$1</span></div>');
   // Numbered lists: lines starting with `N.` or `N)` followed by a space.
-  html = html.replace(/^(\d+)[.)]\s+(.+)$/gm, '<div class="md-bullet"><span class="md-bullet-num">$1.</span><span class="md-bullet-text">$2</span></div>');
+  html = html.replace(/^\s*(\d+)[.)]\s+(.+)$/gm, '<div class="md-bullet"><span class="md-bullet-num">$1.</span><span class="md-bullet-text">$2</span></div>');
+  // Creative answer fields, common in hook/framing output.
+  html = html.replace(/^\s*(Hook|Execution|Twist|Why it works|Caption punch|Caption|Format|Angle):\s*(.+)$/gmi, '<div class="md-field"><span class="md-field-label">$1</span><span class="md-field-text">$2</span></div>');
   // Bold: **text** (no newlines inside)
   html = html.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
   // Italic: *text* (not adjacent to another *, no newlines inside)
@@ -4330,8 +4341,8 @@ function renderMarkdown(text){
   html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   // Block elements have their own spacing, strip the surrounding newlines
   // so they don't compound with `white-space: pre-wrap` and create big gaps.
-  html = html.replace(/\n+(<div class="md-(?:h[1-3]|bullet)")/g, '$1');
-  html = html.replace(/(<\/div>)\n(?=<div class="md-(?:h[1-3]|bullet)")/g, '$1');
+  html = html.replace(/\n+(<div class="md-(?:h[1-3]|bullet|field)")/g, '$1');
+  html = html.replace(/(<\/div>)\n(?=<div class="md-(?:h[1-3]|bullet|field)")/g, '$1');
   html = html.replace(/(<\/div>)\n+(?!<)/g, '$1');
   html = html.replace(/\n+(<pre class="md-code")/g, '$1');
   html = html.replace(/(<\/pre>)\n+/g, '$1');
