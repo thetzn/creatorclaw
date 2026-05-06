@@ -18,6 +18,10 @@ import { Agent, run, tool, hostedMcpTool } from '@openai/agents';
 import { setOpenAIAPI } from '@openai/agents-openai';
 import { z } from 'zod';
 
+const MODEL_DEFAULT = 'gpt-4o-mini';
+const MODEL_CREATE = 'gpt-4o';
+const MODEL_MCP = 'gpt-4o';
+
 // Google Workspace MCP server (Gmail + Calendar). Self-hosted on Fly.io;
 // see google_workspace_mcp/. Bearer token comes from the user's stored
 // Google OAuth access token (refreshed by the Worker's getGoogleAccessToken
@@ -710,12 +714,10 @@ const AGENT_HANDOFF_DESCRIPTIONS = {
 //     so active and delegated invocations of the same role use IDENTICAL
 //     prompts, single source of truth lives in AGENT_INSTRUCTION_FALLBACKS.
 function buildAgentSet(googleMcp, sharedAgentContext) {
-  // Cost optimization: gpt-4o-mini is reliable enough for our function
-  // tools (rate, brands, ideas, deal-creation), but it hallucinated tool
-  // calls under hostedMcpTool (claimed "email sent" without firing the
-  // tool). Upgrade to gpt-4o only for agents that actually have the
-  // hosted MCP attached. Disconnected users + Create-only flows stay on
-  // mini (~10x cheaper).
+  // Cost optimization: most agents stay on mini unless they have hosted MCP
+  // attached. Create is the exception because ideation/framing is the
+  // product's first-impression reasoning surface, so keep it on the same
+  // stronger model as the structured Create engine in worker.js.
   const make = (name, attachGoogleMcp, extraTools) => {
     const tools = Object.values(TOOL_REGISTRY)
       .filter(reg => reg.agents.includes(name))
@@ -729,7 +731,7 @@ function buildAgentSet(googleMcp, sharedAgentContext) {
       : `${persona}\n\n${MEMORY_INSTRUCTIONS}`;
     return new Agent({
       name: name === 'main' ? 'CreatorClaw' : `CreatorClaw-${name}`,
-      model: willAttachMcp ? 'gpt-4o' : 'gpt-4o-mini',
+      model: name === 'create' ? MODEL_CREATE : (willAttachMcp ? MODEL_MCP : MODEL_DEFAULT),
       instructions,
       handoffDescription: AGENT_HANDOFF_DESCRIPTIONS[name],
       tools,

@@ -1,6 +1,7 @@
 /**
  * CreatorClaw, Cloudflare Worker
  * - Regular mode: Chat Completions API with gpt-4o-mini
+ * - Create mode: Chat Completions API with gpt-4o for higher-reasoning ideation
  * - Web search mode: Responses API with gpt-4o + web_search_preview
  * - IG scrape mode: Apify Instagram Profile Scraper → OpenAI interpretation
  * - Agents SDK spike: POST /v1/agents/test (validation only, see worker-agents.js)
@@ -15,6 +16,7 @@ const APIFY_IG_URL = 'https://api.apify.com/v2/acts/apify~instagram-profile-scra
 const APIFY_REEL_URL = 'https://api.apify.com/v2/acts/apify~instagram-reel-scraper/run-sync-get-dataset-items';
 const APIFY_TIKTOK_ACTOR = 'clockworks~tiktok-scraper';
 const MODEL = 'gpt-4o-mini';
+const MODEL_CREATE = 'gpt-4o';
 const MODEL_SEARCH = 'gpt-4o';
 
 // Supabase, anon key is public, safe to inline.
@@ -189,13 +191,14 @@ async function executeRateToolCall(toolCall, creatorContext, env) {
         return await generatePremiseFrames(args, creator, env);
       }
       const count = Math.max(1, Math.min(Number(args.count) || 4, 10));
+      const sharedCreateContext = String(creator.sharedAgentContext || '').trim();
       const sys = `You generate Instagram/TikTok content ideas for individual creators. Return ONLY JSON (no markdown), shaped:
 {"ideas":[{"title":"...","hook":"first 3-second hook","format":"reel|carousel|static|story-series","platform":"Instagram|TikTok","trend":"hot|rising|steady|new","match":85,"confidence":"high","persona":["Authentic","Relatable"],"estReach":"50K-150K","tags":["#tag1","#tag2"],"cat":"fitness|lifestyle|beauty|tech|wellness|other","sound":"Song Name, Artist (or empty string)","riff_from":"specific scraped post/theme this adapts","source_evidence":["Repeated hashtag #westernfashion","Top post caption: comment SEND..."]}]}
 Real, specific, and shippable. Each idea distinct. match is 70-99 reflecting fit to this creator. confidence is "high" or "medium"; do not include low-confidence ideas. trend reflects timeliness. cat powers UI filters, choose the closest value.
 
-Use the scraped Instagram recommendation context like retrieval evidence: riff from the creator's best-performing recent posts, repeated themes, visual style, format mix, hashtags, and reused audio. Ideas should feel like only this creator would post them, not generic niche templates. Avoid bland titles like "Morning Routine" unless tied to a specific observed pattern.
+Use the agent memory, creator style, and scraped Instagram recommendation context like retrieval evidence: riff from the creator's best-performing recent posts, repeated themes, visual style, format mix, hashtags, and reused audio. Creator-edited memory outranks scraped/public-source context when they conflict. Ideas should feel like only this creator would post them, not generic niche templates. Avoid bland titles like "Morning Routine" unless tied to a specific observed pattern.
 
-Every idea must cite two source_evidence strings copied or tightly paraphrased from the scraped context. At least one source_evidence item must be concrete: a repeated hashtag, @mention, location signal, or top-post caption/metric. Do not use only broad evidence like "Audience signals" or "Recent themes." Do not invent trends, audience facts, cities, or sounds that are absent from context. Do not output generic templates like "morning routine", "what's in my bag", "DIY decor", "coffee crawl", "day out in the city", "road trip", or "weekend vibes" unless the scraped context explicitly proves that exact pattern already works for this creator.
+Every idea must cite two source_evidence strings copied or tightly paraphrased from the creator brief or scraped context. At least one source_evidence item must be concrete: a repeated hashtag, @mention, location signal, or top-post caption/metric. Do not use only broad evidence like "Audience signals" or "Recent themes." Do not invent trends, audience facts, cities, or sounds that are absent from context. Do not output generic templates like "morning routine", "what's in my bag", "DIY decor", "coffee crawl", "day out in the city", "road trip", or "weekend vibes" unless the context explicitly proves that exact pattern already works for this creator.
 
 If the user supplied a specific premise and asked for framing, angles, hooks, or a viral-trend mechanic, this is NOT a fresh-ideas request. Return {"ideas":[]} and a "response" explaining that premise framing should be handled as frames.
 
@@ -207,7 +210,8 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
         creator.niche ? `Niche: ${creator.niche}` : null,
         creator.followers ? `Followers: ${creator.followers}` : null,
         creator.engagementPct ? `Engagement: ${creator.engagementPct}%` : null,
-        creator.recommendationContext ? `Scraped Instagram recommendation context:\n${String(creator.recommendationContext).slice(0, 3200)}` : null,
+        sharedCreateContext ? `Agent memory, style, and creator brief:\n${sharedCreateContext.slice(0, 5200)}` : null,
+        !sharedCreateContext && creator.recommendationContext ? `Scraped Instagram recommendation context:\n${String(creator.recommendationContext).slice(0, 3200)}` : null,
         topSoundsLines ? `Audios this creator has used before (use one of these by exact name when it fits the idea):\n${topSoundsLines}` : null,
         theme ? `Requested theme/angle: ${theme}` : null,
       ].filter(Boolean).join('\n');
@@ -217,7 +221,7 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.API_KEY },
         body: JSON.stringify({
-          model: MODEL,
+          model: MODEL_CREATE,
           temperature: 0.55,
 	          messages: [
 	            { role: 'system', content: sys },
@@ -383,11 +387,13 @@ async function generatePremiseFrames(args, creator, env) {
   const count = Math.max(1, Math.min(Number(args.count) || 3, 6));
   const premise = String(args.premise || args.theme || '').trim().slice(0, 1600);
   const theme = String(args.theme || '').trim().slice(0, 900);
+  const sharedCreateContext = String(creator?.sharedAgentContext || '').trim();
   const creatorBits = [
+    sharedCreateContext ? `Agent memory, style, and creator brief:\n${sharedCreateContext.slice(0, 4200)}` : null,
     creator?.niche ? `Creator niche: ${creator.niche}` : null,
     creator?.followers ? `Followers: ${creator.followers}` : null,
     creator?.engagementPct ? `Engagement: ${creator.engagementPct}%` : null,
-    creator?.recommendationContext ? `Creator context, use only if it sharpens the premise:\n${String(creator.recommendationContext).slice(0, 1600)}` : null,
+    !sharedCreateContext && creator?.recommendationContext ? `Creator context, use only if it sharpens the premise:\n${String(creator.recommendationContext).slice(0, 1600)}` : null,
   ].filter(Boolean).join('\n');
   const sys = `You are the Create specialist helping a creator sharpen a supplied content premise. Return ONLY JSON, no markdown:
 {"frames":[{"name":"UV Index Check Test","hook":"Ask your husband this one question and don't help him.","execution":"Wife asks what the UV index is today, then follows up with what does that actually mean?","twist":"He answers confidently, then reveals he has no idea if 9 is out of 10 or 100.","why_it_works":"It mirrors the viral trend mechanic: simple repeatable spouse test, confidence to confusion, audience wants to try it.","caption":"Men would rather guess than admit they don't know what UV index means."}]}
@@ -408,7 +414,7 @@ Rules:
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.API_KEY },
     body: JSON.stringify({
-      model: MODEL,
+      model: MODEL_CREATE,
       temperature: 0.75,
       messages: [
         { role: 'system', content: sys },
@@ -575,7 +581,10 @@ async function handleProductAction(body, env, origin, allowed) {
   try {
     let result;
     if (action === 'find_brand_matches' || action === 'generate_content_ideas') {
-      result = await executeRateToolCall({ function: { name: action, arguments: JSON.stringify(args || {}) } }, creatorContext, env);
+      const actionContext = action === 'generate_content_ideas'
+        ? { ...creatorContext, sharedAgentContext: body.sharedAgentContext || creatorContext.sharedAgentContext || '' }
+        : creatorContext;
+      result = await executeRateToolCall({ function: { name: action, arguments: JSON.stringify(args || {}) } }, actionContext, env);
     } else if (action === 'parse_pipeline_quick') {
       result = await parsePipelineQuickAction(args, env);
     } else if (action === 'draft_pitch') {
@@ -1788,7 +1797,10 @@ export default {
       const executeToolByName = async (name, args) => {
         const started = Date.now();
         const fakeToolCall = { function: { name, arguments: JSON.stringify(args || {}) } };
-        const result = await executeRateToolCall(fakeToolCall, body.creatorContext || {}, env);
+        const toolCreatorContext = name === 'generate_content_ideas'
+          ? { ...(body.creatorContext || {}), sharedAgentContext: body.sharedAgentContext || body.creatorContext?.sharedAgentContext || '' }
+          : (body.creatorContext || {});
+        const result = await executeRateToolCall(fakeToolCall, toolCreatorContext, env);
         console.log('[tool-metric]', JSON.stringify({ name, ok: !result?.error, ms: Date.now() - started }));
         return result;
       };
