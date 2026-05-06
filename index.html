@@ -936,7 +936,10 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .st-fact-row:only-child{border-radius:9px}
 .st-fact-key{font-size:11px;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;min-width:140px;flex-shrink:0;padding-top:2px}
 .st-fact-val{flex:1;font-size:13px;color:var(--text);line-height:1.5}
+.st-fact-val ul{margin:4px 0 0 18px;padding:0}
+.st-fact-val li{margin:3px 0}
 .st-fact-cat{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:2px 7px;border-radius:999px;border:1px solid var(--border2);color:var(--muted);white-space:nowrap;margin-top:2px}
+.st-fact-cat.source{color:var(--gold);border-color:var(--gold-border)}
 .st-fact-actions{display:flex;gap:6px;flex-shrink:0}
 .st-fact-btn{background:transparent;border:none;cursor:pointer;padding:3px 6px;border-radius:5px;color:var(--muted);font-size:11px;transition:color 0.12s,background 0.12s}
 .st-fact-btn:hover{color:var(--text);background:var(--border)}
@@ -1922,24 +1925,46 @@ async function submitBugReport(){
 function agentPersonaSuggestion(){
   const p = state.persona || {};
   const d = state.igData || {};
+  const cr = d.creatorResearch || {};
+  const clean = v => String(v || '').replace(/\s+/g, ' ').trim();
+  const list = (arr, limit = 4) => Array.isArray(arr) ? arr.map(clean).filter(Boolean).slice(0, limit) : [];
   const vibes = (p.vibes||[]).join(', ');
   const pillars = (p.pillars||[]).map(x=>typeof x==='string'?x:x.l||x.label).filter(Boolean).join(', ');
+  const knownFor = list(cr.knownFor, 4);
+  const audienceNotes = list(cr.audienceNotes, 3);
+  const contentAngles = list(cr.contentAngles, 4);
+  const brandSafety = list(cr.brandSafetyNotes, 3);
+  const summary = clean(cr.summary || p.bio || d.bio);
   const lines = [];
-  lines.push('You are a candid, warm, strategic creative partner.');
+  lines.push('You are the creator’s strategic operator: sharp, candid, useful, and grounded in their actual public footprint.');
+  if(summary) lines.push('Core read: ' + summary);
+  if(knownFor.length) lines.push('Public identity: ' + knownFor.join('; ') + '.');
   if(vibes) lines.push('Match this voice: ' + vibes + '.');
   if(pillars) lines.push('Stay grounded in these content pillars: ' + pillars + '.');
-  lines.push('Be concise. Offer specifics over generalities. When drafting, write in the creator’s own register, not corporate, not breathless.');
-  lines.push('Push back politely if an idea dilutes their brand. Never invent metrics.');
-  return lines.join(' ');
+  if(audienceNotes.length) lines.push('Audience model: ' + audienceNotes.join('; ') + '.');
+  if(contentAngles.length) lines.push('Strong lanes: ' + contentAngles.join('; ') + '.');
+  if(brandSafety.length) lines.push('Boundaries: ' + brandSafety.join('; ') + '.');
+  lines.push('When drafting, write in the creator’s public register, not corporate and not breathless. Be concise, specific, and opinionated enough to be useful.');
+  lines.push('Push back politely if an idea dilutes the brand. Never invent metrics. Keep Instagram scrape data separate from supplemental public-source context.');
+  return lines.join('\n').slice(0, AGENT_PERSONA_MAX);
+}
+
+function isGeneratedAgentPersona(text){
+  const s = String(text || '').trim();
+  if(!s) return true;
+  return s.startsWith('You are a candid, warm, strategic creative partner.')
+    || s.startsWith('You are the creator’s strategic operator:')
+    || s.startsWith("You are the creator's strategic operator:");
 }
 
 function hasCreatorPersonaForAgent(){
   const p = state.persona || {};
-  return !!(p.name || p.bio || (p.vibes||[]).length || (p.pillars||[]).length);
+  const d = state.igData || {};
+  return !!(p.name || p.bio || (p.vibes||[]).length || (p.pillars||[]).length || d.creatorResearch?.summary);
 }
 
 function ensureAgentPersonaFromPersona(options = {}){
-  if(state.agent.persona) return state.agent.persona;
+  if(state.agent.persona && !(options.refreshGenerated && isGeneratedAgentPersona(state.agent.persona))) return state.agent.persona;
   if(!hasCreatorPersonaForAgent()) return '';
   const suggestion = agentPersonaSuggestion();
   if(!suggestion) return '';
@@ -2350,24 +2375,42 @@ function stRenderMemory(){
   const body = document.getElementById('st-memory-body');
   if(!body) return;
   const p = state.persona || {};
+  const d = state.igData || {};
+  const cr = d.creatorResearch || {};
+  const clean = v => String(v || '').replace(/\s+/g, ' ').trim();
+  const listVal = arr => Array.isArray(arr) ? arr.map(clean).filter(Boolean).join('\n') : '';
   const profileSnippets = [];
   if(p.bio) profileSnippets.push({ key: 'bio', value: p.bio, cat: 'profile', readonly: true });
   const pillars = (p.pillars||[]).map(x=>typeof x==='string'?x:x.l||x.label).filter(Boolean);
   if(pillars.length) profileSnippets.push({ key: 'content_pillars', value: pillars.join(', '), cat: 'profile', readonly: true });
+  if((p.vibes||[]).length) profileSnippets.push({ key: 'voice_vibes', value: (p.vibes||[]).join(', '), cat: 'profile', readonly: true });
+  if(cr.summary) profileSnippets.push({ key: 'public_context', value: cr.summary, cat: 'public sources', readonly: true, source: true });
+  const knownFor = listVal(cr.knownFor);
+  if(knownFor) profileSnippets.push({ key: 'known_for', value: knownFor, cat: 'public sources', readonly: true, source: true, list: true });
+  const audienceNotes = listVal(cr.audienceNotes);
+  if(audienceNotes) profileSnippets.push({ key: 'audience_model', value: audienceNotes, cat: 'public sources', readonly: true, source: true, list: true });
+  const contentAngles = listVal(cr.contentAngles);
+  if(contentAngles) profileSnippets.push({ key: 'strong_content_lanes', value: contentAngles, cat: 'public sources', readonly: true, source: true, list: true });
+  const brandSafety = listVal(cr.brandSafetyNotes);
+  if(brandSafety) profileSnippets.push({ key: 'brand_safety', value: brandSafety, cat: 'public sources', readonly: true, source: true, list: true });
+  if(d.recommendationContext) profileSnippets.push({ key: 'scraped_signal_context', value: String(d.recommendationContext).slice(0, 700), cat: 'scrape', readonly: true });
   const allRows = [...profileSnippets, ...stFactsCache.map(f=>({ key: f.key, value: f.value, cat: f.category, id: f.id, readonly: false }))];
   if(!allRows.length){
     body.innerHTML = '<div class="st-fact-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Nothing stored yet. Your agent learns as you chat.</div>';
     return;
   }
+  const renderFactValue = r => r.list
+    ? '<ul>' + String(r.value).split('\n').filter(Boolean).map(x=>`<li>${esc(x)}</li>`).join('') + '</ul>'
+    : esc(r.value);
   body.innerHTML = '<div class="st-fact-list">' + allRows.map(r=>`
     <div class="st-fact-row" data-key="${esc(r.key)}">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
           <span class="st-fact-key">${esc(r.key.replace(/_/g,' '))}</span>
-          <span class="st-fact-cat">${esc(r.cat)}</span>
-          ${r.readonly ? '<span class="st-fact-cat" style="color:var(--gold);border-color:var(--gold-border)">from profile</span>' : ''}
+          <span class="st-fact-cat${r.source ? ' source' : ''}">${esc(r.cat)}</span>
+          ${r.readonly ? `<span class="st-fact-cat${r.source ? ' source' : ''}">${r.source ? 'source-backed' : 'from profile'}</span>` : ''}
         </div>
-        <div class="st-fact-val">${esc(r.value)}</div>
+        <div class="st-fact-val">${renderFactValue(r)}</div>
       </div>
       ${r.readonly ? '' : `<div class="st-fact-actions">
         <button class="st-fact-btn" onclick="startEditFact('${esc(r.key)}','${esc(r.value.replace(/'/g,"\\'"))}','${r.id}')">Edit</button>
@@ -2438,7 +2481,7 @@ function stLoadAgentPersona(){
   const nameEl = document.getElementById('st-agent-name');
   const instrEl = document.getElementById('st-agent-instructions');
   if(nameEl) nameEl.value = state.agent.name || '';
-  if(instrEl) instrEl.value = ensureAgentPersonaFromPersona({ persist: true }) || '';
+  if(instrEl) instrEl.value = ensureAgentPersonaFromPersona({ persist: true, refreshGenerated: true }) || '';
 }
 
 function stPrefillPersona(){
@@ -6342,7 +6385,7 @@ Use Instagram scrape data as the primary source for current content style, audie
       if(state.igData.engagementRate) data.avgEngagement=state.igData.engagementRate;
     }
     state.persona=data;
-    ensureAgentPersonaFromPersona();
+    ensureAgentPersonaFromPersona({ refreshGenerated: true });
     getCurrentUser()
       .then(user => {
         if(user && state.agent.persona) return saveAgentIdentity(state.agent.name || '', state.agent.persona);
