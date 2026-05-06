@@ -2320,6 +2320,8 @@ async function runIGScrapeLite(rawHandle, env, origin, allowed) {
     contextQuality: 'lite',
     _raw: { followers, following, posts: totalPosts, avgLikes, avgComments, private: !!p.private },
   };
+  const creatorResearch = await fetchCreatorResearchProfile(env, handle);
+  if (creatorResearch) profile.creatorResearch = creatorResearch;
   profile.recommendationContext = buildRecommendationContextServer(profile);
   if (profile.recommendationContext && profile.recommendationContext.length >= 260) {
     profile.contextQuality = 'signal';
@@ -2512,10 +2514,13 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   if (!p) {
     return json({ error: { message: 'Profile not found or is private' } }, 404, origin, allowed);
   }
-  const linkContext = await crawlCreatorLinks(p).catch(e => {
-    console.log('[links] crawl failed:', e && e.message);
-    return { sourceUrls: [], pages: [], outboundLinks: [], platforms: [], offers: [], tiktokCandidates: [], summary: '' };
-  });
+  const [linkContext, creatorResearch] = await Promise.all([
+    crawlCreatorLinks(p).catch(e => {
+      console.log('[links] crawl failed:', e && e.message);
+      return { sourceUrls: [], pages: [], outboundLinks: [], platforms: [], offers: [], tiktokCandidates: [], summary: '' };
+    }),
+    fetchCreatorResearchProfile(env, handle),
+  ]);
   const tiktokCandidate = Array.isArray(linkContext.tiktokCandidates) ? linkContext.tiktokCandidates[0] : null;
   const tiktokPromise = tiktokCandidate ? runTikTokProfileScrape(tiktokCandidate, env) : Promise.resolve(null);
 
@@ -2713,6 +2718,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
       topLocations.length ? `Locations tagged: ${topLocations.map(l => `${l.city}(${l.count})`).join(', ')}` : null,
       altCaptions.length ? `Image alt-text samples (IG auto-generated, describes visuals): ${altCaptions.slice(0, 6).map(a => `"${String(a).slice(0, 140)}"`).join(' | ')}` : null,
       topPosts.length ? `Top ${topPosts.length} engagement posts:\n${topPosts.map((t, i) => `${i + 1}. [${t.type || 'post'}] ${t.likes} likes, ${t.comments} comments${t.views ? ', ' + t.views + ' views' : ''}\n   Caption: ${String(t.caption).slice(0, 240)}${t.alt ? '\n   Visual: ' + t.alt : ''}`).join('\n')}` : null,
+      creatorResearch ? `Supplemental public context (source-backed; use only as supporting context, not Instagram performance data):\n${creatorResearchPromptBlock(creatorResearch)}` : null,
       transcripts.length ? `Reel transcripts, what the creator actually says on camera (${transcripts.length} reels):\n${transcripts.map((t, i) => `${i + 1}. ${t}`).join('\n---\n')}` : null,
       topSounds.length ? `Audio they reuse most (excluding original audio): ${topSounds.map(s => `"${s.song_name}", ${s.artist_name} (${s.count}×)`).join('; ')}` : null,
       captions ? `All recent captions (up to 25):\n${captions}` : null,
@@ -2882,6 +2888,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     baseLocation: interpretation.baseLocation || null,
     // Vision analysis of top-5 post thumbnails.
     aestheticProfile,
+    creatorResearch,
     // Reel scraper enrichment (Phase A, backend-only; UI surfaces in Phase B).
     topSounds,
     avgReelPlays,
@@ -3151,6 +3158,93 @@ function normalizeDomain(raw) {
   let s = String(raw || '').trim().toLowerCase();
   s = s.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].replace(/\/$/, '');
   return /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(s) ? s : '';
+}
+
+function normalizeIGHandle(raw) {
+  return String(raw || '')
+    .trim()
+    .replace(/^@/, '')
+    .replace(/^(https?:\/\/)?(www\.)?instagram\.com\//i, '')
+    .split(/[/?#]/)[0]
+    .toLowerCase();
+}
+
+function normalizeCreatorResearch(row) {
+  if (!row || !row.ig_handle || !row.summary) return null;
+  const arr = v => Array.isArray(v) ? v.map(x => String(x || '').trim()).filter(Boolean) : [];
+  const obj = v => v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+  return {
+    igHandle: row.ig_handle,
+    displayName: row.display_name || '',
+    summary: String(row.summary || '').trim(),
+    knownFor: arr(row.known_for),
+    audienceNotes: arr(row.audience_notes),
+    contentAngles: arr(row.content_angles),
+    brandSafetyNotes: arr(row.brand_safety_notes),
+    sourceUrls: Array.isArray(row.source_urls) ? row.source_urls : [],
+    sourceSummaries: obj(row.source_summaries),
+    confidence: row.confidence || 'medium',
+    lastResearchedAt: row.last_researched_at || null,
+  };
+}
+
+async function fetchCreatorResearchProfile(env, rawHandle) {
+  const handle = normalizeIGHandle(rawHandle);
+  if (!handle || !env.SUPABASE_SERVICE_ROLE_KEY) return null;
+  const select = [
+    'ig_handle',
+    'display_name',
+    'summary',
+    'known_for',
+    'audience_notes',
+    'content_angles',
+    'brand_safety_notes',
+    'source_urls',
+    'source_summaries',
+    'confidence',
+    'last_researched_at',
+  ].join(',');
+  try {
+    const r = await sbServiceFetch(
+      env,
+      `/creator_research_profiles?ig_handle=eq.${encodeURIComponent(handle)}&is_active=eq.true&select=${select}&limit=1`
+    );
+    if (!r.ok) {
+      if (r.status !== 404) {
+        const text = await r.text().catch(() => '');
+        console.log('[creator-research] lookup skipped:', r.status, text.slice(0, 180));
+      }
+      return null;
+    }
+    const rows = await r.json().catch(() => []);
+    return normalizeCreatorResearch(Array.isArray(rows) ? rows[0] : null);
+  } catch (e) {
+    console.log('[creator-research] lookup failed:', e && e.message);
+    return null;
+  }
+}
+
+function creatorResearchPromptBlock(research) {
+  if (!research?.summary) return '';
+  const clean = v => String(v || '').replace(/\s+/g, ' ').trim();
+  const lines = [
+    `Display name: ${clean(research.displayName || research.igHandle)}`,
+    `Summary: ${clean(research.summary)}`,
+  ];
+  if (Array.isArray(research.knownFor) && research.knownFor.length) lines.push(`Known for: ${research.knownFor.map(clean).join('; ')}`);
+  if (Array.isArray(research.audienceNotes) && research.audienceNotes.length) lines.push(`Audience notes: ${research.audienceNotes.map(clean).join('; ')}`);
+  if (Array.isArray(research.contentAngles) && research.contentAngles.length) lines.push(`Content angles: ${research.contentAngles.map(clean).join('; ')}`);
+  if (Array.isArray(research.brandSafetyNotes) && research.brandSafetyNotes.length) lines.push(`Brand-safety notes: ${research.brandSafetyNotes.map(clean).join('; ')}`);
+  const summaries = research.sourceSummaries && typeof research.sourceSummaries === 'object'
+    ? Object.entries(research.sourceSummaries).map(([k, v]) => `${k}: ${clean(v)}`).filter(Boolean)
+    : [];
+  if (summaries.length) lines.push(`Source summaries: ${summaries.join(' | ')}`);
+  const urls = Array.isArray(research.sourceUrls)
+    ? research.sourceUrls.map(s => clean(s?.url || s)).filter(Boolean).slice(0, 6)
+    : [];
+  if (urls.length) lines.push(`Sources: ${urls.join(' | ')}`);
+  lines.push(`Confidence: ${clean(research.confidence || 'medium')}`);
+  return lines.join('\n').slice(0, 2200);
 }
 
 async function getCachedBrandIntel(env, domain) {
@@ -4260,6 +4354,12 @@ function buildRecommendationContextServer(ig) {
     if (Array.isArray(a.visible_brands) && a.visible_brands.length) lines.push(`Visible/adjacent brands in visuals: ${a.visible_brands.map(clean).filter(Boolean).slice(0, 5).join(', ')}`);
     if (a.notes) lines.push(`Visual notes: ${clean(a.notes)}`);
   }
+  if (ig.creatorResearch?.summary) {
+    const block = creatorResearchPromptBlock(ig.creatorResearch);
+    if (block) {
+      lines.push(`Supplemental public context, source-backed and not Instagram performance data:\n${block}`);
+    }
+  }
   const postMix = ig.postMix || {};
   const mixBits = ['reel', 'carousel', 'image', 'video'].map(k => postMix[k] ? `${postMix[k]} ${k}` : null).filter(Boolean);
   if (mixBits.length) lines.push(`Recent format mix: ${mixBits.join(', ')}`);
@@ -4328,7 +4428,7 @@ function buildSharedAgentContextServer(personaRow) {
   if (ig.bio) parts.push(`Bio: "${ig.bio}"`);
   const recommendationContext = buildRecommendationContextServer(ig);
   if (recommendationContext) {
-    parts.push(`\n--- Recommendation grounding from scraped Instagram posts ---`);
+    parts.push(`\n--- Recommendation grounding from scraped posts and public context ---`);
     parts.push(recommendationContext);
   }
   parts.push(`\n--- Style ---`);

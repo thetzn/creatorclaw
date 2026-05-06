@@ -5128,7 +5128,7 @@ function buildSharedAgentContext(){
   if(d.bio) parts.push(`Bio: "${d.bio}"`);
   const recommendationContext = buildRecommendationContext();
   if(recommendationContext) {
-    parts.push(`\n--- Recommendation grounding from scraped Instagram posts ---`);
+    parts.push(`\n--- Recommendation grounding from scraped posts and public context ---`);
     parts.push(recommendationContext);
   }
 
@@ -5171,6 +5171,19 @@ function buildRecommendationContext(){
     if(bits.length) lines.push(`Visual style: ${bits.join('; ')}`);
     if(Array.isArray(a.visible_brands) && a.visible_brands.length) lines.push(`Visible/adjacent brands in visuals: ${a.visible_brands.map(clean).filter(Boolean).slice(0,5).join(', ')}`);
     if(a.notes) lines.push(`Visual notes: ${clean(a.notes)}`);
+  }
+  if(d.creatorResearch?.summary){
+    const cr = d.creatorResearch;
+    const crLines = [
+      `Summary: ${clean(cr.summary)}`,
+      Array.isArray(cr.knownFor) && cr.knownFor.length ? `Known for: ${cr.knownFor.map(clean).join('; ')}` : null,
+      Array.isArray(cr.audienceNotes) && cr.audienceNotes.length ? `Audience notes: ${cr.audienceNotes.map(clean).join('; ')}` : null,
+      Array.isArray(cr.contentAngles) && cr.contentAngles.length ? `Content angles: ${cr.contentAngles.map(clean).join('; ')}` : null,
+      Array.isArray(cr.brandSafetyNotes) && cr.brandSafetyNotes.length ? `Brand-safety notes: ${cr.brandSafetyNotes.map(clean).join('; ')}` : null,
+    ].filter(Boolean);
+    if(crLines.length){
+      lines.push(`Supplemental public context, source-backed and not Instagram performance data:\n${crLines.join('\n')}`);
+    }
   }
   const postMix = d.postMix || {};
   const mixBits = ['reel','carousel','image','video'].map(k => postMix[k] ? `${postMix[k]} ${k}` : null).filter(Boolean);
@@ -6311,10 +6324,12 @@ async function generatePersona(options = {}){
 
   const system=`Creator analyst. Return ONLY JSON, no markdown. Exact structure:
 {"name":"Name","bio":"One sentence bio.","score":87,"vibes":["Tag1","Tag2","Tag3","Tag4","Tag5"],"totalReach":"549K","avgEngagement":"5.3%","tier":"Rising Star","pillars":[{"l":"Fitness","p":40},{"l":"Lifestyle","p":30},{"l":"Beauty","p":20},{"l":"Other","p":10}]}
-pillars p must sum to 100. Keep 4-5 pillars.`;
+pillars p must sum to 100. Keep 4-5 pillars.
+Use Instagram scrape data as the primary source for current content style, audience, and performance. Use supplemental public context only to improve creator positioning, known content lanes, brand-safety notes, and non-Instagram background. Do not treat supplemental public context as current Instagram performance data.`;
 
   const stats=getConnectedStats();
-  const user=`${stats}\n\nPersona JSON:`;
+  const grounding = buildRecommendationContext();
+  const user=`${stats}${grounding ? `\n\nAdditional source-backed grounding:\n${grounding}` : ''}\n\nPersona JSON:`;
 
   try {
     const raw=await chatLLM(system,user);
