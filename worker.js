@@ -190,10 +190,12 @@ async function executeRateToolCall(toolCall, creatorContext, env) {
       }
       const count = Math.max(1, Math.min(Number(args.count) || 4, 10));
       const sys = `You generate Instagram/TikTok content ideas for individual creators. Return ONLY JSON (no markdown), shaped:
-{"ideas":[{"title":"...","hook":"first 3-second hook","format":"reel|carousel|static|story-series","platform":"Instagram|TikTok","trend":"hot|rising|steady|new","match":85,"persona":["Authentic","Relatable"],"estReach":"50K-150K","tags":["#tag1","#tag2"],"cat":"fitness|lifestyle|beauty|tech|wellness|other","sound":"Song Name, Artist (or empty string)"}]}
-Real, specific, and shippable. Each idea distinct. match is 60-99 reflecting fit to this creator. trend reflects timeliness. cat powers UI filters, choose the closest value.
+{"ideas":[{"title":"...","hook":"first 3-second hook","format":"reel|carousel|static|story-series","platform":"Instagram|TikTok","trend":"hot|rising|steady|new","match":85,"confidence":"high","persona":["Authentic","Relatable"],"estReach":"50K-150K","tags":["#tag1","#tag2"],"cat":"fitness|lifestyle|beauty|tech|wellness|other","sound":"Song Name, Artist (or empty string)","riff_from":"specific scraped post/theme this adapts","source_evidence":["Repeated hashtag #westernfashion","Top post caption: comment SEND..."]}]}
+Real, specific, and shippable. Each idea distinct. match is 70-99 reflecting fit to this creator. confidence is "high" or "medium"; do not include low-confidence ideas. trend reflects timeliness. cat powers UI filters, choose the closest value.
 
 Use the scraped Instagram recommendation context like retrieval evidence: riff from the creator's best-performing recent posts, repeated themes, visual style, format mix, hashtags, and reused audio. Ideas should feel like only this creator would post them, not generic niche templates. Avoid bland titles like "Morning Routine" unless tied to a specific observed pattern.
+
+Every idea must cite two source_evidence strings copied or tightly paraphrased from the scraped context. At least one source_evidence item must be concrete: a repeated hashtag, @mention, location signal, or top-post caption/metric. Do not use only broad evidence like "Audience signals" or "Recent themes." Do not invent trends, audience facts, cities, or sounds that are absent from context. Do not output generic templates like "morning routine", "what's in my bag", "DIY decor", "coffee crawl", "day out in the city", "road trip", or "weekend vibes" unless the scraped context explicitly proves that exact pattern already works for this creator.
 
 If the user supplied a specific premise and asked for framing, angles, hooks, or a viral-trend mechanic, this is NOT a fresh-ideas request. Return {"ideas":[]} and a "response" explaining that premise framing should be handled as frames.
 
@@ -216,7 +218,7 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.API_KEY },
         body: JSON.stringify({
           model: MODEL,
-          temperature: 0.8,
+          temperature: 0.55,
 	          messages: [
 	            { role: 'system', content: sys },
 	            { role: 'user', content: userPrompt },
@@ -237,6 +239,28 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
 	        ideas = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.ideas) ? parsed.ideas : []);
 	        if (!Array.isArray(ideas)) ideas = [];
 	      } catch { ideas = []; }
+      const ctxLower = String(creator.recommendationContext || '').toLowerCase();
+      const allowedSounds = new Set((Array.isArray(creator.topSounds) ? creator.topSounds : [])
+        .map(s => `${s.song_name || ''}, ${s.artist_name || ''}`.toLowerCase().replace(/\s+/g, ' ').trim())
+        .filter(Boolean));
+      const genericIdea = /\b(morning routine|what'?s in my bag|diy decor|coffee crawl|day out|weekend vibes|get ready with me|road trip)\b/i;
+      ideas = ideas.filter(idea => {
+        if (!idea || !idea.title || !idea.hook) return false;
+        const match = Number(idea.match) || 0;
+        const confidence = String(idea.confidence || '').toLowerCase();
+        const evidence = Array.isArray(idea.source_evidence) ? idea.source_evidence.filter(Boolean) : [];
+        if (confidence === 'low' || match < 70 || evidence.length < 2) return false;
+        if (evidence.some(x => /exact scraped signal|signal \d|evidence item|placeholder/i.test(String(x)))) return false;
+        const concreteEvidence = evidence.some(x => /#|@|top post|best-performing|likes|comments|location signal|repeated hashtag|comment send|boundar|kitchen floor|silly goose/i.test(String(x)));
+        if (!concreteEvidence) return false;
+        const title = String(idea.title || '');
+        if (genericIdea.test(title) && !evidence.some(ev => ctxLower.includes(String(ev).toLowerCase().slice(0, 24)))) return false;
+        if (idea.sound) {
+          const soundKey = String(idea.sound).toLowerCase().replace(/\s+/g, ' ').trim();
+          if (!allowedSounds.has(soundKey)) idea.sound = '';
+        }
+        return true;
+      });
       return { ideas: ideas.slice(0, count), count: ideas.length, theme };
     }
 
@@ -247,12 +271,12 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
       const preferenceContext = String(args.preferenceContext || '').trim();
       const exclude = Array.isArray(args.exclude) ? args.exclude.filter(Boolean).map(String).slice(0, 20) : [];
       const sys = `Brand matchmaker for individual creators. Return ONLY JSON, no markdown. Schema:
-{"brands":[{"name":"Gymshark","domain":"gymshark.com","match":92,"confidence":"high","cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"evidence":["Top posts skew fitness routines","Audience overlaps apparel buyers"],"pitch_angle":"30-day creator test around gym-to-street outfits","next_step":"Pitch one reel concept and ask for creator program contact","deal":"$2,500 - $5,000"}]}
-domain has no protocol or trailing slash. match 70-99. confidence is "high" or "medium"; do not include low-confidence brands. Exactly 3 reasons each. Exactly 2 evidence items, short and grounded in the scraped context. pitch_angle and next_step should be concrete. Order by match desc. Real, currently-active brands; avoid generic ones the creator already mentioned (those are existing relationships, not new leads).
+{"brands":[{"name":"Gymshark","domain":"gymshark.com","match":92,"confidence":"high","cat":"Fitness Apparel","category_fit":"fitness apparel is supported by repeated workout content","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"evidence":["Top posts skew fitness routines","Audience overlaps apparel buyers"],"fit_evidence":["Repeated hashtag #fitness","Top post metric: 42K reel views"],"pitch_angle":"30-day creator test around gym-to-street outfits","next_step":"Pitch one reel concept and ask for creator program contact","deal":"$2,500 - $5,000"}]}
+domain has no protocol or trailing slash. match 70-99. confidence is "high" or "medium"; do not include low-confidence brands. Exactly 3 reasons each. Exactly 2 evidence items and 2 fit_evidence items, short and grounded in the scraped context. pitch_angle and next_step should be concrete. Order by match desc. Real, currently-active brands; avoid generic ones the creator already mentioned (those are existing relationships, not new leads).
 
 Use the scraped Instagram recommendation context like retrieval evidence: match the creator's actual themes, top-performing post formats, visual style, audience/location signals, and brand orbit. Prefer less-obvious brands that fit the same audience and aesthetic tier.
 
-Trust rule: do not pad the list to hit the requested count. If fewer brands are defensible from the scraped context, return fewer brands. Avoid mass-market generic recommendations unless the creator evidence clearly points to that brand's category, buyer, and campaign style.`;
+Trust rule: do not pad the list to hit the requested count. If fewer brands are defensible from the scraped context, return fewer brands. Avoid mass-market generic recommendations unless the creator evidence clearly points to that brand's category, buyer, and campaign style. Never output placeholder evidence like "exact scraped signal 1"; fit_evidence must name real hashtags, posts, locations, mentions, or themes from the context.`;
       const ctxLines = [
         creator.niche ? `Niche: ${creator.niche}` : null,
         creator.followers ? `Followers: ${creator.followers}` : null,
@@ -301,9 +325,18 @@ Trust rule: do not pad the list to hit the requested count. If fewer brands are 
         const confidence = String(b.confidence || '').toLowerCase();
         const reasons = Array.isArray(b.reasons) ? b.reasons.filter(Boolean) : [];
         const evidence = Array.isArray(b.evidence) ? b.evidence.filter(Boolean) : [];
+        const fitEvidence = Array.isArray(b.fit_evidence) ? b.fit_evidence.filter(Boolean) : evidence;
+        const brandBag = `${b.name || ''} ${b.cat || ''} ${b.category_fit || ''} ${reasons.join(' ')}`.toLowerCase();
+        const contextBag = `${creator.niche || ''} ${creator.recommendationContext || ''}`.toLowerCase();
         if (confidence === 'low') return false;
         if (match < 70) return false;
-        return reasons.length >= 3 && evidence.length >= 2;
+        if (reasons.length < 3 || evidence.length < 2 || fitEvidence.length < 2) return false;
+        if ([...evidence, ...fitEvidence].some(x => /exact scraped signal|signal \d|evidence item|placeholder/i.test(String(x)))) return false;
+        if (/\b(yoga|fitness|wellness|athleisure|activewear|workout|gym|pilates|health)\b/.test(brandBag) &&
+            !/\b(yoga|fitness|wellness|athleisure|activewear|workout|gym|pilates|health)\b/.test(contextBag)) return false;
+        if (/\b(outdoor|hiking|camping|adventure|trail|travel gear)\b/.test(brandBag) &&
+            !/\b(outdoor|hiking|camping|adventure|trail|travel)\b/.test(contextBag)) return false;
+        return true;
       });
       return { brands: brands.slice(0, count), count: brands.length, theme };
     }
@@ -2255,6 +2288,10 @@ async function runIGScrapeLite(rawHandle, env, origin, allowed) {
   const engagementPct = followers > 0 ? ((avgLikes + avgComments) / followers) * 100 : 0;
   const picUrl = p.profilePicUrlHD || p.profilePicUrl || p.profile_pic_url_hd || p.profile_pic_url || null;
   const profilePicData = await fetchImageDataUrl(picUrl);
+  const signals = extractFastIGSignals(posts, likeOf, commentOf);
+  const liteThemes = inferFastThemes(p, signals);
+  const baseLocation = inferFastBaseLocation(p, signals);
+  const brandAffinities = signals.topMentions.slice(0, 6).map(m => m.name).filter(Boolean);
   const profile = {
     _lite: true,
     username: '@' + (p.username || handle),
@@ -2266,13 +2303,160 @@ async function runIGScrapeLite(rawHandle, env, origin, allowed) {
     totalPosts: formatIGCount(totalPosts),
     engagementRate: engagementPct > 0 ? (engagementPct < 1 ? engagementPct.toFixed(2) : engagementPct.toFixed(1)) + '%' : null,
     bio: p.biography || p.bio || null,
+    topCategory: inferFastCategory(p, signals),
+    recentThemes: liteThemes,
+    audienceHints: liteThemes.length ? `Audience signals point to ${liteThemes.slice(0, 3).map(x => x.toLowerCase()).join(', ')}.` : null,
+    brandAffinities,
+    baseLocation,
+    topHashtags: signals.topHashtags,
+    topMentions: signals.topMentions,
+    topLocations: signals.topLocations,
+    postMix: signals.postMix,
+    avgVideoViews: signals.avgVideoViews,
+    topPosts: signals.topPosts,
+    externalUrl: p.externalUrl || p.external_url || null,
+    businessCategoryName: p.businessCategoryName || null,
     verified: isIGVerified(p),
+    contextQuality: 'lite',
     _raw: { followers, following, posts: totalPosts, avgLikes, avgComments, private: !!p.private },
   };
+  profile.recommendationContext = buildRecommendationContextServer(profile);
+  if (profile.recommendationContext && profile.recommendationContext.length >= 260) {
+    profile.contextQuality = 'signal';
+  }
   console.log('[scrape-lite]', JSON.stringify({ handle, ms: Date.now() - started, posts: posts.length, hasPic: !!profilePicData }));
   return json({
     choices: [{ message: { role: 'assistant', content: JSON.stringify(profile) } }],
   }, 200, origin, allowed);
+}
+
+function extractFastIGSignals(posts, likeOf, commentOf) {
+  const hashtagPile = [];
+  const mentionPile = [];
+  const locationPile = [];
+  const typeCounts = { reel: 0, carousel: 0, image: 0, video: 0, other: 0 };
+  let totalVideoViews = 0;
+  let videoPostCount = 0;
+  const viewsOf = x => Number(x.videoViewCount || x.videoPlayCount || x.playsCount || 0);
+
+  for (const post of posts || []) {
+    const cap = String(post.caption || '');
+    const hashtags = Array.isArray(post.hashtags) && post.hashtags.length
+      ? post.hashtags.map(h => String(h).replace(/^#/, ''))
+      : (cap.match(/#[A-Za-z0-9_]+/g) || []).map(h => h.slice(1));
+    hashtagPile.push(...hashtags);
+
+    const mentions = Array.isArray(post.mentions) && post.mentions.length
+      ? post.mentions.map(m => String(m).replace(/^@/, ''))
+      : (cap.match(/@[A-Za-z0-9_.]+/g) || []).map(m => m.slice(1));
+    mentionPile.push(...mentions);
+
+    const loc = post.locationName || (post.location && post.location.name) || null;
+    if (loc) locationPile.push(String(loc));
+
+    const pt = String(post.productType || post.type || '').toLowerCase();
+    if (pt === 'clips' || pt === 'reel' || pt === 'igtv') typeCounts.reel++;
+    else if (pt === 'sidecar' || pt === 'carousel_album' || pt === 'carousel') typeCounts.carousel++;
+    else if (pt === 'video') typeCounts.video++;
+    else if (pt === 'image' || pt === 'feed' || pt === 'photo') typeCounts.image++;
+    else typeCounts.other++;
+
+    const views = viewsOf(post);
+    if (views > 0) {
+      totalVideoViews += views;
+      videoPostCount++;
+    }
+  }
+
+  const tally = arr => {
+    const counts = new Map();
+    for (const raw of arr) {
+      const key = String(raw || '').trim().toLowerCase();
+      if (!key) continue;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+  };
+
+  const locCounts = new Map();
+  for (const raw of locationPile) {
+    const key = String(raw || '').trim();
+    if (!key) continue;
+    locCounts.set(key, (locCounts.get(key) || 0) + 1);
+  }
+
+  const topPosts = [...(posts || [])]
+    .map(post => ({
+      post,
+      caption: String(post.caption || '').trim(),
+      alt: String(post.accessibilityCaption || post.alt || post.altText || '').trim(),
+      score: (likeOf(post) || 0) + (commentOf(post) || 0) * 3 + Math.round((viewsOf(post) || 0) / 250),
+    }))
+    .filter(x => x.caption || x.alt)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+    .map(({ post, caption, alt }) => ({
+      caption: caption.slice(0, 500),
+      likes: likeOf(post),
+      comments: commentOf(post),
+      views: viewsOf(post),
+      type: String(post.productType || post.type || ''),
+      alt: alt.slice(0, 240),
+      url: post.url || (post.shortCode ? 'https://instagram.com/p/' + post.shortCode : null),
+    }));
+
+  return {
+    topHashtags: tally(hashtagPile).slice(0, 14).map(([name, count]) => ({ name, count })),
+    topMentions: tally(mentionPile).slice(0, 10).map(([name, count]) => ({ name, count })),
+    topLocations: Array.from(locCounts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([city, count]) => ({ city, count })),
+    postMix: typeCounts,
+    avgVideoViews: videoPostCount ? Math.round(totalVideoViews / videoPostCount) : 0,
+    topPosts,
+  };
+}
+
+function inferFastThemes(profile, signals) {
+  const text = [
+    profile?.biography,
+    profile?.bio,
+    profile?.businessCategoryName,
+    ...(signals.topHashtags || []).map(h => h.name),
+    ...(signals.topPosts || []).map(p => p.caption),
+  ].join(' ').toLowerCase();
+  const themes = [];
+  const add = label => { if (!themes.includes(label)) themes.push(label); };
+  if (/(westernfashion|westernstyle|texasstyle|\bfashion\b|\bstyle\b|\boutfit\b|\bltk\b|\bshopmy\b|\bhaul\b|\bcloset\b|\bdress\b|\bwear\b)/.test(text)) add('Fashion and style recommendations');
+  if (/\b(music|song|country|playlist|podcast|album|release)\b/.test(text)) add('Music and podcast content');
+  if (/\b(austin|texas|atx|event|hotel|conference|venue)\b/.test(text)) add('Austin/Texas local lifestyle');
+  if (/\b(boundar|mindset|growth|confidence|advice|healing|lesson)\b/.test(text)) add('Personal growth and commentary');
+  if (/\b(link|shop|comment send|dm|amazon|gift|mother'?s day|product)\b/.test(text)) add('Shoppable product recommendations');
+  if (!themes.length && signals.topHashtags?.length) add('Repeated hashtag themes');
+  return themes.slice(0, 5);
+}
+
+function inferFastCategory(profile, signals) {
+  const text = [
+    profile?.biography,
+    profile?.bio,
+    profile?.businessCategoryName,
+    ...(signals.topHashtags || []).map(h => h.name),
+    ...(signals.topPosts || []).map(p => p.caption),
+  ].join(' ').toLowerCase();
+  if (/(westernfashion|westernstyle|texasstyle|\bfashion\b|\bstyle\b|\boutfit\b|\bltk\b|\bshopmy\b|\bwestern\b|\bhaul\b|\bdress\b)/.test(text)) return 'Fashion';
+  if (/\b(music|song|podcast|artist|album|release)\b/.test(text)) return 'Music';
+  if (/\b(beauty|makeup|skincare|hair|nails)\b/.test(text)) return 'Beauty';
+  if (/\b(fitness|workout|yoga|pilates|gym|wellness|athleisure)\b/.test(text)) return 'Wellness';
+  if (/\b(food|recipe|restaurant|cook)\b/.test(text)) return 'Food';
+  return 'Lifestyle';
+}
+
+function inferFastBaseLocation(profile, signals) {
+  const loc = signals.topLocations?.[0];
+  if (loc?.city) return { city: loc.city, region: '', country: '', confidence: 'medium' };
+  const text = `${profile?.fullName || profile?.full_name || ''} ${profile?.biography || profile?.bio || ''}`;
+  if (/\b(austin|atx)\b/i.test(text)) return { city: 'Austin', region: 'TX', country: 'USA', confidence: 'medium' };
+  if (/\btexas|tx\b/i.test(text)) return { city: '', region: 'TX', country: 'USA', confidence: 'medium' };
+  return null;
 }
 
 function fetchApifyIGProfile(handle, env, { timeout, resultsLimit }) {
@@ -2703,6 +2887,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
     avgReelPlays,
     totalReelShares,
     reelsScraped: reels.length,
+    contextQuality: 'rich',
     _raw: { followers, following, posts: totalPosts, reels: reels.length, avgLikes, avgComments, private: !!p.private, actorFields: Object.keys(p).slice(0, 30) },
   };
   profile.recommendationContext = buildRecommendationContextServer(profile);
@@ -4084,8 +4269,8 @@ function buildRecommendationContextServer(ig) {
   if (mentions.length) lines.push(`Repeated mentions / brand orbit: ${mentions.join(', ')}`);
   const affinities = list(ig.brandAffinities, b => clean(String(b).replace(/^@/, '')), 8);
   if (affinities.length) lines.push(`Existing brand affinities, use as signal not recommendations: ${affinities.join(', ')}`);
-  const sounds = list(ig.topSounds, s => s.song_name ? `"${clean(s.song_name)}", ${clean(s.artist_name || 'Unknown')} (${s.count || 1} uses)` : null, 6);
-  if (sounds.length) lines.push(`Reused reel audio: ${sounds.join('; ')}`);
+  const sounds = list(ig.topSounds, s => s.song_name ? `"${clean(s.song_name)}", ${clean(s.artist_name || 'Unknown')} (${s.count || 1} use${Number(s.count || 1) === 1 ? '' : 's'})` : null, 6);
+  if (sounds.length) lines.push(`Recent reel audio sampled: ${sounds.join('; ')}`);
   if (ig.linkContext?.summary) lines.push(`Link-in-bio context: ${clean(ig.linkContext.summary)}`);
   const offers = list(ig.linkContext?.offers, o => o.label || o.url ? `${clean(o.label || o.kind || 'offer')} (${clean(o.url)})` : null, 6);
   if (offers.length) lines.push(`Visible offers/CTAs from bio links: ${offers.join('; ')}`);

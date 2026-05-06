@@ -227,9 +227,13 @@ body.logged-out #chat-view .chat-composer-auth{display:none}
 .chat-msg-body .onb-agent-name-form button{background:var(--gold);border:none;border-radius:8px;padding:11px 16px;color:var(--bg);font-size:11px;font-weight:750;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;white-space:nowrap;font-family:inherit}
 .chat-msg-body .onb-agent-name-form button:disabled{opacity:0.65;cursor:wait}
 .chat-msg-body .onb-agent-suggestions{display:flex;flex-wrap:wrap;gap:6px}
+.chat-msg-body .onb-agent-suggestions.is-delayed{opacity:0;max-height:0;overflow:hidden;pointer-events:none;transform:translateY(-4px);transition:opacity 0.45s ease,max-height 0.45s ease,transform 0.45s ease}
+.chat-msg-body .onb-agent-suggestions:not(.is-delayed){opacity:1;max-height:78px;transform:translateY(0);transition:opacity 0.45s ease,max-height 0.45s ease,transform 0.45s ease}
 .chat-msg-body .onb-agent-suggestion{background:var(--card2);border:1px solid var(--border2);border-radius:999px;padding:6px 10px;color:var(--muted);font-size:11px;line-height:1;cursor:pointer;font-family:inherit}
 .chat-msg-body .onb-agent-suggestion:hover{border-color:var(--gold);color:var(--gold)}
 .chat-msg-body .onb-agent-confirm{font-size:13px;color:var(--text);line-height:1.55}
+.chat-msg-body .onb-agent-hatching{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text);line-height:1.55}
+.chat-msg-body .onb-agent-hatch-dot{width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 0 var(--gold-border);animation:personaContextPulse 1.5s ease-out infinite;flex-shrink:0}
 .chat-msg-body .onb-ready{display:flex;flex-direction:column;gap:12px;white-space:normal}
 .chat-msg-body .onb-ready-title{font-size:14px;line-height:1.45;color:var(--text)}
 .chat-msg-body .onb-ready-note{font-size:13px;line-height:1.55;color:var(--muted)}
@@ -438,9 +442,9 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .persona-reveal-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(221,190,111,0.10),transparent 42%,rgba(127,191,164,0.08));opacity:0.7;pointer-events:none}
 .persona-reveal-main{position:relative;display:flex;gap:18px;align-items:center;z-index:1}
 .persona-reveal-avatar{width:92px;height:92px;border-radius:50%;border:1px solid var(--gold-border);background:var(--card2);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;flex-shrink:0}
-.persona-reveal-crab{width:58px;height:38px;color:var(--gold);animation:spin 2.4s linear infinite;transition:opacity 0.5s ease,transform 0.5s ease}
+.persona-reveal-crab{width:58px;height:38px;color:var(--gold);animation:spin 2.4s linear infinite;transition:opacity 1.15s ease,transform 1.15s ease}
 .persona-reveal-crab svg{width:100%;height:100%;display:block}
-.persona-reveal-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.08);filter:blur(14px) saturate(0.82);image-rendering:pixelated;transition:opacity 0.22s ease,filter 2.8s cubic-bezier(0.16,1,0.3,1),transform 2.8s cubic-bezier(0.16,1,0.3,1)}
+.persona-reveal-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.08);filter:blur(14px) saturate(0.82);image-rendering:pixelated;transition:opacity 1s ease,filter 3.4s cubic-bezier(0.16,1,0.3,1),transform 3.4s cubic-bezier(0.16,1,0.3,1)}
 .persona-reveal-card.has-photo .persona-reveal-crab{opacity:0;transform:scale(0.85) rotate(18deg)}
 .persona-reveal-card.has-photo .persona-reveal-img{opacity:1}
 .persona-reveal-card.is-refined .persona-reveal-img{filter:blur(0) saturate(1);transform:scale(1);image-rendering:auto}
@@ -3321,6 +3325,9 @@ const chatState = {
   conversations: [],
   activeTool: 'main',  // 'main' | 'create' | 'pitch' | 'pipeline', drives agent role + conversation scope
   followBottom: true,  // sticky-scroll: follow streaming content unless user scrolls up
+  _onboardingStartedAt: 0,
+  _onboardingEnrichmentPromise: null,
+  _onboardingContextQuality: 'none',
 };
 
 // Tool agent configs, UI surface only (greeting, suggestion chips,
@@ -3825,7 +3832,7 @@ function updatePersonaRevealProfile(card, profile = {}){
     card.classList.remove('is-refined');
     const revealPhoto = () => {
       card.classList.add('has-photo');
-      setTimeout(() => card.classList.add('is-refined'), 140);
+      setTimeout(() => card.classList.add('is-refined'), 950);
     };
     img.onload = revealPhoto;
     img.src = pic;
@@ -4072,7 +4079,7 @@ function pushOnboardingAgentNamePrompt(profile = {}){
   }
   const copy = buildOnboardingAgentNamingCopy(profile, state.persona);
   const suggestions = agentNameSuggestions(profile);
-  appendInlineCard('assistant', `
+  const body = appendInlineCard('assistant', `
     <div class="onb-agent-name">
       <div class="onb-agent-kicker">${escapeHtml(copy.kicker)}</div>
       <div class="onb-agent-title">${escapeHtml(copy.title)}</div>
@@ -4081,11 +4088,14 @@ function pushOnboardingAgentNamePrompt(profile = {}){
         <input id="onb-agent-name-input" type="text" maxlength="${AGENT_NAME_MAX}" placeholder="${escapeHtml(DEFAULT_AGENT_NAME)}" autocomplete="off">
         <button type="submit">Lock in name</button>
       </form>
-      <div class="onb-agent-suggestions">
+      <div class="onb-agent-suggestions is-delayed">
         ${suggestions.map(s => `<button type="button" class="onb-agent-suggestion" onclick="pickOnboardingAgentName(this)">${escapeHtml(s)}</button>`).join('')}
       </div>
     </div>
   `);
+  setTimeout(() => {
+    body?.querySelector?.('.onb-agent-suggestions')?.classList.remove('is-delayed');
+  }, 4200);
 }
 
 function pickOnboardingAgentName(btn){
@@ -4126,6 +4136,86 @@ async function submitOnboardingAgentName(event){
   continueOnboardingAfterName().catch(e => console.warn('onboarding continuation failed', e));
 }
 
+const CREATOR_CONTEXT_QUALITY_RANK = { none: 0, lite: 1, signal: 2, rich: 3 };
+
+function creatorContextQuality(profile = state.igData || {}){
+  const q = String(profile?.contextQuality || '').toLowerCase();
+  if(CREATOR_CONTEXT_QUALITY_RANK[q] != null) return q;
+  const recLen = String(profile?.recommendationContext || '').trim().length;
+  if(profile?.reelsScraped || profile?.aestheticProfile || profile?.linkContext?.summary) return 'rich';
+  if(recLen >= 260 || profile?.topPosts?.length || profile?.topHashtags?.length || profile?.topMentions?.length) return 'signal';
+  if(profile?._lite || profile?.username || profile?.followers) return 'lite';
+  return 'none';
+}
+
+function hasCreatorSignalContext(){
+  const q = creatorContextQuality(state.igData || {});
+  return (CREATOR_CONTEXT_QUALITY_RANK[q] || 0) >= CREATOR_CONTEXT_QUALITY_RANK.signal && String(buildRecommendationContext()).trim().length >= 260;
+}
+
+function setOnboardingHatchText(body, text){
+  if(!body) return;
+  body.innerHTML = `
+    <div class="onb-agent-hatching">
+      <span class="onb-agent-hatch-dot"></span>
+      <span>${escapeHtml(text)}</span>
+    </div>
+  `;
+  requestAnimationFrame(()=>revealBubble(body));
+}
+
+async function holdPersonaRevealBeforeNaming(subEl){
+  const startedAt = chatState._onboardingStartedAt || Date.now();
+  const minMs = 7000;
+  const steps = [
+    'Resolving profile photo…',
+    'Reading top-post patterns…',
+    'Mapping brand orbit…',
+    'Calibrating your agent shell…',
+  ];
+  let i = 0;
+  while(Date.now() - startedAt < minMs){
+    if(subEl) subEl.textContent = steps[i % steps.length];
+    i++;
+    await sleep(Math.min(1550, Math.max(250, minMs - (Date.now() - startedAt))));
+  }
+}
+
+async function runOnboardingHatchSequence(body){
+  const steps = [
+    'Calibrating your agent voice…',
+    'Reading repeated content patterns…',
+    'Mapping brand orbit…',
+    'Checking first ideas against real profile signals…',
+  ];
+  const started = Date.now();
+  const minMs = 7600;
+  let i = 0;
+  body?.closest('.chat-msg')?.classList.add('is-loading');
+  while(Date.now() - started < minMs || (!hasCreatorSignalContext() && Date.now() - started < minMs + 5000)){
+    setOnboardingHatchText(body, steps[i % steps.length]);
+    i++;
+    await sleep(1550);
+  }
+  body?.closest('.chat-msg')?.classList.remove('is-loading');
+}
+
+async function waitForOnboardingPreviewContext(body, kind){
+  if(hasCreatorSignalContext()) return true;
+  const sub = body?.querySelector?.('.inline-loading-sub');
+  const steps = kind === 'brands'
+    ? ['Reading brand orbit…', 'Checking link-in-bio commerce signals…', 'Filtering weak category fits…']
+    : ['Reading top posts…', 'Checking repeated formats…', 'Filtering generic ideas…'];
+  const deadline = Date.now() + 12000;
+  let i = 0;
+  while(Date.now() < deadline && !hasCreatorSignalContext()){
+    if(sub) sub.textContent = steps[i % steps.length];
+    i++;
+    await sleep(1400);
+  }
+  return hasCreatorSignalContext();
+}
+
 async function continueOnboardingAfterName(){
   if(chatState._onboardingContinued) return;
   chatState._onboardingContinued = true;
@@ -4141,6 +4231,7 @@ async function continueOnboardingAfterName(){
     readyBody.closest('.chat-msg')?.classList.add('is-loading');
   }
   try { await chatState._onboardingPersonaPromise; } catch {}
+  await runOnboardingHatchSequence(readyBody);
   readyBody.closest('.chat-msg')?.classList.remove('is-loading');
   completePersonaReveal(revealCard, state.persona, state.igData);
   await sleep(350);
@@ -4179,7 +4270,15 @@ function applyIGProfile(profile){
     incoming.is_verified_account ||
     String(incoming.verifiedStatus || incoming.verificationStatus || '').toLowerCase() === 'verified'
   );
+  const prevQuality = creatorContextQuality(prev);
+  const incomingQuality = creatorContextQuality(incoming);
   state.igData = { ...prev, ...incoming };
+  if(sameHandle && (CREATOR_CONTEXT_QUALITY_RANK[prevQuality] || 0) > (CREATOR_CONTEXT_QUALITY_RANK[incomingQuality] || 0)){
+    state.igData.contextQuality = prevQuality;
+  } else {
+    state.igData.contextQuality = incoming.contextQuality || incomingQuality;
+  }
+  chatState._onboardingContextQuality = state.igData.contextQuality;
   state.igData.verified = incomingVerified || (sameHandle && !!prev.verified);
   state.igConnected = true;
   refreshUserAvatars();
@@ -4205,6 +4304,7 @@ async function enrichIGProfileInBackground(handle){
   if(state.persona){
     await generatePersona({ inlineMode: true });
   }
+  return profile;
 }
 
 function announceTikTokContextIfFound(profile, hadTikTok = false){
@@ -4249,6 +4349,7 @@ async function startOnboardingChat(handle){
   const revealCard = hydratePersonaReveal(revealBody, cleanHandle);
   const revealSub = revealCard?.querySelector('.persona-reveal-sub');
   if(revealSub) revealSub.textContent = '';
+  chatState._onboardingStartedAt = Date.now();
   const scanVerbHandle = startVerbActivity(revealSub, [
     `last 25 posts of @${cleanHandle}`,
     `engagement patterns`,
@@ -4277,6 +4378,8 @@ async function startOnboardingChat(handle){
   chatState._onboardingNameBody = null;
   chatState._onboardingReadyBody = null;
   chatState._tiktokContextAnnounced = false;
+  chatState._onboardingEnrichmentPromise = null;
+  chatState._onboardingContextQuality = 'none';
   if(chatState._onboardingRevealContext){
     chatState._onboardingRevealContext.stop();
     chatState._onboardingRevealContext = null;
@@ -4297,7 +4400,7 @@ async function startOnboardingChat(handle){
 
     stopThinkingVerb(scanVerbHandle);
     updatePersonaRevealProfile(revealCard, profile);
-    await sleep(550);
+    await holdPersonaRevealBeforeNaming(revealSub);
 
     // 2. Persona generation runs in parallel with the user's naming task.
     //    The verb activity narrates the work in the reveal card.
@@ -4336,8 +4439,10 @@ async function startOnboardingChat(handle){
     // If the full scrape already served as a fallback, avoid doing the same
     // expensive profile read twice.
     if(profile?._lite){
-      enrichIGProfileInBackground(cleanHandle).catch(e => console.warn('background profile enrichment failed', e));
+      chatState._onboardingEnrichmentPromise = enrichIGProfileInBackground(cleanHandle)
+        .catch(e => { console.warn('background profile enrichment failed', e); return null; });
     } else {
+      chatState._onboardingEnrichmentPromise = Promise.resolve(profile);
       renderPersonaRevealSources(revealCard, state.igData);
     }
 
@@ -4612,6 +4717,20 @@ async function runInlinePulsePreview(){
   `);
   const loader = startInlineLoading(body, 'pulse', 10);
   try {
+    const ready = await waitForOnboardingPreviewContext(body, 'pulse');
+    if(!ready){
+      loader.stop();
+      body.innerHTML = `
+        <div>I am still reading your top posts so I do not hand you generic ideas.</div>
+        <div class="inline-picker" style="margin-top:10px">
+          <button class="inline-pick-tile" onclick="onboardingPickCreate(this)">
+            <div class="inline-pick-label">Create</div>
+            <div class="inline-pick-title">Try again</div>
+            <div class="inline-pick-desc">Use the profile signals once they are ready.</div>
+          </button>
+        </div>`;
+      return;
+    }
     await generatePulse();
     loader.stop();
     const ideas = (state.pulseIdeas||[]).slice(0,4);
@@ -4664,6 +4783,20 @@ async function runInlineBrandsPreview(){
   `);
   const loader = startInlineLoading(body, 'brands', 10);
   try {
+    const ready = await waitForOnboardingPreviewContext(body, 'brands');
+    if(!ready){
+      loader.stop();
+      body.innerHTML = `
+        <div>I am still mapping your brand orbit so I do not show weak matches.</div>
+        <div class="inline-picker" style="margin-top:10px">
+          <button class="inline-pick-tile" onclick="onboardingPickPitch(this)">
+            <div class="inline-pick-label">Pitch</div>
+            <div class="inline-pick-title">Try again</div>
+            <div class="inline-pick-desc">Use the brand signals once they are ready.</div>
+          </button>
+        </div>`;
+      return;
+    }
     await generateBrands();
     loader.stop();
     const brands = (state.brands||[]).slice(0,4);
@@ -4827,8 +4960,8 @@ function buildRecommendationContext(){
   if(mentions.length) lines.push(`Repeated mentions / brand orbit: ${mentions.join(', ')}`);
   const affinities = list(d.brandAffinities, b => clean(String(b).replace(/^@/, '')), 8);
   if(affinities.length) lines.push(`Existing brand affinities, use as signal not recommendations: ${affinities.join(', ')}`);
-  const sounds = list(d.topSounds, s => s.song_name ? `"${clean(s.song_name)}", ${clean(s.artist_name || 'Unknown')} (${s.count || 1} uses)` : null, 6);
-  if(sounds.length) lines.push(`Reused reel audio: ${sounds.join('; ')}`);
+  const sounds = list(d.topSounds, s => s.song_name ? `"${clean(s.song_name)}", ${clean(s.artist_name || 'Unknown')} (${s.count || 1} use${Number(s.count || 1) === 1 ? '' : 's'})` : null, 6);
+  if(sounds.length) lines.push(`Recent reel audio sampled: ${sounds.join('; ')}`);
   if(d.linkContext?.summary) lines.push(`Link-in-bio context: ${clean(d.linkContext.summary)}`);
   const offers = list(d.linkContext?.offers, o => o.label || o.url ? `${clean(o.label || o.kind || 'offer')} (${clean(o.url)})` : null, 6);
   if(offers.length) lines.push(`Visible offers/CTAs from bio links: ${offers.join('; ')}`);
