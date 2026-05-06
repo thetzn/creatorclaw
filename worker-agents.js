@@ -445,7 +445,7 @@ async function forgetFactRemote(args, ctx) {
 
 const rememberFactTool = tool({
   name: 'remember_fact',
-  description: "Save a stable long-term fact about the creator (preferences, brand history, negotiation rules, workflow quirks). Call this when the creator expresses a clear preference or rule that should persist across future sessions, e.g. 'I never use exclamation points', 'my floor for IG reels is $1500', 'Lululemon always pays in 30 days'. Do NOT save things already in their profile (followers, niche, vibes) or one-off facts about a single conversation. Use a short snake_case key (max 80 chars) so the same concept overwrites cleanly.",
+  description: "Save a stable long-term fact about the creator (preferences, guardrails/what-not-to-do rules, brand history, negotiation rules, workflow quirks). Call this when the creator expresses a clear preference or rule that should persist across future sessions, e.g. 'I never use exclamation points', 'do not pitch alcohol brands', 'my floor for IG reels is $1500', 'Lululemon always pays in 30 days'. Do NOT save things already in their profile (followers, niche, vibes) or one-off facts about a single conversation. Use a short snake_case key (max 80 chars) so the same concept overwrites cleanly.",
   parameters: z.object({
     key: z.string().describe("Short snake_case label, e.g. 'preferred_pitch_tone', 'avoid_words', 'floor_rate_reel_ig', 'brand_lululemon_payment_speed'."),
     value: z.string().describe('The fact itself, written as a short sentence the agent can read back later.'),
@@ -459,7 +459,7 @@ const rememberFactTool = tool({
 
 const recallFactsTool = tool({
   name: 'recall_facts',
-  description: "Look up previously saved facts about the creator. Call this BEFORE drafting a pitch, script, or rate quote when you need to honor stored preferences (tone rules, words to avoid, rate floors, brand history). Without args returns the most recent facts; pass `category` to scope, or `query` for a keyword match against key/value.",
+  description: "Look up previously saved facts about the creator. Call this BEFORE drafting a pitch, script, or rate quote when you need to honor stored preferences and guardrails (tone rules, words to avoid, brands/categories not to pitch, rate floors, brand history). Without args returns the most recent facts; pass `category` to scope, or `query` for a keyword match against key/value.",
   parameters: z.object({
     query: z.string().nullable().optional().describe('Optional keyword to filter (matches key or value, case-insensitive).'),
     category: z.enum(['voice','preferences','brand_history','negotiation','workflow','general']).nullable().optional(),
@@ -676,6 +676,7 @@ You have three tools for facts that should persist across sessions: remember_fac
 WHEN TO REMEMBER (call remember_fact):
 - The creator is clearly instructing you to retain something for the future, any phrasing that signals this: "remember…", "don't forget…", "always…", "never…", "keep in mind…", "note that…", "I want you to know…", "from now on…", or a firm rule stated as fact ("my rate floor is $1500", "I batch on Sundays").
 - The creator states a stable preference: "I never use exclamation points", "keep pitches under 80 words", "no emojis ever".
+- The creator states a guardrail / what-not-to-do rule: "never pitch alcohol brands", "do not make my kid the content angle", "avoid hustle-culture language". Save these under category 'preferences' with keys like 'avoid_alcohol_brands' or 'do_not_feature_child'.
 - The creator sets a rule or floor: "my reel rate floor is $1500", "always include my media kit link", "I won't do exclusivity past 30 days".
 - A brand outcome worth recalling: "Lululemon paid in 30 days, easy to work with", "Brand X scope-creeped twice, be cautious".
 - A workflow quirk: "I batch content on Sundays", "I prefer Loom replies over written ones".
@@ -686,7 +687,7 @@ DO NOT remember:
 - Things the creator hasn't actually said, don't infer preferences from a single message.
 
 WHEN TO RECALL (call recall_facts):
-- Before drafting a pitch, script, or email, call with category 'voice' or 'preferences' to honor stored tone rules and word bans.
+- Before drafting a pitch, script, or email, call with category 'voice' or 'preferences' to honor stored tone rules, word bans, and what-not-to-do guardrails.
 - Before quoting a rate, call with category 'negotiation' to honor stored floors.
 - Before discussing a specific brand, call with query='<brand name>' to surface prior history.
 - When the creator asks about something you might have stored ("what did I say about…", "do you remember…").

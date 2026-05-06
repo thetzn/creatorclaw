@@ -3246,7 +3246,7 @@ function creatorResearchPromptBlock(research) {
   if (Array.isArray(research.knownFor) && research.knownFor.length) lines.push(`Known for: ${research.knownFor.map(clean).join('; ')}`);
   if (Array.isArray(research.audienceNotes) && research.audienceNotes.length) lines.push(`Audience notes: ${research.audienceNotes.map(clean).join('; ')}`);
   if (Array.isArray(research.contentAngles) && research.contentAngles.length) lines.push(`Content angles: ${research.contentAngles.map(clean).join('; ')}`);
-  if (Array.isArray(research.brandSafetyNotes) && research.brandSafetyNotes.length) lines.push(`Brand-safety notes: ${research.brandSafetyNotes.map(clean).join('; ')}`);
+  if (Array.isArray(research.brandSafetyNotes) && research.brandSafetyNotes.length) lines.push(`Guardrails / what not to do: ${research.brandSafetyNotes.map(clean).join('; ')}`);
   const summaries = research.sourceSummaries && typeof research.sourceSummaries === 'object'
     ? Object.entries(research.sourceSummaries).map(([k, v]) => `${k}: ${clean(v)}`).filter(Boolean)
     : [];
@@ -4438,6 +4438,14 @@ function buildSharedAgentContextServer(personaRow) {
   }
   if (Array.isArray(ig.recentThemes) && ig.recentThemes.length) parts.push(`Recent content themes: ${ig.recentThemes.join(', ')}`);
   if (ig.bio) parts.push(`Bio: "${ig.bio}"`);
+  if (Array.isArray(ig.creatorResearch?.brandSafetyNotes) && ig.creatorResearch.brandSafetyNotes.length) {
+    parts.push(`\n--- Public-source guardrails and caution notes ---`);
+    parts.push(`Use these as constraints/cautions when drafting or recommending; creator-edited memory overrides them if it conflicts.`);
+    ig.creatorResearch.brandSafetyNotes.slice(0, 8).forEach(note => {
+      const cleanNote = String(note || '').replace(/\s+/g, ' ').trim();
+      if (cleanNote) parts.push(`- ${cleanNote}`);
+    });
+  }
   const recommendationContext = buildRecommendationContextServer(ig);
   if (recommendationContext) {
     parts.push(`\n--- Recommendation grounding from scraped posts and public context ---`);

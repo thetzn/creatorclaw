@@ -2423,6 +2423,16 @@ function compactMemoryList(arr, limit = 6){
   return Array.isArray(arr) ? arr.map(clean).filter(Boolean).slice(0, limit).join('\n') : '';
 }
 
+function isGuardrailMemoryFact(f = {}){
+  const cat = String(f.category || f.dbCategory || '').toLowerCase();
+  const bag = `${f.key || ''} ${f.label || ''} ${f.value || ''}`.toLowerCase();
+  return cat === 'preferences' && /\b(avoid|never|do not|don't|dont|no\b|not\b|won't|wont|refuse|ban|banned|off limits|guardrail|what not|should not|brand safety)\b/.test(bag);
+}
+
+function memoryGroupForFact(f = {}){
+  return isGuardrailMemoryFact(f) ? 'Guardrails' : 'Saved notes';
+}
+
 function buildSettingsProfileSignals(d = state.igData || {}){
   const clean = v => String(v || '').replace(/\s+/g, ' ').trim();
   const lines = [];
@@ -2468,8 +2478,8 @@ function buildBaseMemoryRows(){
     { key:'content_pillars', label:'Content pillars', group:'Voice and positioning', badge:'Persona read', value:pillars, format:'list', dbCategory:'general' },
     { key:'audience_model', label:'Audience read', group:'Voice and positioning', badge:'Public sources', value:compactMemoryList(cr.audienceNotes), source:true, format:'list', dbCategory:'general' },
     { key:'strong_content_lanes', label:'Content lanes', group:'Voice and positioning', badge:'Public sources', value:compactMemoryList(cr.contentAngles), source:true, format:'list', dbCategory:'general' },
-    { key:'brand_safety', label:'Guardrails', group:'Guardrails', badge:'Public sources', value:compactMemoryList(cr.brandSafetyNotes), source:true, format:'list', dbCategory:'preferences' },
-    { key:'recent_profile_signals', label:'Recent profile signals', group:'Guardrails', badge:'Recent scrape', value:buildSettingsProfileSignals(d), format:'list', dbCategory:'general' }
+    { key:'recent_profile_signals', label:'Recent scrape signals', group:'Profile signals', badge:'Recent scrape', value:buildSettingsProfileSignals(d), format:'list', dbCategory:'general' },
+    { key:'brand_safety', label:'What not to do', group:'Guardrails', badge:'Public guardrails', value:compactMemoryList(cr.brandSafetyNotes), source:true, format:'list', dbCategory:'preferences' }
   ];
   return rows.filter(r => String(r.value || '').trim());
 }
@@ -2509,7 +2519,7 @@ function stRenderMemory(){
     stMemoryRows.push({
       key: f.key,
       label: friendlyMemoryLabel(f.key),
-      group: 'Saved notes',
+      group: memoryGroupForFact(f),
       badge: f.category ? friendlyMemoryLabel(f.category) : 'Saved by you',
       value: f.value,
       id: f.id,
@@ -2522,7 +2532,7 @@ function stRenderMemory(){
     body.innerHTML = '<div class="st-fact-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Nothing stored yet. Add a memory or keep chatting and your agent will learn durable rules.</div>';
     return;
   }
-  const groupOrder = ['Source brief', 'Voice and positioning', 'Guardrails', 'Saved notes'];
+  const groupOrder = ['Source brief', 'Voice and positioning', 'Profile signals', 'Guardrails', 'Saved notes'];
   const groupHtml = groupOrder.map(group => {
     const rows = stMemoryRows.map((row, index) => ({ row, index })).filter(item => item.row.group === group);
     if(!rows.length) return '';
@@ -4715,11 +4725,24 @@ async function continueOnboardingAfterName(){
     readyBody.closest('.chat-msg')?.classList.add('is-loading');
   }
   try { await chatState._onboardingPersonaPromise; } catch {}
+  const readyCopyController = new AbortController();
+  const readyCopyPromise = fetchOnboardingReadyCopy(readyCopyController.signal).catch(e => {
+    if(e?.name !== 'AbortError') console.warn('onboarding ready copy failed', e);
+    return null;
+  });
   await runOnboardingHatchSequence(readyBody);
   readyBody.closest('.chat-msg')?.classList.remove('is-loading');
   completePersonaReveal(revealCard, state.persona, state.igData);
   await sleep(350);
-  renderOnboardingReadyMessage(readyBody);
+  let readyCopy = null;
+  try {
+    readyCopy = await Promise.race([
+      readyCopyPromise,
+      sleep(1100).then(() => null)
+    ]);
+  } catch {}
+  if(!readyCopy) readyCopyController.abort();
+  renderOnboardingReadyMessage(readyBody, readyCopy);
 }
 
 async function fetchIGProfileChunk(handle, lite = false){
@@ -5001,6 +5024,149 @@ function onboardingAgentContextMarkup(){
   `;
 }
 
+function cleanOnboardingReadySignal(value){
+  let s = String(value || '').replace(/\s+/g, ' ').trim();
+  if(!s) return '';
+  s = s
+    .replace(/\bcontent$/i, '')
+    .replace(/\bcontent ideas$/i, '')
+    .replace(/\brecommendations?$/i, '')
+    .replace(/\bcommentary$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const lower = s.toLowerCase();
+  if(/fashion/.test(lower) && /style/.test(lower)) return 'fashion/style';
+  if(/austin/.test(lower) || /texas/.test(lower)){
+    if(/lifestyle|local|food|travel|style/.test(lower)) return 'Austin/Texas lifestyle';
+  }
+  if(/music/.test(lower) && /podcast/.test(lower)) return 'music/podcast';
+  if(/personal growth/.test(lower)) return 'personal growth';
+  if(/shoppable|product|commerce|ltk|affiliate/.test(lower)) return 'shoppable picks';
+  if(/motherhood|mom\b|mom-life/.test(lower)) return 'mom-life';
+  return s.charAt(0).toLowerCase() + s.slice(1);
+}
+
+function uniqueOnboardingValues(items, limit = 4){
+  const out = [];
+  const seen = new Set();
+  for(const item of items || []){
+    const clean = cleanOnboardingReadySignal(typeof item === 'string' ? item : (item?.l || item?.label || item?.name || item?.city || ''));
+    if(!clean) continue;
+    const key = clean.toLowerCase();
+    if(seen.has(key)) continue;
+    seen.add(key);
+    out.push(clean);
+    if(out.length >= limit) break;
+  }
+  return out;
+}
+
+function onboardingNaturalList(items, limit = 3){
+  const list = uniqueOnboardingValues(items, limit);
+  if(!list.length) return '';
+  if(list.length === 1) return list[0];
+  if(list.length === 2) return `${list[0]} and ${list[1]}`;
+  return `${list.slice(0, -1).join(', ')}, and ${list[list.length - 1]}`;
+}
+
+function onboardingReadySignals(){
+  const p = state.persona || {};
+  const d = state.igData || {};
+  const cr = d.creatorResearch || {};
+  const pillars = uniqueOnboardingValues(p.pillars || [], 4);
+  const themes = uniqueOnboardingValues([...(d.recentThemes || []), ...(cr.contentAngles || [])], 4);
+  const vibes = uniqueOnboardingValues([...(p.vibes || []), ...(d.vibes || [])], 3);
+  const brandOrbit = uniqueOnboardingValues([...(d.brandAffinities || []), ...((d.topMentions || []).map(x => x?.name || x))], 3);
+  const location = cleanOnboardingReadySignal(
+    d.baseLocation?.city ||
+    (Array.isArray(d.topLocations) && d.topLocations[0]?.city) ||
+    ''
+  );
+  const handle = d.username ? '@' + String(d.username).replace(/^@/, '') : '';
+  return {
+    creator: p.name || d.displayName || handle || 'you',
+    handle,
+    pillars,
+    themes,
+    vibes,
+    brandOrbit,
+    location,
+    audience: d.audienceHints || (Array.isArray(cr.audienceNotes) ? cr.audienceNotes[0] : ''),
+    bio: p.bio || d.bio || '',
+    reach: p.totalReach || d.followers || '',
+    engagement: p.avgEngagement || d.engagementRate || ''
+  };
+}
+
+function buildOnboardingReadyCopyFallback(){
+  const s = onboardingReadySignals();
+  const lanes = onboardingNaturalList([...s.pillars, ...s.themes], 3);
+  const voice = onboardingNaturalList(s.vibes, 2);
+  const title = lanes
+    ? `I'm already tuned to your ${lanes} lane.`
+    : s.location
+      ? `I'm already tuned to your ${s.location} creator world.`
+      : `I've got the first read on your creator world.`;
+  const noteBits = [];
+  if(voice) noteBits.push(`${voice} voice`);
+  if(s.brandOrbit.length) noteBits.push('brand orbit');
+  if(s.reach || s.engagement) noteBits.push('performance signals');
+  if(!noteBits.length) noteBits.push('voice and audience signals');
+  return {
+    title,
+    note: `Bring me a rough idea or brand target; I'll shape it around your ${onboardingNaturalList(noteBits, 3)}.`
+  };
+}
+
+function sanitizeOnboardingReadyCopy(raw){
+  const fallback = buildOnboardingReadyCopyFallback();
+  const clean = value => String(value || '')
+    .replace(/\s+/g, ' ')
+    .replace(/^["'“”]+|["'“”]+$/g, '')
+    .replace(/^.*?\bit is[,.]?\s*/i, '')
+    .trim();
+  const title = clean(raw?.title || raw?.headline || raw?.titleTail);
+  const note = clean(raw?.note || raw?.body || raw?.subtext);
+  if(!title || !note || title.length > 150 || note.length > 180) return fallback;
+  return { title, note };
+}
+
+async function fetchOnboardingReadyCopy(signal){
+  const agentName = state.agent.name || DEFAULT_AGENT_NAME;
+  const s = onboardingReadySignals();
+  const context = [
+    `Agent name: ${agentName}`,
+    `Creator: ${s.creator}`,
+    s.handle && `Handle: ${s.handle}`,
+    s.reach && `Reach: ${s.reach}`,
+    s.engagement && `Engagement: ${s.engagement}`,
+    s.location && `Location: ${s.location}`,
+    s.bio && `Bio: ${s.bio}`,
+    s.vibes.length && `Voice/vibes: ${s.vibes.join(', ')}`,
+    s.pillars.length && `Content pillars: ${s.pillars.join(', ')}`,
+    s.themes.length && `Recent themes: ${s.themes.join(', ')}`,
+    s.brandOrbit.length && `Brand orbit: ${s.brandOrbit.join(', ')}`,
+    s.audience && `Audience read: ${s.audience}`
+  ].filter(Boolean).join('\n');
+  if(!context.trim()) return buildOnboardingReadyCopyFallback();
+  const messages = [
+    {
+      role: 'system',
+      content: 'Write the tiny onboarding handoff after a creator names their AI agent. Return ONLY JSON: {"title":"...","note":"..."}. The UI already renders "<agent name> it is." before title, so do not include the agent name or "it is". Make it feel like the agent actually read this creator: mention one specific lane, voice cue, location, audience, or brand signal. Keep title under 16 words and note under 22 words. Warm, specific, not corporate. Avoid generic phrases like "personal creator agent", "use this context", "in your corner", "unlock potential", or "elevate your brand".'
+    },
+    { role: 'user', content: context }
+  ];
+  const res = await fetch(PROXY_URL, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ messages, temperature: 0.75 }),
+    signal
+  });
+  if(!res.ok) throw new Error('ready copy ' + res.status);
+  const data = await res.json();
+  return sanitizeOnboardingReadyCopy(parseJSON(data.choices?.[0]?.message?.content || '{}'));
+}
+
 function updateOnboardingReadyContext(){
   const body = chatState._onboardingReadyBody || chatState._onboardingNameBody;
   const el = body?.querySelector?.('[data-onb-agent-context]');
@@ -5026,14 +5192,15 @@ function onboardingPickerMarkup(){
   `;
 }
 
-function renderOnboardingReadyMessage(body){
+function renderOnboardingReadyMessage(body, readyCopy = null){
   if(!body) return;
   const agentName = state.agent.name || DEFAULT_AGENT_NAME;
+  const copy = readyCopy || buildOnboardingReadyCopyFallback();
   body.classList.add('has-card');
   body.innerHTML = `
     <div class="onb-ready">
-      <div class="onb-ready-title"><strong>${escapeHtml(agentName)}</strong> it is. I am your personal creator agent.</div>
-      <div class="onb-ready-note">I'll use this context when I draft, pitch, and plan for you.</div>
+      <div class="onb-ready-title"><strong>${escapeHtml(agentName)}</strong> it is. ${escapeHtml(copy.title)}</div>
+      <div class="onb-ready-note">${escapeHtml(copy.note)}</div>
       ${onboardingAgentContextMarkup()}
       ${onboardingPickerMarkup()}
     </div>
@@ -5384,14 +5551,35 @@ function buildSharedAgentContext(){
   }
   if((d.recentThemes||[]).length) parts.push(`Recent content themes: ${d.recentThemes.join(', ')}`);
   if(d.bio) parts.push(`Bio: "${d.bio}"`);
+  if(Array.isArray(d.creatorResearch?.brandSafetyNotes) && d.creatorResearch.brandSafetyNotes.length){
+    parts.push(`\n--- Public-source guardrails and caution notes ---`);
+    parts.push(`Use these as constraints/cautions when drafting or recommending; creator-edited memory overrides them if it conflicts.`);
+    d.creatorResearch.brandSafetyNotes.slice(0, 8).forEach(note => {
+      const clean = String(note || '').replace(/\s+/g, ' ').trim();
+      if(clean) parts.push(`- ${clean}`);
+    });
+  }
   if((stFactsCache || []).length){
-    parts.push(`\n--- Creator-edited memory and saved rules ---`);
-    parts.push(`Treat these user-edited memories as higher priority than scraped or public-source context when they conflict.`);
-    stFactsCache.slice(0, 30).forEach(f => {
+    const facts = stFactsCache.slice(0, 30);
+    const guardrails = facts.filter(isGuardrailMemoryFact);
+    const otherFacts = facts.filter(f => !isGuardrailMemoryFact(f));
+    if(guardrails.length){
+      parts.push(`\n--- Creator-edited guardrails: what not to do ---`);
+      parts.push(`Highest priority. Treat these as avoid rules, word bans, brand-safety constraints, or hard preferences.`);
+      guardrails.forEach(f => {
+        const label = friendlyMemoryLabel(f.key);
+        parts.push(`${label}: ${String(f.value || '').trim()}`);
+      });
+    }
+    if(otherFacts.length){
+      parts.push(`\n--- Creator-edited memory and preferences ---`);
+      parts.push(`Treat these user-edited memories as higher priority than scraped or public-source context when they conflict.`);
+      otherFacts.forEach(f => {
       const label = friendlyMemoryLabel(f.key);
       const cat = f.category ? friendlyMemoryLabel(f.category) : 'General';
       parts.push(`${label} (${cat}): ${String(f.value || '').trim()}`);
-    });
+      });
+    }
   }
   const recommendationContext = buildRecommendationContext();
   if(recommendationContext) {
