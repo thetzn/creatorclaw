@@ -4161,6 +4161,10 @@ async function fetchIGProfileChunk(handle, lite = false){
   return parseJSON(data.choices[0].message.content);
 }
 
+function isIGScrapeTimeoutError(error){
+  return /timed[-_\s]?out|timeout|run[-_\s]?failed|temporarily unavailable|Apify quick profile failed/i.test(String(error?.message || error || ''));
+}
+
 function applyIGProfile(profile){
   const prev = state.igData || {};
   const incoming = profile || {};
@@ -4280,7 +4284,15 @@ async function startOnboardingChat(handle){
 
   try {
     // 1. Fast shell: profile basics + photo, no reels/vision/LLM.
-    const profile = await fetchIGProfileChunk(cleanHandle, true);
+    let profile;
+    try {
+      profile = await fetchIGProfileChunk(cleanHandle, true);
+    } catch(liteError) {
+      if(!isIGScrapeTimeoutError(liteError)) throw liteError;
+      console.warn('Lite Instagram scrape timed out; falling back to full scrape', liteError);
+      if(revealSub) revealSub.textContent = 'Instagram is taking longer than usual. Running the deeper profile read…';
+      profile = await fetchIGProfileChunk(cleanHandle, false);
+    }
     applyIGProfile(profile);
 
     stopThinkingVerb(scanVerbHandle);
@@ -4321,7 +4333,13 @@ async function startOnboardingChat(handle){
     chatState._onboardingRevealCard = revealCard;
 
     // 3. Rich scrape independent of persona; refines igData in the background.
-    enrichIGProfileInBackground(cleanHandle).catch(e => console.warn('background profile enrichment failed', e));
+    // If the full scrape already served as a fallback, avoid doing the same
+    // expensive profile read twice.
+    if(profile?._lite){
+      enrichIGProfileInBackground(cleanHandle).catch(e => console.warn('background profile enrichment failed', e));
+    } else {
+      renderPersonaRevealSources(revealCard, state.igData);
+    }
 
     // 4. Naming card is the user's task. Submission triggers the rest of the
     //    flow (welcome stream + picker) via continueOnboardingAfterName.

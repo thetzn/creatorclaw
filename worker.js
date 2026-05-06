@@ -247,10 +247,12 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
       const preferenceContext = String(args.preferenceContext || '').trim();
       const exclude = Array.isArray(args.exclude) ? args.exclude.filter(Boolean).map(String).slice(0, 20) : [];
       const sys = `Brand matchmaker for individual creators. Return ONLY JSON, no markdown. Schema:
-{"brands":[{"name":"Gymshark","domain":"gymshark.com","match":92,"cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"evidence":["Top posts skew fitness routines","Audience overlaps apparel buyers"],"pitch_angle":"30-day creator test around gym-to-street outfits","next_step":"Pitch one reel concept and ask for creator program contact","deal":"$2,500 - $5,000"}]}
-domain has no protocol or trailing slash. match 60-99. Exactly 3 reasons each. Exactly 2 evidence items, short and grounded in the scraped context. pitch_angle and next_step should be concrete. Order by match desc. Real, currently-active brands; avoid generic ones the creator already mentioned (those are existing relationships, not new leads).
+{"brands":[{"name":"Gymshark","domain":"gymshark.com","match":92,"confidence":"high","cat":"Fitness Apparel","reasons":["Shared fitness audience","High engagement overlap","Aesthetic alignment"],"evidence":["Top posts skew fitness routines","Audience overlaps apparel buyers"],"pitch_angle":"30-day creator test around gym-to-street outfits","next_step":"Pitch one reel concept and ask for creator program contact","deal":"$2,500 - $5,000"}]}
+domain has no protocol or trailing slash. match 70-99. confidence is "high" or "medium"; do not include low-confidence brands. Exactly 3 reasons each. Exactly 2 evidence items, short and grounded in the scraped context. pitch_angle and next_step should be concrete. Order by match desc. Real, currently-active brands; avoid generic ones the creator already mentioned (those are existing relationships, not new leads).
 
-Use the scraped Instagram recommendation context like retrieval evidence: match the creator's actual themes, top-performing post formats, visual style, audience/location signals, and brand orbit. Prefer less-obvious brands that fit the same audience and aesthetic tier.`;
+Use the scraped Instagram recommendation context like retrieval evidence: match the creator's actual themes, top-performing post formats, visual style, audience/location signals, and brand orbit. Prefer less-obvious brands that fit the same audience and aesthetic tier.
+
+Trust rule: do not pad the list to hit the requested count. If fewer brands are defensible from the scraped context, return fewer brands. Avoid mass-market generic recommendations unless the creator evidence clearly points to that brand's category, buyer, and campaign style.`;
       const ctxLines = [
         creator.niche ? `Niche: ${creator.niche}` : null,
         creator.followers ? `Followers: ${creator.followers}` : null,
@@ -272,7 +274,7 @@ Use the scraped Instagram recommendation context like retrieval evidence: match 
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.API_KEY },
         body: JSON.stringify({
           model: MODEL,
-          temperature: 0.7,
+          temperature: 0.45,
 	          messages: [
 	            { role: 'system', content: sys },
 	            { role: 'user', content: userPrompt },
@@ -293,6 +295,16 @@ Use the scraped Instagram recommendation context like retrieval evidence: match 
 	        brands = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.brands) ? parsed.brands : []);
 	        if (!Array.isArray(brands)) brands = [];
       } catch { brands = []; }
+      brands = brands.filter(b => {
+        if (!b || !b.name) return false;
+        const match = Number(b.match) || 0;
+        const confidence = String(b.confidence || '').toLowerCase();
+        const reasons = Array.isArray(b.reasons) ? b.reasons.filter(Boolean) : [];
+        const evidence = Array.isArray(b.evidence) ? b.evidence.filter(Boolean) : [];
+        if (confidence === 'low') return false;
+        if (match < 70) return false;
+        return reasons.length >= 3 && evidence.length >= 2;
+      });
       return { brands: brands.slice(0, count), count: brands.length, theme };
     }
 
@@ -1310,6 +1322,10 @@ export default {
       if (path === '/tos.html' || path === '/tos') return serveHTML(TOS_HTML);
       if (path === '/data-deletion.html' || path === '/data-deletion') return serveHTML(DATA_DELETION_HTML);
 
+      if (path === '/admin/bug-reports') {
+        return handleAdminBugReports(request, env);
+      }
+
       // ── IG OAuth: initiate login ──────────────────────────────────────
       if (path === '/auth') {
         const state = crypto.randomUUID(); // CSRF protection
@@ -2210,14 +2226,19 @@ async function runIGScrapeLite(rawHandle, env, origin, allowed) {
     return json({ error: { message: 'No handle provided' } }, 400, origin, allowed);
   }
   const started = Date.now();
-  const res = await fetch(`${APIFY_IG_URL}?timeout=30`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.APIFY_TOKEN },
-    body: JSON.stringify({ usernames: [handle], resultsLimit: 6 }),
-  });
+  let res = await fetchApifyIGProfile(handle, env, { timeout: 30, resultsLimit: 6 });
   if (!res.ok) {
-    const errText = await res.text();
-    return json({ error: { message: 'Apify quick profile failed: ' + errText.slice(0, 200) } }, res.status, origin, allowed);
+    const errText = await res.text().catch(() => res.statusText);
+    if (isApifyTransientFailure(res.status, errText)) {
+      console.log('[scrape-lite] retrying slow Apify run', JSON.stringify({ handle, status: res.status, details: errText.slice(0, 120) }));
+      res = await fetchApifyIGProfile(handle, env, { timeout: 75, resultsLimit: 8 });
+    } else {
+      return json({ error: { message: apifyUserMessage('quick profile', errText, res.status) } }, res.status, origin, allowed);
+    }
+  }
+  if (!res.ok) {
+    const errText = await res.text().catch(() => res.statusText);
+    return json({ error: { message: apifyUserMessage('quick profile', errText, res.status) } }, apifyStatus(res.status), origin, allowed);
   }
   const items = await res.json();
   const p = Array.isArray(items) ? items[0] : null;
@@ -2254,6 +2275,29 @@ async function runIGScrapeLite(rawHandle, env, origin, allowed) {
   }, 200, origin, allowed);
 }
 
+function fetchApifyIGProfile(handle, env, { timeout, resultsLimit }) {
+  return fetch(`${APIFY_IG_URL}?timeout=${timeout}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.APIFY_TOKEN },
+    body: JSON.stringify({ usernames: [handle], resultsLimit }),
+  });
+}
+
+function isApifyTransientFailure(status, text) {
+  return status === 408 || status === 409 || status === 429 || status >= 500 || /timed[-_\s]?out|timeout|run-failed|temporarily unavailable/i.test(String(text || ''));
+}
+
+function apifyStatus(status) {
+  return status === 408 || status === 409 || status === 429 || status >= 500 ? 503 : status;
+}
+
+function apifyUserMessage(label, text, status = 0) {
+  if (isApifyTransientFailure(status, text)) {
+    return `Instagram ${label} timed out. Try again in a minute.`;
+  }
+  return `Instagram ${label} failed. Try again in a minute.`;
+}
+
 async function runIGScrape(rawHandle, env, origin, allowed) {
   const handle = String(rawHandle || '').replace(/^@/, '').replace(/^(https?:\/\/)?(www\.)?instagram\.com\//, '').replace(/\/$/, '').trim();
   if (!handle) {
@@ -2264,11 +2308,7 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   // Total latency stays ~the same as the profile call alone. Reel data unlocks
   // music/audio detection and on-camera transcripts for richer persona inference.
   const [profileRes, reelRes] = await Promise.all([
-    fetch(`${APIFY_IG_URL}?timeout=90`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.APIFY_TOKEN },
-      body: JSON.stringify({ usernames: [handle], resultsLimit: 25 }),
-    }),
+    fetchApifyIGProfile(handle, env, { timeout: 90, resultsLimit: 25 }),
     fetch(`${APIFY_REEL_URL}?timeout=90`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.APIFY_TOKEN },
@@ -2279,8 +2319,8 @@ async function runIGScrape(rawHandle, env, origin, allowed) {
   ]);
 
   if (!profileRes.ok) {
-    const errText = await profileRes.text();
-    return json({ error: { message: 'Apify scrape failed: ' + errText.slice(0, 200) } }, profileRes.status, origin, allowed);
+    const errText = await profileRes.text().catch(() => profileRes.statusText);
+    return json({ error: { message: apifyUserMessage('scrape', errText, profileRes.status) } }, apifyStatus(profileRes.status), origin, allowed);
   }
 
   const items = await profileRes.json();
@@ -3593,6 +3633,25 @@ async function sbUserFetch(jwt, path, opts = {}) {
       Authorization: 'Bearer ' + jwt,
       'Content-Type': 'application/json',
       ...(opts.headers || {}),
+    },
+  });
+}
+
+async function handleAdminBugReports(request, env) {
+  const token = request.headers.get('X-CreatorClaw-Admin') || '';
+  if (!env.BUG_ADMIN_TOKEN || token !== env.BUG_ADMIN_TOKEN) {
+    return new Response('unauthorized', { status: 401 });
+  }
+  const res = await sbServiceFetch(
+    env,
+    '/bug_reports?select=id,created_at,status,category,email,description,context&order=created_at.desc&limit=20'
+  );
+  const body = await res.text();
+  return new Response(body, {
+    status: res.status,
+    headers: {
+      'Content-Type': res.headers.get('Content-Type') || 'application/json',
+      'Cache-Control': 'no-store',
     },
   });
 }
