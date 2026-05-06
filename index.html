@@ -226,6 +226,10 @@ body.logged-out #chat-view .chat-composer-auth{display:none}
 .chat-msg-body .onb-agent-name-form input:focus{border-color:var(--gold)}
 .chat-msg-body .onb-agent-name-form button{background:var(--gold);border:none;border-radius:8px;padding:11px 16px;color:var(--bg);font-size:11px;font-weight:750;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;white-space:nowrap;font-family:inherit}
 .chat-msg-body .onb-agent-name-form button:disabled{opacity:0.65;cursor:wait}
+.chat-msg-body .onb-agent-suggestions{display:flex;flex-wrap:wrap;gap:7px}
+.chat-msg-body .onb-agent-suggestions.hidden{display:none}
+.chat-msg-body .onb-agent-suggestion{background:var(--card2);border:1px solid var(--border2);border-radius:999px;padding:7px 11px;color:var(--muted);font-size:11px;line-height:1;cursor:pointer;font-family:inherit;transition:color 0.18s,border-color 0.18s,background 0.18s}
+.chat-msg-body .onb-agent-suggestion:hover{border-color:var(--gold);color:var(--gold);background:var(--gold-dim)}
 .chat-msg-body .onb-agent-confirm{font-size:13px;color:var(--text);line-height:1.55}
 .chat-msg-body .onb-agent-hatching{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text);line-height:1.55}
 .chat-msg-body .onb-agent-hatch-dot{width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 0 var(--gold-border);animation:personaContextPulse 1.5s ease-out infinite;flex-shrink:0}
@@ -4028,6 +4032,63 @@ function submitOnboardingHandle(){
   startOnboardingChat(v);
 }
 
+function agentNameSuggestionSignals(profile = {}, persona = null){
+  const list = v => Array.isArray(v) ? v : [];
+  const fields = [
+    profile?.bio,
+    profile?.displayName,
+    profile?.topCategory,
+    persona?.topCategory,
+    ...list(profile?.vibes),
+    ...list(profile?.recentThemes),
+    ...list(persona?.vibes),
+    ...list(profile?.categories).map(c => c?.name || c),
+    ...list(persona?.pillars).map(p => typeof p === 'string' ? p : (p?.l || p?.label || '')),
+  ];
+  return fields.filter(Boolean).join(' ').toLowerCase();
+}
+
+function agentNameSuggestions(profile = {}, persona = null){
+  const bag = agentNameSuggestionSignals(profile, persona);
+  const pools = [
+    { re: /\b(style|fashion|outfit|wardrobe|beauty|makeup|skincare|hair|aesthetic)\b/, names: ['Muse', 'Glow', 'Canvas'] },
+    { re: /\b(fit(ness)?|gym|coach|trainer|workout|yoga|pilates|run(ning)?|strength|wellness|movement|athlete)\b/, names: ['Spotter', 'Pace', 'Forge'] },
+    { re: /\b(business|ceo|founder|entrepreneur|startup|finance|investor|marketing|strategist|b2b|consultant)\b/, names: ['Operator', 'Ledger', 'Scout'] },
+    { re: /\b(comedy|funny|humor|skit|prank|meme|silly|chaotic|playful)\b/, names: ['Spark', 'Punchline', 'Bit'] },
+    { re: /\b(food|recipe|cook|kitchen|restaurant|home|hosting|decor|interior)\b/, names: ['Savor', 'Scout', 'Pantry'] },
+    { re: /\b(travel|hotel|trip|outdoor|hike|adventure|nomad|city guide)\b/, names: ['Compass', 'Atlas', 'Scout'] },
+  ];
+  const match = pools.find(p => p.re.test(bag));
+  const names = match?.names || ['Scout', 'Spark', 'Muse'];
+  return [...new Set(names)].slice(0, 3);
+}
+
+function renderAgentNameSuggestions(profile = {}, persona = null){
+  const suggestions = agentNameSuggestions(profile, persona);
+  return suggestions.length ? `
+    <div class="onb-agent-suggestions" data-agent-name-suggestions>
+      ${suggestions.map(s => `<button type="button" class="onb-agent-suggestion" onclick="pickOnboardingAgentName(this)">${escapeHtml(s)}</button>`).join('')}
+    </div>
+  ` : '<div class="onb-agent-suggestions hidden" data-agent-name-suggestions></div>';
+}
+
+function refreshOnboardingAgentNameSuggestions(profile = state.igData || {}){
+  const el = document.querySelector('[data-agent-name-suggestions]');
+  const input = document.getElementById('onb-agent-name-input');
+  if(!el || !input) return;
+  el.outerHTML = renderAgentNameSuggestions(profile, state.persona);
+}
+
+function pickOnboardingAgentName(btn){
+  const body = btn?.closest?.('.chat-msg-body');
+  const input = body?.querySelector?.('#onb-agent-name-input');
+  if(input){
+    input.value = (btn.textContent || '').trim();
+    input.style.borderColor = '';
+    input.focus();
+  }
+}
+
 function detectCreatorNiche(profile = {}, persona = null){
   const bio = String(profile?.bio || '').toLowerCase();
   const display = String(profile?.displayName || '').toLowerCase();
@@ -4074,6 +4135,7 @@ function pushOnboardingAgentNamePrompt(profile = {}, options = {}){
         <input id="onb-agent-name-input" type="text" maxlength="${AGENT_NAME_MAX}" placeholder="Name your agent" autocomplete="off">
         <button type="submit">Lock in name</button>
       </form>
+      ${renderAgentNameSuggestions(profile, state.persona)}
     </div>
   `);
   const input = body?.querySelector?.('#onb-agent-name-input');
@@ -4406,6 +4468,7 @@ async function startOnboardingChat(handle){
         }
         renderPersonaRevealSources(revealCard, state.igData);
         chatState._onboardingPersonaSettled = true;
+        refreshOnboardingAgentNameSuggestions(state.igData);
       }
     })();
     chatState._onboardingRevealCard = revealCard;
