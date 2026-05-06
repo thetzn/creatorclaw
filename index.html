@@ -226,11 +226,6 @@ body.logged-out #chat-view .chat-composer-auth{display:none}
 .chat-msg-body .onb-agent-name-form input:focus{border-color:var(--gold)}
 .chat-msg-body .onb-agent-name-form button{background:var(--gold);border:none;border-radius:8px;padding:11px 16px;color:var(--bg);font-size:11px;font-weight:750;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;white-space:nowrap;font-family:inherit}
 .chat-msg-body .onb-agent-name-form button:disabled{opacity:0.65;cursor:wait}
-.chat-msg-body .onb-agent-suggestions{display:flex;flex-wrap:wrap;gap:6px}
-.chat-msg-body .onb-agent-suggestions.is-delayed{opacity:0;max-height:0;overflow:hidden;pointer-events:none;transform:translateY(-4px);transition:opacity 0.45s ease,max-height 0.45s ease,transform 0.45s ease}
-.chat-msg-body .onb-agent-suggestions:not(.is-delayed){opacity:1;max-height:78px;transform:translateY(0);transition:opacity 0.45s ease,max-height 0.45s ease,transform 0.45s ease}
-.chat-msg-body .onb-agent-suggestion{background:var(--card2);border:1px solid var(--border2);border-radius:999px;padding:6px 10px;color:var(--muted);font-size:11px;line-height:1;cursor:pointer;font-family:inherit}
-.chat-msg-body .onb-agent-suggestion:hover{border-color:var(--gold);color:var(--gold)}
 .chat-msg-body .onb-agent-confirm{font-size:13px;color:var(--text);line-height:1.55}
 .chat-msg-body .onb-agent-hatching{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text);line-height:1.55}
 .chat-msg-body .onb-agent-hatch-dot{width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 0 var(--gold-border);animation:personaContextPulse 1.5s ease-out infinite;flex-shrink:0}
@@ -1742,7 +1737,7 @@ function startThinkingVerb(targetEl){
   return { span, interval, dotInterval };
 }
 // Same as startThinkingVerb but pairs each verb with a random activity object
-// from `activities[]` for a "Yeeting last 25 posts" / "Hawk-tuah-ing engagement
+// from `activities[]` for a "Yeeting recent posts" / "Hawk-tuah-ing engagement
 // patterns" effect. Used during onboarding so the verb stream matches the
 // chat thinking aesthetic but reads as sentences about what we're doing.
 function startVerbActivity(targetEl, activities){
@@ -4016,7 +4011,7 @@ function pushOnboardingHandlePrompt(){
       <input id="onb-handle-input" type="text" placeholder="@yourhandle" autocomplete="off" />
       <button onclick="submitOnboardingHandle()">Build your agent</button>
     </div>
-    <div style="font-size:11px;color:var(--muted);margin-top:8px">We'll scan your last 25 posts to build your persona, rate card, and brand matches.</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">We'll scan your recent posts to build your persona, rate card, and brand matches.</div>
   `);
   const inp = body.querySelector('#onb-handle-input');
   if(inp){
@@ -4031,15 +4026,6 @@ function submitOnboardingHandle(){
   const v = (inp.value || '').trim();
   if(!v){ inp.style.borderColor = 'var(--red)'; return; }
   startOnboardingChat(v);
-}
-
-function agentNameSuggestions(profile = {}){
-  const display = String(profile.displayName || '').trim();
-  const first = display.split(/\s+/)[0]?.replace(/[^a-z0-9'-]/gi, '') || '';
-  const items = ['Claw', 'Scout'];
-  if(first) items.push(`${first}'s Agent`);
-  else items.push('My Agent');
-  return items.slice(0,3);
 }
 
 function detectCreatorNiche(profile = {}, persona = null){
@@ -4069,8 +4055,9 @@ function buildOnboardingAgentNamingCopy(profile = {}, persona = null){
   return variants[niche] || variants.default;
 }
 
-function pushOnboardingAgentNamePrompt(profile = {}){
-  if(state.agent.name){
+function pushOnboardingAgentNamePrompt(profile = {}, options = {}){
+  const forceName = !!options.forceName;
+  if(state.agent.name && !forceName){
     chatState._onboardingNameBody = appendInlineCard('assistant', `
       <div class="onb-agent-confirm"><strong>${escapeHtml(state.agent.name)}</strong> is ready. Pulling your creator context together…</div>
     `);
@@ -4078,32 +4065,20 @@ function pushOnboardingAgentNamePrompt(profile = {}){
     return;
   }
   const copy = buildOnboardingAgentNamingCopy(profile, state.persona);
-  const suggestions = agentNameSuggestions(profile);
   const body = appendInlineCard('assistant', `
     <div class="onb-agent-name">
       <div class="onb-agent-kicker">${escapeHtml(copy.kicker)}</div>
       <div class="onb-agent-title">${escapeHtml(copy.title)}</div>
       <div class="onb-agent-copy">${escapeHtml(copy.body)}</div>
       <form class="onb-agent-name-form" onsubmit="submitOnboardingAgentName(event)">
-        <input id="onb-agent-name-input" type="text" maxlength="${AGENT_NAME_MAX}" placeholder="${escapeHtml(DEFAULT_AGENT_NAME)}" autocomplete="off">
+        <input id="onb-agent-name-input" type="text" maxlength="${AGENT_NAME_MAX}" placeholder="Name your agent" autocomplete="off">
         <button type="submit">Lock in name</button>
       </form>
-      <div class="onb-agent-suggestions is-delayed">
-        ${suggestions.map(s => `<button type="button" class="onb-agent-suggestion" onclick="pickOnboardingAgentName(this)">${escapeHtml(s)}</button>`).join('')}
-      </div>
     </div>
   `);
-  setTimeout(() => {
-    body?.querySelector?.('.onb-agent-suggestions')?.classList.remove('is-delayed');
-  }, 4200);
-}
-
-function pickOnboardingAgentName(btn){
-  const body = btn?.closest?.('.chat-msg-body');
   const input = body?.querySelector?.('#onb-agent-name-input');
   if(input){
-    input.value = btn.textContent.trim();
-    input.focus();
+    setTimeout(()=>input.focus(), 100);
   }
 }
 
@@ -4351,7 +4326,7 @@ async function startOnboardingChat(handle){
   if(revealSub) revealSub.textContent = '';
   chatState._onboardingStartedAt = Date.now();
   const scanVerbHandle = startVerbActivity(revealSub, [
-    `last 25 posts of @${cleanHandle}`,
+    `recent posts from @${cleanHandle}`,
     `engagement patterns`,
     `reel transcripts`,
     `the audios they've used`,
@@ -4448,13 +4423,7 @@ async function startOnboardingChat(handle){
 
     // 4. Naming card is the user's task. Submission triggers the rest of the
     //    flow (welcome stream + picker) via continueOnboardingAfterName.
-    //    For returning users who already named the agent, advance immediately.
-    if(state.agent.name){
-      pushOnboardingAgentNamePrompt(profile);
-      await continueOnboardingAfterName();
-    } else {
-      pushOnboardingAgentNamePrompt(profile);
-    }
+    pushOnboardingAgentNamePrompt(profile, { forceName: true });
   } catch(e){
     stopThinkingVerb(scanVerbHandle);
     console.error('Onboarding error:', e);
