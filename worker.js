@@ -25,14 +25,13 @@ const SUPABASE_ANON_KEY = 'sb_publishable_MsXw1OuEe9ZTBnSU8LSHwA_X19dr90J';
 
 // ── Rate estimator: multipliers (benchmark base rates come from Supabase) ───
 const ENGAGEMENT_BANDS = [
-  { maxPct: 1,   multiplier: 0.5, label: 'Below 1%, red flag' },
-  { maxPct: 2,   multiplier: 0.8, label: '1-2%' },
-  { maxPct: 4,   multiplier: 1.0, label: '2-4%, baseline' },
-  { maxPct: 6,   multiplier: 1.3, label: '4-6%' },
-  { maxPct: 10,  multiplier: 1.6, label: '6-10%' },
+  { maxPct: 1,   multiplier: 0.65, label: 'Below 1%, discounted' },
+  { maxPct: 3,   multiplier: 1.0, label: '1-3%, standard' },
+  { maxPct: 6,   multiplier: 1.3, label: '3-6%, premium' },
+  { maxPct: 10,  multiplier: 1.6, label: '6-10%, premium' },
   { maxPct: 999, multiplier: 2.0, label: '10%+, premium' },
 ];
-const NICHE_MULTIPLIERS = { finance: 1.5, b2b: 1.4, tech: 1.2, business: 1.2, wellness: 1.1, beauty: 1.1, fashion: 1.1, fitness: 1.05, parenting: 1.0, travel: 1.0, lifestyle: 1.0, diy: 1.0, home: 1.0, food: 0.9, gaming: 0.9, entertainment: 0.9, default: 1.0 };
+const NICHE_MULTIPLIERS = { finance: 1.5, b2b: 1.4, tech: 1.2, business: 1.2, combat_sports: 1.3, sports: 1.2, automotive: 1.15, podcast: 1.15, comedy: 1.1, wellness: 1.1, beauty: 1.1, fashion: 1.1, fitness: 1.05, parenting: 1.0, travel: 1.0, lifestyle: 1.0, diy: 1.0, home: 1.0, food: 0.9, gaming: 0.9, entertainment: 1.0, default: 1.0 };
 const DELIVERABLE_MULTIPLIERS = { story: 0.4, 'story-series': 0.9, static: 1.0, carousel: 1.1, reel: 1.5, video: 1.0, 'reel-plus-story': 1.8, 'static-plus-stories': 1.4, 'full-bundle': 2.5, ugc: 0.7, 'youtube-short': 0.7, 'youtube-integration': 1.0, 'youtube-dedicated': 2.5, 'crosspost-ig-tt': 2.0 };
 const ADDONS = { usageRightsPerMonth: 0.15, exclusivity30d: 0.5, exclusivity60d: 0.8, exclusivity90d: 1.2, whitelisting: 0.75, rush: 0.25 };
 const PIPELINE_STAGES = ['inbound', 'outreach', 'in_progress', 'negotiating', 'producing', 'awaiting_payment', 'closed'];
@@ -95,9 +94,14 @@ function normalizeNiche(freeform) {
   if (/(b2b|saas|enterprise)/.test(s)) return 'b2b';
   if (/(tech|developer|startup)/.test(s)) return 'tech';
   if (/(business|entrepreneur)/.test(s)) return 'business';
+  if (/(ufc|mma|combat.?sports?|fighter|fight|boxing|martial arts|jiu.?jitsu)/.test(s)) return 'combat_sports';
+  if (/(sports?|athlete|nfl|nba|mlb|nhl|soccer|football|baseball|basketball|olymp)/.test(s)) return 'sports';
+  if (/(auto|automotive|truck|car|cars|garage|diesel|racing|motorcycle|moto)/.test(s)) return 'automotive';
+  if (/(podcast|podcaster|show host|media personality|youtube host|interview)/.test(s)) return 'podcast';
+  if (/(comedy|comedian|stand.?up|comic)/.test(s)) return 'comedy';
   if (/(wellness|mindful|self.?care)/.test(s)) return 'wellness';
   if (/(beauty|skincare|makeup)/.test(s)) return 'beauty';
-  if (/(fashion|style|outfit)/.test(s)) return 'fashion';
+  if (/\b(fashion|style|outfits?)\b/.test(s)) return 'fashion';
   if (/(fitness|gym|workout|sport)/.test(s)) return 'fitness';
   if (/(parent|mom|dad|kids?|family)/.test(s)) return 'parenting';
   if (/(travel|destination)/.test(s)) return 'travel';
@@ -109,10 +113,78 @@ function normalizeNiche(freeform) {
   return 'lifestyle';
 }
 
+function tierMarketMultiplier(platform, tier) {
+  // 2026 market correction layered over the conservative 2024 benchmark
+  // table. Larger creators price less like pure CPM buys and more like
+  // scarce distribution + brand association, so macro/mega tiers need an
+  // upward correction even before celebrity/public-figure authority.
+  if (platform === 'instagram') {
+    if (tier === 'mega') return { low: 2.0, high: 3.0, label: '2026 mega Instagram market correction' };
+    if (tier === 'macro') return { low: 1.5, high: 2.0, label: '2026 macro Instagram market correction' };
+    if (tier === 'mid') return { low: 1.2, high: 1.45, label: '2026 mid-tier Instagram market correction' };
+  }
+  if (platform === 'tiktok') {
+    if (tier === 'mega') return { low: 1.6, high: 2.2, label: '2026 mega TikTok market correction' };
+    if (tier === 'macro') return { low: 1.35, high: 1.7, label: '2026 macro TikTok market correction' };
+  }
+  return { low: 1, high: 1, label: '' };
+}
+
+function buildAuthorityBag(opts = {}) {
+  const cr = opts.creatorResearch || {};
+  return [
+    opts.niche,
+    opts.displayName,
+    opts.bio,
+    opts.audienceHints,
+    ...(Array.isArray(opts.recentThemes) ? opts.recentThemes : []),
+    cr.summary,
+    ...(Array.isArray(cr.knownFor) ? cr.knownFor : []),
+    ...(Array.isArray(cr.contentAngles) ? cr.contentAngles : []),
+    ...(Array.isArray(cr.audienceNotes) ? cr.audienceNotes : []),
+    ...(Array.isArray(cr.sourceUrls) ? cr.sourceUrls : []),
+  ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function computeAuthorityMultiplier(opts = {}) {
+  const followers = Number(opts.followers) || 0;
+  const avgVideoViews = Number(opts.avgVideoViews || opts.avgViews) || 0;
+  const topPostViews = Array.isArray(opts.topPosts)
+    ? Math.max(0, ...opts.topPosts.map(p => Number(p?.views) || 0))
+    : 0;
+  const bag = buildAuthorityBag(opts);
+  let score = 0;
+  const reasons = [];
+
+  if (opts.verified) { score += 0.12; reasons.push('verified profile'); }
+  if (followers >= 10_000_000) { score += 0.35; reasons.push('10M+ audience'); }
+  else if (followers >= 1_000_000) { score += 0.18; reasons.push('1M+ audience'); }
+
+  if (/(former|current|professional|pro)\s+(ufc|nfl|nba|mlb|nhl|athlete|fighter|boxer|player)|ufc|olympian|champion|world champion/.test(bag)) {
+    score += 0.35; reasons.push('professional sports/public career');
+  }
+  if (/(actor|actress|musician|artist|singer|comedian|stand.?up|author|tv|film|celebrity|public figure|media personality)/.test(bag)) {
+    score += 0.28; reasons.push('public entertainment/media identity');
+  }
+  if (/(podcast|podcaster|show host|youtube|substack|newsletter|radio|interview series|network)/.test(bag)) {
+    score += 0.18; reasons.push('cross-platform media footprint');
+  }
+  if (/(founder|ceo|entrepreneur|sold company|investor|bestselling|best-selling)/.test(bag)) {
+    score += 0.14; reasons.push('business/industry authority');
+  }
+  if (avgVideoViews >= 100_000 || topPostViews >= 500_000) {
+    score += 0.12; reasons.push('large recent video reach');
+  }
+
+  const multiplier = Number((1 + Math.min(score, 0.6)).toFixed(2));
+  return { multiplier, reasons: Array.from(new Set(reasons)), score: Number(score.toFixed(2)) };
+}
+
 async function computeRateEstimate(opts) {
   const platform = opts.platform || 'instagram';
   const deliverable = opts.deliverable || 'reel';
   const followers = Number(opts.followers) || 0;
+  const views = Number(opts.views || opts.avgViews || opts.averageViews) || 0;
   const engagementPct = Number(opts.engagementPct) || 3;
   const niche = normalizeNiche(opts.niche);
   const rightsMonths = Number(opts.rightsMonths) || 0;
@@ -126,12 +198,15 @@ async function computeRateEstimate(opts) {
   if (!bench) {
     return { error: `No benchmark found for ${platform} ${tier}. Rate table may not be seeded.` };
   }
-  const units = Math.max(followers, 1000) / 1000;
+  const countBasis = platform === 'youtube' ? (views ? 'views' : 'subscribers_proxy') : 'followers';
+  const units = Math.max(platform === 'youtube' ? (views || followers) : followers, 1000) / 1000;
   const engBand = engagementBandFor(engagementPct);
   const nicheMult = NICHE_MULTIPLIERS[niche] ?? NICHE_MULTIPLIERS.default;
   const delivMult = DELIVERABLE_MULTIPLIERS[deliverable] ?? 1;
-  const coreLow = units * Number(bench.base_per_1k_low) * engBand.multiplier * nicheMult * delivMult;
-  const coreHigh = units * Number(bench.base_per_1k_high) * engBand.multiplier * nicheMult * delivMult;
+  const marketMult = tierMarketMultiplier(platform, tier);
+  const authority = computeAuthorityMultiplier({ ...opts, followers });
+  const coreLow = units * Number(bench.base_per_1k_low) * engBand.multiplier * nicheMult * delivMult * marketMult.low * authority.multiplier;
+  const coreHigh = units * Number(bench.base_per_1k_high) * engBand.multiplier * nicheMult * delivMult * marketMult.high * authority.multiplier;
   let addonMult = 1;
   if (rightsMonths > 0) addonMult += ADDONS.usageRightsPerMonth * rightsMonths;
   if (exclusivityDays >= 90) addonMult += ADDONS.exclusivity90d;
@@ -160,12 +235,18 @@ async function computeRateEstimate(opts) {
       engagement_multiplier: engBand.multiplier,
       niche_multiplier: nicheMult,
       deliverable_multiplier: delivMult,
+      market_multiplier_low: marketMult.low,
+      market_multiplier_high: marketMult.high,
+      authority_multiplier: authority.multiplier,
       addon_multiplier: Number(addonMult.toFixed(2)),
+      count_basis: countBasis,
     },
+    authority,
+    market_adjustment: marketMult.label || null,
     peer_data: peer
       ? { n: peer.n, p25: Number(peer.p25), p50: Number(peer.p50), p75: Number(peer.p75) }
       : { note: 'No peer data yet for this bucket (need ≥3 real rate cards).' },
-    source: 'Industry benchmark: IMH 2024 + Modash 2024. Peer median: real creator-submitted rates (anonymized).',
+    source: 'Industry benchmark: 2024 seed table with 2026 macro/mega market correction. Peer median: real creator-submitted rates (anonymized).',
   };
 }
 
@@ -348,13 +429,27 @@ Trust rule: do not pad the list to hit the requested count. If fewer brands are 
     // Gmail / Calendar are now served by the google_workspace_mcp server
     // attached to the SDK runtime, no executor branch needed here.
 
-    // Rate estimator path (unchanged).
+    // Rate estimator path.
+    let creatorResearch = creator.creatorResearch || null;
+    const handle = String(creator.igHandle || creator.handle || creator.username || '').replace(/^@/, '').trim();
+    if (!creatorResearch && handle) {
+      creatorResearch = await fetchCreatorResearchProfile(env, handle).catch(() => null);
+    }
     const opts = {
       platform: args.platform,
       deliverable: args.deliverable,
       followers: creator.followers,
+      views: creator.youtubeAvgViews || creator.youtubeViews,
       engagementPct: creator.engagementPct,
       niche: creator.niche,
+      verified: creator.verified,
+      displayName: creator.displayName,
+      bio: creator.bio,
+      audienceHints: creator.audienceHints,
+      recentThemes: creator.recentThemes,
+      topPosts: creator.topPosts,
+      avgVideoViews: creator.avgVideoViews,
+      creatorResearch,
       rightsMonths: args.rights_months,
       exclusivityDays: args.exclusivity_days,
       whitelisting: args.whitelisting,
@@ -1713,24 +1808,48 @@ export default {
     // ── Rate card: batch compute all common deliverables in one call ───
     if (body.rateCard) {
       const ctx = body.creatorContext || {};
+      const handle = String(ctx.igHandle || ctx.handle || ctx.username || '').replace(/^@/, '').trim();
+      let creatorResearch = ctx.creatorResearch || null;
+      if (!creatorResearch && handle) {
+        creatorResearch = await fetchCreatorResearchProfile(env, handle).catch(() => null);
+      }
+      const enrichedCtx = { ...ctx, creatorResearch };
       const catalog = [
         { platform: 'instagram', deliverable: 'static',       label: 'Static post' },
         { platform: 'instagram', deliverable: 'carousel',     label: 'Carousel' },
         { platform: 'instagram', deliverable: 'reel',         label: 'Reel' },
         { platform: 'instagram', deliverable: 'story-series', label: 'Stories (3+)' },
-        { platform: 'tiktok',    deliverable: 'video',        label: 'TikTok video' },
-        { platform: 'youtube',   deliverable: 'youtube-short',label: 'YouTube Short' },
         { platform: 'instagram', deliverable: 'ugc',          label: 'UGC (organic)' },
         { platform: 'instagram', deliverable: 'full-bundle',  label: 'Full bundle' },
       ];
+      if (Number(ctx.tiktokFollowers || ctx.platformFollowers?.tiktok || 0) > 0) {
+        catalog.splice(4, 0, { platform: 'tiktok', deliverable: 'video', label: 'TikTok video' });
+      }
+      if (Number(ctx.youtubeAvgViews || ctx.youtubeViews || ctx.platformViews?.youtube || 0) > 0) {
+        catalog.splice(5, 0, { platform: 'youtube', deliverable: 'youtube-short', label: 'YouTube Short' });
+      }
       const rates = await Promise.all(catalog.map(async (d) => {
         try {
+          const platformFollowers = d.platform === 'tiktok'
+            ? Number(enrichedCtx.tiktokFollowers || enrichedCtx.platformFollowers?.tiktok || 0)
+            : Number(enrichedCtx.followers || 0);
           const est = await computeRateEstimate({
             platform: d.platform,
             deliverable: d.deliverable,
-            followers: ctx.followers,
-            engagementPct: ctx.engagementPct,
-            niche: ctx.niche,
+            followers: platformFollowers,
+            views: d.platform === 'youtube'
+              ? Number(enrichedCtx.youtubeAvgViews || enrichedCtx.youtubeViews || enrichedCtx.platformViews?.youtube || 0)
+              : undefined,
+            engagementPct: enrichedCtx.engagementPct,
+            niche: enrichedCtx.niche,
+            verified: enrichedCtx.verified,
+            displayName: enrichedCtx.displayName,
+            bio: enrichedCtx.bio,
+            audienceHints: enrichedCtx.audienceHints,
+            recentThemes: enrichedCtx.recentThemes,
+            topPosts: enrichedCtx.topPosts,
+            avgVideoViews: enrichedCtx.avgVideoViews,
+            creatorResearch,
           });
           return { ...d, ...est };
         } catch (e) {
@@ -1742,8 +1861,14 @@ export default {
         tier_label: rates[0]?.tier_label || null,
         niche: rates[0]?.niche || null,
         engagement_band: rates[0]?.engagement_band || null,
+        authority_multiplier: rates.find(r => r.authority?.multiplier)?.authority?.multiplier || null,
+        authority_reasons: rates.find(r => r.authority?.reasons?.length)?.authority?.reasons || [],
+        platform_rows_hidden: {
+          tiktok: !Number(ctx.tiktokFollowers || ctx.platformFollowers?.tiktok || 0),
+          youtube: !Number(ctx.youtubeAvgViews || ctx.youtubeViews || ctx.platformViews?.youtube || 0),
+        },
         rates,
-        disclaimer: 'Industry benchmarks, adjusted for your tier, engagement, and niche. Treat as a negotiation floor, aim for the upper end of each range.',
+        disclaimer: 'Industry benchmarks, adjusted for tier, engagement, niche, public authority signals, and scope. Treat as a negotiation floor, aim for the upper end when usage rights, exclusivity, or whitelisting are involved.',
       }, 200, origin, allowed);
     }
 
@@ -4242,11 +4367,19 @@ async function handleAgentMessage(msg, link, env) {
   } catch (e) { console.warn('[telegram] google token', e); }
 
   const creatorContext = {
+    igHandle: String(persona?.scraped_data?.username || persona?.ig_handle || '').replace(/^@/, ''),
+    displayName: persona?.scraped_data?.displayName || persona?.ai_analysis?.name || '',
+    bio: persona?.scraped_data?.bio || persona?.ai_analysis?.bio || '',
+    verified: !!persona?.scraped_data?.verified,
     followers: parseFollowersStr(persona?.scraped_data?.followers),
     engagementPct: parseEngStr(persona?.scraped_data?.engagementRate),
-    niche: persona?.ai_analysis?.topCategory || persona?.scraped_data?.topCategory || 'lifestyle',
+    niche: buildRateNicheContextServer(persona) || 'lifestyle',
     brandAffinities: Array.isArray(persona?.scraped_data?.brandAffinities) ? persona.scraped_data.brandAffinities.slice(0, 8) : [],
     topSounds: Array.isArray(persona?.scraped_data?.topSounds) ? persona.scraped_data.topSounds.slice(0, 8) : [],
+    recentThemes: Array.isArray(persona?.scraped_data?.recentThemes) ? persona.scraped_data.recentThemes.slice(0, 8) : [],
+    topPosts: Array.isArray(persona?.scraped_data?.topPosts) ? persona.scraped_data.topPosts.slice(0, 5) : [],
+    avgVideoViews: Number(persona?.scraped_data?.avgVideoViews || 0) || 0,
+    creatorResearch: persona?.scraped_data?.creatorResearch || null,
     recommendationContext: buildRecommendationContextServer(persona?.scraped_data || {}),
     userId: link.user_id,
     accessToken: jwt,
@@ -4412,6 +4545,22 @@ function buildRecommendationContextServer(ig) {
 }
 
 // Server-side persona prompt builder (mirrors index.html buildSharedAgentContext).
+function buildRateNicheContextServer(personaRow) {
+  const ai = personaRow?.ai_analysis || {};
+  const ig = personaRow?.scraped_data || {};
+  const cr = ig.creatorResearch || {};
+  return [
+    ai.topCategory,
+    ig.topCategory,
+    ...(Array.isArray(ai.pillars) ? ai.pillars.map(x => typeof x === 'string' ? x : (x?.l || x?.label || '')) : []),
+    ...(Array.isArray(ig.recentThemes) ? ig.recentThemes : []),
+    ig.bio,
+    cr.summary,
+    ...(Array.isArray(cr.knownFor) ? cr.knownFor : []),
+    ...(Array.isArray(cr.contentAngles) ? cr.contentAngles : []),
+  ].map(x => String(x || '').trim()).filter(Boolean).join(' ');
+}
+
 function buildSharedAgentContextServer(personaRow) {
   const ai = personaRow?.ai_analysis || {};
   const ig = personaRow?.scraped_data || {};
