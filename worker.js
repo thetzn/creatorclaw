@@ -210,8 +210,8 @@ For the \`sound\` field: prefer suggesting an audio the creator has actually use
         creator.niche ? `Niche: ${creator.niche}` : null,
         creator.followers ? `Followers: ${creator.followers}` : null,
         creator.engagementPct ? `Engagement: ${creator.engagementPct}%` : null,
-        sharedCreateContext ? `Agent memory, style, and creator brief:\n${sharedCreateContext.slice(0, 5200)}` : null,
-        !sharedCreateContext && creator.recommendationContext ? `Scraped Instagram recommendation context:\n${String(creator.recommendationContext).slice(0, 3200)}` : null,
+        sharedCreateContext ? `Agent memory, style, and creator brief:\n${sharedCreateContext.slice(0, 4200)}` : null,
+        creator.recommendationContext ? `Scraped Instagram recommendation context:\n${String(creator.recommendationContext).slice(0, 3200)}` : null,
         topSoundsLines ? `Audios this creator has used before (use one of these by exact name when it fits the idea):\n${topSoundsLines}` : null,
         theme ? `Requested theme/angle: ${theme}` : null,
       ].filter(Boolean).join('\n');
@@ -389,11 +389,11 @@ async function generatePremiseFrames(args, creator, env) {
   const theme = String(args.theme || '').trim().slice(0, 900);
   const sharedCreateContext = String(creator?.sharedAgentContext || '').trim();
   const creatorBits = [
-    sharedCreateContext ? `Agent memory, style, and creator brief:\n${sharedCreateContext.slice(0, 4200)}` : null,
+    sharedCreateContext ? `Agent memory, style, and creator brief:\n${sharedCreateContext.slice(0, 3200)}` : null,
     creator?.niche ? `Creator niche: ${creator.niche}` : null,
     creator?.followers ? `Followers: ${creator.followers}` : null,
     creator?.engagementPct ? `Engagement: ${creator.engagementPct}%` : null,
-    !sharedCreateContext && creator?.recommendationContext ? `Creator context, use only if it sharpens the premise:\n${String(creator.recommendationContext).slice(0, 1600)}` : null,
+    creator?.recommendationContext ? `Creator context, use only if it sharpens the premise:\n${String(creator.recommendationContext).slice(0, 1800)}` : null,
   ].filter(Boolean).join('\n');
   const sys = `You are the Create specialist helping a creator sharpen a supplied content premise. Return ONLY JSON, no markdown:
 {"frames":[{"name":"UV Index Check Test","hook":"Ask your husband this one question and don't help him.","execution":"Wife asks what the UV index is today, then follows up with what does that actually mean?","twist":"He answers confidently, then reveals he has no idea if 9 is out of 10 or 100.","why_it_works":"It mirrors the viral trend mechanic: simple repeatable spouse test, confidence to confusion, audience wants to try it.","caption":"Men would rather guess than admit they don't know what UV index means."}]}
