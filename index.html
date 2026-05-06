@@ -928,22 +928,30 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .st-btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--muted)}
 .st-btn-ghost:hover{border-color:var(--border);color:var(--text)}
 .st-btn:disabled{opacity:0.45;cursor:default}
-.st-fact-list{display:flex;flex-direction:column;gap:1px;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:4px}
-.st-fact-row{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;background:var(--card2);transition:background 0.1s}
-.st-fact-row:hover{background:var(--card)}
-.st-fact-row:first-child{border-radius:9px 9px 0 0}
-.st-fact-row:last-child{border-radius:0 0 9px 9px}
-.st-fact-row:only-child{border-radius:9px}
-.st-fact-key{font-size:11px;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;min-width:140px;flex-shrink:0;padding-top:2px}
-.st-fact-val{flex:1;font-size:13px;color:var(--text);line-height:1.5}
-.st-fact-val ul{margin:4px 0 0 18px;padding:0}
-.st-fact-val li{margin:3px 0}
-.st-fact-cat{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:2px 7px;border-radius:999px;border:1px solid var(--border2);color:var(--muted);white-space:nowrap;margin-top:2px}
-.st-fact-cat.source{color:var(--gold);border-color:var(--gold-border)}
-.st-fact-actions{display:flex;gap:6px;flex-shrink:0}
-.st-fact-btn{background:transparent;border:none;cursor:pointer;padding:3px 6px;border-radius:5px;color:var(--muted);font-size:11px;transition:color 0.12s,background 0.12s}
-.st-fact-btn:hover{color:var(--text);background:var(--border)}
-.st-fact-btn.del:hover{color:var(--red)}
+.st-memory-tools{display:flex;justify-content:flex-end;margin:-10px 0 14px}
+.st-memory-list{display:flex;flex-direction:column;gap:18px;margin-top:4px}
+.st-memory-group{display:flex;flex-direction:column;gap:10px}
+.st-memory-group-label{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin:2px 0 0}
+.st-memory-card{background:linear-gradient(180deg,rgba(255,255,255,0.025),rgba(255,255,255,0)),var(--card2);border:1px solid var(--border);border-radius:14px;padding:15px 16px;transition:border-color 0.12s,background 0.12s}
+.st-memory-card:hover{border-color:var(--border2);background:var(--card)}
+.st-memory-card.is-editing{border-color:var(--gold-border);box-shadow:0 0 0 1px var(--gold-border)}
+.st-memory-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:10px}
+.st-memory-title-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.st-memory-title{font-size:14px;font-weight:650;color:var(--text);letter-spacing:0}
+.st-memory-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
+.st-memory-badge{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:3px 7px;border-radius:999px;border:1px solid var(--border2);color:var(--muted);white-space:nowrap}
+.st-memory-badge.source{color:var(--gold);border-color:var(--gold-border)}
+.st-memory-badge.edited{color:var(--green);border-color:rgba(60,179,113,0.35)}
+.st-memory-copy{font-size:13px;color:var(--text);line-height:1.62}
+.st-memory-copy p{margin:0 0 10px}
+.st-memory-copy p:last-child{margin-bottom:0}
+.st-memory-lines{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.st-memory-lines li{position:relative;padding-left:18px;color:var(--text)}
+.st-memory-lines li::before{content:"";position:absolute;left:2px;top:0.74em;width:5px;height:5px;border-radius:50%;background:var(--gold);opacity:0.7}
+.st-memory-actions{display:flex;gap:6px;flex-shrink:0}
+.st-memory-btn{background:transparent;border:1px solid transparent;cursor:pointer;padding:6px 9px;border-radius:7px;color:var(--muted);font-size:11px;font-weight:600;transition:color 0.12s,background 0.12s,border-color 0.12s}
+.st-memory-btn:hover{color:var(--text);background:var(--border)}
+.st-memory-btn.del:hover{color:var(--red);border-color:rgba(239,68,68,0.25)}
 .st-fact-empty{text-align:center;padding:36px 24px;color:var(--muted);font-size:13px;line-height:1.6}
 .st-fact-empty svg{width:32px;height:32px;margin:0 auto 12px;display:block;opacity:0.3}
 .st-profile-row{display:flex;align-items:center;gap:16px;margin-bottom:20px}
@@ -953,7 +961,10 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .st-profile-handle{font-size:12px;color:var(--muted);margin-top:2px}
 .st-vibes{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 .st-vibe{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:var(--card);border:1px solid var(--border2);color:var(--muted)}
-.st-edit-fact-wrap{background:var(--card2);border:1px solid var(--gold-border);border-radius:10px;padding:16px;margin-top:12px}
+.st-edit-fact-wrap{background:var(--card2);border:1px solid var(--gold-border);border-radius:12px;padding:16px;margin:10px 0 4px}
+.st-edit-title{font-size:14px;font-weight:650;margin-bottom:4px;color:var(--text)}
+.st-edit-help{font-size:12px;color:var(--muted);line-height:1.45;margin-bottom:12px}
+.st-input[disabled]{opacity:0.68;cursor:not-allowed}
 @media(max-width:768px){
   body.in-tool .header-inner{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;max-width:none}
   body.in-tool .header-hamburger{width:44px;height:44px;padding:0;justify-self:start}
@@ -993,7 +1004,14 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   .st-profile-note{font-size:13px;line-height:1.5;margin:2px 0 14px}
   .st-row{flex-direction:column}
   .st-row .st-btn{width:100%;min-height:44px}
-  .st-fact-key{min-width:100px}
+  .st-memory-tools{justify-content:flex-start;margin:0 0 14px}
+  .st-memory-list{gap:16px}
+  .st-memory-group{gap:9px}
+  .st-memory-card{border-radius:16px;padding:14px}
+  .st-memory-card-head{display:block;margin-bottom:10px}
+  .st-memory-actions{margin-top:12px}
+  .st-memory-btn{min-height:38px;padding:8px 11px}
+  .st-memory-copy{font-size:13px;line-height:1.58}
 }
 </style>
 </head>
@@ -1292,15 +1310,21 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 
     <!-- Memory Summary -->
     <div id="st-panel-memory" class="hidden">
-      <div class="st-section-title">What your agent knows</div>
-      <div class="st-section-sub">Your agent builds a picture of you as you chat. Review and correct anything here, edits take effect immediately.</div>
+      <div class="st-section-title">Agent memory</div>
+      <div class="st-section-sub">The creator brief your agent uses for strategy, drafting, and brand recommendations. Edit any section when the read feels off.</div>
+      <div class="st-memory-tools">
+        <button class="st-btn st-btn-ghost" type="button" onclick="startAddMemory()">Add memory</button>
+      </div>
       <div id="st-memory-body">
         <div class="st-fact-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>Loading…</div>
       </div>
       <div id="st-fact-edit-wrap" class="st-edit-fact-wrap hidden">
-        <div class="st-label" style="margin-top:0">Editing</div>
-        <input id="st-edit-key" class="st-input" style="margin-bottom:8px" placeholder="key (snake_case)" maxlength="80">
-        <textarea id="st-edit-val" class="st-input st-textarea" style="margin-bottom:8px;min-height:72px" placeholder="value"></textarea>
+        <div class="st-edit-title" id="st-edit-title">Edit memory</div>
+        <div class="st-edit-help">Use short paragraphs or one idea per line. This becomes live context for your agent.</div>
+        <div class="st-label" style="margin-top:0">Memory label</div>
+        <input id="st-edit-key" class="st-input" style="margin-bottom:8px" placeholder="e.g. Pitch tone" maxlength="80">
+        <div class="st-label" style="margin-top:10px">What the agent should know</div>
+        <textarea id="st-edit-val" class="st-input st-textarea" style="margin-bottom:8px;min-height:120px" placeholder="Write the corrected memory here. Use separate lines for separate ideas."></textarea>
         <div class="st-row" style="margin-top:0">
           <button class="st-btn st-btn-primary" onclick="saveEditedFact()">Save</button>
           <button class="st-btn st-btn-ghost" onclick="cancelFactEdit()">Cancel</button>
@@ -2102,7 +2126,9 @@ async function refreshTelegramConnectionState(){
 
 let stCurrentSection = 'profile';
 let stEditingKey = null;
+let stEditingRow = null;
 let stFactsCache = [];
+let stMemoryRows = [];
 
 function openSettingsSection(section){
   stCurrentSection = section;
@@ -2371,107 +2397,285 @@ async function stLoadMemory(){
   }
 }
 
-function stRenderMemory(){
-  const body = document.getElementById('st-memory-body');
-  if(!body) return;
+function normalizeMemoryKey(label){
+  return String(label || '').trim().toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 80);
+}
+
+function normalizeFactCategory(cat){
+  const allowed = new Set(['voice','preferences','brand_history','negotiation','workflow','general']);
+  return allowed.has(cat) ? cat : 'general';
+}
+
+function friendlyMemoryLabel(key){
+  return String(key || 'Memory')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function compactMemoryList(arr, limit = 6){
+  const clean = v => String(v || '').replace(/\s+/g, ' ').trim();
+  return Array.isArray(arr) ? arr.map(clean).filter(Boolean).slice(0, limit).join('\n') : '';
+}
+
+function buildSettingsProfileSignals(d = state.igData || {}){
+  const clean = v => String(v || '').replace(/\s+/g, ' ').trim();
+  const lines = [];
+  const recentThemes = Array.isArray(d.recentThemes) ? d.recentThemes.map(clean).filter(Boolean).slice(0, 5) : [];
+  if(recentThemes.length) lines.push('Recent themes: ' + recentThemes.join(', '));
+  const hashtags = Array.isArray(d.topHashtags) ? d.topHashtags.filter(h=>h?.name).slice(0, 6).map(h=>`#${clean(h.name)}${h.count ? ` (${h.count})` : ''}`) : [];
+  if(hashtags.length) lines.push('Repeated hashtags: ' + hashtags.join(', '));
+  const mentions = Array.isArray(d.topMentions) ? d.topMentions.filter(m=>m?.name).slice(0, 5).map(m=>`@${clean(m.name)}${m.count ? ` (${m.count})` : ''}`) : [];
+  if(mentions.length) lines.push('Recurring mentions and collaborators: ' + mentions.join(', '));
+  const affinities = Array.isArray(d.brandAffinities) ? d.brandAffinities.map(x=>clean(String(x).replace(/^@/, ''))).filter(Boolean).slice(0, 6) : [];
+  if(affinities.length) lines.push('Brand orbit: ' + affinities.join(', '));
+  if(d.linkContext?.summary) lines.push('Bio link read: ' + clean(d.linkContext.summary));
+  const offers = Array.isArray(d.linkContext?.offers) ? d.linkContext.offers.map(o=>clean(o?.label || o?.kind || o?.url)).filter(Boolean).slice(0, 4) : [];
+  if(offers.length) lines.push('Visible offers and CTAs: ' + offers.join(', '));
+  const posts = Array.isArray(d.topPosts) ? d.topPosts.slice(0, 3).map((post, i) => {
+    const caption = clean(post?.caption).slice(0, 150);
+    if(!caption) return '';
+    const metrics = [post?.type || 'post', post?.likes ? `${post.likes} likes` : null, post?.comments ? `${post.comments} comments` : null, post?.views ? `${post.views} views` : null].filter(Boolean).join(', ');
+    return `Top post ${i + 1}: ${metrics ? metrics + ' - ' : ''}"${caption}"`;
+  }).filter(Boolean) : [];
+  lines.push(...posts);
+  if(!lines.length && d.recommendationContext){
+    String(d.recommendationContext).split('\n').map(clean).filter(Boolean).slice(0, 6).forEach(line => {
+      lines.push(line
+        .replace(/^Supplemental public context.*?:/i, 'Public-source context:')
+        .replace(/^Brand-safety notes:/i, 'Brand guardrails:')
+        .replace(/^Content angles:/i, 'Content lanes:'));
+    });
+  }
+  return lines.join('\n').slice(0, 1200);
+}
+
+function buildBaseMemoryRows(){
   const p = state.persona || {};
   const d = state.igData || {};
   const cr = d.creatorResearch || {};
-  const clean = v => String(v || '').replace(/\s+/g, ' ').trim();
-  const listVal = arr => Array.isArray(arr) ? arr.map(clean).filter(Boolean).join('\n') : '';
-  const profileSnippets = [];
-  if(p.bio) profileSnippets.push({ key: 'bio', value: p.bio, cat: 'profile', readonly: true });
-  const pillars = (p.pillars||[]).map(x=>typeof x==='string'?x:x.l||x.label).filter(Boolean);
-  if(pillars.length) profileSnippets.push({ key: 'content_pillars', value: pillars.join(', '), cat: 'profile', readonly: true });
-  if((p.vibes||[]).length) profileSnippets.push({ key: 'voice_vibes', value: (p.vibes||[]).join(', '), cat: 'profile', readonly: true });
-  if(cr.summary) profileSnippets.push({ key: 'public_context', value: cr.summary, cat: 'public sources', readonly: true, source: true });
-  const knownFor = listVal(cr.knownFor);
-  if(knownFor) profileSnippets.push({ key: 'known_for', value: knownFor, cat: 'public sources', readonly: true, source: true, list: true });
-  const audienceNotes = listVal(cr.audienceNotes);
-  if(audienceNotes) profileSnippets.push({ key: 'audience_model', value: audienceNotes, cat: 'public sources', readonly: true, source: true, list: true });
-  const contentAngles = listVal(cr.contentAngles);
-  if(contentAngles) profileSnippets.push({ key: 'strong_content_lanes', value: contentAngles, cat: 'public sources', readonly: true, source: true, list: true });
-  const brandSafety = listVal(cr.brandSafetyNotes);
-  if(brandSafety) profileSnippets.push({ key: 'brand_safety', value: brandSafety, cat: 'public sources', readonly: true, source: true, list: true });
-  if(d.recommendationContext) profileSnippets.push({ key: 'scraped_signal_context', value: String(d.recommendationContext).slice(0, 700), cat: 'scrape', readonly: true });
-  const allRows = [...profileSnippets, ...stFactsCache.map(f=>({ key: f.key, value: f.value, cat: f.category, id: f.id, readonly: false }))];
-  if(!allRows.length){
-    body.innerHTML = '<div class="st-fact-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Nothing stored yet. Your agent learns as you chat.</div>';
+  const pillars = (p.pillars||[]).map(x=>typeof x==='string'?x:x.l||x.label).filter(Boolean).join('\n');
+  const rows = [
+    { key:'public_context', label:'Public backstory', group:'Source brief', badge:'Public sources', value:cr.summary || '', source:true, dbCategory:'general' },
+    { key:'known_for', label:'Known for', group:'Source brief', badge:'Public sources', value:compactMemoryList(cr.knownFor), source:true, format:'list', dbCategory:'general' },
+    { key:'bio', label:'Creator bio', group:'Source brief', badge:'Instagram profile', value:p.bio || d.bio || '', dbCategory:'general' },
+    { key:'voice_vibes', label:'Voice and vibe', group:'Voice and positioning', badge:'Persona read', value:compactMemoryList(p.vibes), format:'list', dbCategory:'voice' },
+    { key:'content_pillars', label:'Content pillars', group:'Voice and positioning', badge:'Persona read', value:pillars, format:'list', dbCategory:'general' },
+    { key:'audience_model', label:'Audience read', group:'Voice and positioning', badge:'Public sources', value:compactMemoryList(cr.audienceNotes), source:true, format:'list', dbCategory:'general' },
+    { key:'strong_content_lanes', label:'Content lanes', group:'Voice and positioning', badge:'Public sources', value:compactMemoryList(cr.contentAngles), source:true, format:'list', dbCategory:'general' },
+    { key:'brand_safety', label:'Guardrails', group:'Guardrails', badge:'Public sources', value:compactMemoryList(cr.brandSafetyNotes), source:true, format:'list', dbCategory:'preferences' },
+    { key:'recent_profile_signals', label:'Recent profile signals', group:'Guardrails', badge:'Recent scrape', value:buildSettingsProfileSignals(d), format:'list', dbCategory:'general' }
+  ];
+  return rows.filter(r => String(r.value || '').trim());
+}
+
+function renderMemoryValue(row){
+  const raw = String(row.value || '').trim();
+  if(!raw) return '<p>No details yet.</p>';
+  const cleanLine = line => line.replace(/^[-*•]\s*/, '').trim();
+  const lines = raw.split(/\n+/).map(cleanLine).filter(Boolean);
+  if(row.format === 'list' || lines.length > 1){
+    return '<ul class="st-memory-lines">' + lines.map(line => `<li>${esc(line)}</li>`).join('') + '</ul>';
+  }
+  const paragraphs = raw.length > 220
+    ? raw.replace(/([.!?])\s+(?=[A-Z0-9@])/g, '$1\n').split(/\n+/).map(x=>x.trim()).filter(Boolean)
+    : [raw];
+  return paragraphs.map(p => `<p>${esc(p)}</p>`).join('');
+}
+
+function stRenderMemory(){
+  const body = document.getElementById('st-memory-body');
+  if(!body) return;
+  const baseRows = buildBaseMemoryRows();
+  const baseKeys = new Set(baseRows.map(r => r.key));
+  const factByKey = new Map((stFactsCache || []).map(f => [f.key, f]));
+  stMemoryRows = [];
+  baseRows.forEach(base => {
+    const override = factByKey.get(base.key);
+    stMemoryRows.push({
+      ...base,
+      value: override?.value || base.value,
+      id: override?.id || null,
+      override: !!override,
+      lockedLabel: true
+    });
+  });
+  (stFactsCache || []).filter(f => !baseKeys.has(f.key)).forEach(f => {
+    stMemoryRows.push({
+      key: f.key,
+      label: friendlyMemoryLabel(f.key),
+      group: 'Saved notes',
+      badge: f.category ? friendlyMemoryLabel(f.category) : 'Saved by you',
+      value: f.value,
+      id: f.id,
+      dbCategory: normalizeFactCategory(f.category),
+      source: false,
+      lockedLabel: false
+    });
+  });
+  if(!stMemoryRows.length){
+    body.innerHTML = '<div class="st-fact-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Nothing stored yet. Add a memory or keep chatting and your agent will learn durable rules.</div>';
     return;
   }
-  const renderFactValue = r => r.list
-    ? '<ul>' + String(r.value).split('\n').filter(Boolean).map(x=>`<li>${esc(x)}</li>`).join('') + '</ul>'
-    : esc(r.value);
-  body.innerHTML = '<div class="st-fact-list">' + allRows.map(r=>`
-    <div class="st-fact-row" data-key="${esc(r.key)}">
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          <span class="st-fact-key">${esc(r.key.replace(/_/g,' '))}</span>
-          <span class="st-fact-cat${r.source ? ' source' : ''}">${esc(r.cat)}</span>
-          ${r.readonly ? `<span class="st-fact-cat${r.source ? ' source' : ''}">${r.source ? 'source-backed' : 'from profile'}</span>` : ''}
+  const groupOrder = ['Source brief', 'Voice and positioning', 'Guardrails', 'Saved notes'];
+  const groupHtml = groupOrder.map(group => {
+    const rows = stMemoryRows.map((row, index) => ({ row, index })).filter(item => item.row.group === group);
+    if(!rows.length) return '';
+    return `<div class="st-memory-group">
+      <div class="st-memory-group-label">${esc(group)}</div>
+      ${rows.map(({ row, index }) => `
+        <div class="st-memory-card" data-memory-index="${index}" data-key="${esc(row.key)}">
+          <div class="st-memory-card-head">
+            <div style="min-width:0">
+              <div class="st-memory-title-row"><div class="st-memory-title">${esc(row.label)}</div></div>
+              <div class="st-memory-meta">
+                <span class="st-memory-badge${row.source ? ' source' : ''}">${esc(row.badge || 'Memory')}</span>
+                ${row.override ? '<span class="st-memory-badge edited">Edited by you</span>' : ''}
+              </div>
+            </div>
+            <div class="st-memory-actions">
+              <button class="st-memory-btn" type="button" onclick="startEditMemoryRow(${index})">Edit</button>
+              ${row.override && row.id ? `<button class="st-memory-btn" type="button" onclick="resetMemoryRow(${index})">Reset</button>` : ''}
+              ${!row.lockedLabel && row.id ? `<button class="st-memory-btn del" type="button" onclick="deleteMemoryRow(${index})">Delete</button>` : ''}
+            </div>
+          </div>
+          <div class="st-memory-copy">${renderMemoryValue(row)}</div>
         </div>
-        <div class="st-fact-val">${renderFactValue(r)}</div>
-      </div>
-      ${r.readonly ? '' : `<div class="st-fact-actions">
-        <button class="st-fact-btn" onclick="startEditFact('${esc(r.key)}','${esc(r.value.replace(/'/g,"\\'"))}','${r.id}')">Edit</button>
-        <button class="st-fact-btn del" onclick="deleteMemoryFact('${r.id}','${esc(r.key)}')">Delete</button>
-      </div>`}
-    </div>`).join('') + '</div>';
+      `).join('')}
+    </div>`;
+  }).join('');
+  body.innerHTML = `<div class="st-memory-list">${groupHtml}</div>`;
 }
 
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-function startEditFact(key, value, id){
-  stEditingKey = id;
+function startEditMemoryRow(index){
+  const row = stMemoryRows[index];
+  if(!row) return;
+  stEditingRow = row;
+  stEditingKey = row.id || row.key;
   const wrap = document.getElementById('st-fact-edit-wrap');
   const keyEl = document.getElementById('st-edit-key');
   const valEl = document.getElementById('st-edit-val');
+  const titleEl = document.getElementById('st-edit-title');
+  const card = document.querySelector(`.st-memory-card[data-memory-index="${index}"]`);
   if(!wrap||!keyEl||!valEl) return;
-  keyEl.value = key;
-  valEl.value = value;
+  document.querySelectorAll('.st-memory-card.is-editing').forEach(el => el.classList.remove('is-editing'));
+  if(titleEl) titleEl.textContent = `Edit ${row.label}`;
+  keyEl.value = row.label || friendlyMemoryLabel(row.key);
+  keyEl.disabled = !!row.lockedLabel;
+  valEl.value = row.value || '';
   wrap.classList.remove('hidden');
-  valEl.focus();
+  card?.classList.add('is-editing');
+  card?.insertAdjacentElement('afterend', wrap);
+  requestAnimationFrame(() => {
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    valEl.focus();
+  });
+}
+
+function startAddMemory(){
+  stEditingRow = { key:'', label:'New memory', group:'Saved notes', badge:'Saved by you', value:'', dbCategory:'general', lockedLabel:false };
+  stEditingKey = '__new__';
+  const wrap = document.getElementById('st-fact-edit-wrap');
+  const keyEl = document.getElementById('st-edit-key');
+  const valEl = document.getElementById('st-edit-val');
+  const titleEl = document.getElementById('st-edit-title');
+  const body = document.getElementById('st-memory-body');
+  if(!wrap||!keyEl||!valEl||!body) return;
+  document.querySelectorAll('.st-memory-card.is-editing').forEach(el => el.classList.remove('is-editing'));
+  if(titleEl) titleEl.textContent = 'Add memory';
+  keyEl.disabled = false;
+  keyEl.value = '';
+  valEl.value = '';
+  wrap.classList.remove('hidden');
+  body.insertAdjacentElement('afterend', wrap);
+  requestAnimationFrame(() => {
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    keyEl.focus();
+  });
 }
 
 function cancelFactEdit(){
   stEditingKey = null;
+  stEditingRow = null;
+  document.querySelectorAll('.st-memory-card.is-editing').forEach(el => el.classList.remove('is-editing'));
   const wrap = document.getElementById('st-fact-edit-wrap');
-  if(wrap) wrap.classList.add('hidden');
+  const panel = document.getElementById('st-panel-memory');
+  if(wrap){
+    wrap.classList.add('hidden');
+    if(panel && wrap.parentElement !== panel) panel.appendChild(wrap);
+  }
 }
 
 async function saveEditedFact(){
   const keyEl = document.getElementById('st-edit-key');
   const valEl = document.getElementById('st-edit-val');
   const btn = document.querySelector('#st-fact-edit-wrap .st-btn-primary');
+  const row = stEditingRow || {};
   if(!keyEl||!valEl||!stEditingKey) return;
-  const newKey = keyEl.value.trim();
+  const label = keyEl.value.trim();
+  const newKey = row.lockedLabel ? row.key : normalizeMemoryKey(label || row.key);
   const newVal = valEl.value.trim();
   if(!newKey||!newVal) return;
   if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
   try {
     const { data: { session } } = await sb.auth.getSession();
     if(!session) return;
-    await fetch(`${SUPABASE_URL}/rest/v1/creator_facts?id=eq.${stEditingKey}`, {
-      method: 'PATCH',
-      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: newKey, value: newVal })
-    });
+    const payload = {
+      key: newKey,
+      value: newVal,
+      category: normalizeFactCategory(row.dbCategory || row.category || 'general'),
+      source: row.lockedLabel ? 'settings_override' : 'settings'
+    };
+    let res;
+    if(row.id){
+      res = await fetch(`${SUPABASE_URL}/rest/v1/creator_facts?id=eq.${row.id}`, {
+        method: 'PATCH',
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } else {
+      res = await fetch(`${SUPABASE_URL}/rest/v1/creator_facts?on_conflict=user_id,key`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=representation' },
+        body: JSON.stringify({ ...payload, user_id: session.user.id })
+      });
+    }
+    if(!res.ok) throw new Error(await res.text());
     cancelFactEdit();
     await stLoadMemory();
   } catch(e) {
+    console.warn('saveEditedFact', e);
+    showError('Could not save memory.');
+  } finally {
     if(btn){ btn.disabled=false; btn.textContent='Save'; }
   }
 }
 
-async function deleteMemoryFact(id, key){
-  if(!confirm(`Delete "${key.replace(/_/g,' ')}"?`)) return;
+function deleteMemoryRow(index){
+  const row = stMemoryRows[index];
+  if(row?.id) deleteMemoryFact(row.id, row.label || row.key);
+}
+
+function resetMemoryRow(index){
+  const row = stMemoryRows[index];
+  if(row?.id) deleteMemoryFact(row.id, row.label || row.key, { reset:true });
+}
+
+async function deleteMemoryFact(id, label, options = {}){
+  const action = options.reset ? 'Reset edits for' : 'Delete';
+  if(!confirm(`${action} "${label}"?`)) return;
   try {
     const { data: { session } } = await sb.auth.getSession();
     if(!session) return;
-    await fetch(`${SUPABASE_URL}/rest/v1/creator_facts?id=eq.${id}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/creator_facts?id=eq.${id}`, {
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + session.access_token }
     });
+    if(!res.ok) throw new Error(await res.text());
     stFactsCache = stFactsCache.filter(f=>f.id !== id);
     stRenderMemory();
   } catch(e) { console.warn('deleteMemoryFact', e); }
@@ -5169,6 +5373,15 @@ function buildSharedAgentContext(){
   }
   if((d.recentThemes||[]).length) parts.push(`Recent content themes: ${d.recentThemes.join(', ')}`);
   if(d.bio) parts.push(`Bio: "${d.bio}"`);
+  if((stFactsCache || []).length){
+    parts.push(`\n--- Creator-edited memory and saved rules ---`);
+    parts.push(`Treat these user-edited memories as higher priority than scraped or public-source context when they conflict.`);
+    stFactsCache.slice(0, 30).forEach(f => {
+      const label = friendlyMemoryLabel(f.key);
+      const cat = f.category ? friendlyMemoryLabel(f.category) : 'General';
+      parts.push(`${label} (${cat}): ${String(f.value || '').trim()}`);
+    });
+  }
   const recommendationContext = buildRecommendationContext();
   if(recommendationContext) {
     parts.push(`\n--- Recommendation grounding from scraped posts and public context ---`);
