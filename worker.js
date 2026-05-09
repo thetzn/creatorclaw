@@ -621,6 +621,12 @@ async function draftPitchAction(args, creatorContext, env) {
   const profile = args?.creatorProfile || {};
   const agentName = String(profile.agentName || 'Claw').trim() || 'Claw';
   const senderMode = pitchOptions.senderMode === 'agent' ? 'agent' : 'creator';
+  const toneMap = {
+    warm_direct: 'Warm and direct: friendly, specific, no filler.',
+    premium_concise: 'Premium and concise: polished, restrained, brand-manager friendly.',
+    playful_creator: 'Playful creator-led: energetic but still professional.',
+    operator_sharp: 'Sharp operator: direct, commercially minded, clear next step.',
+  };
   const senderInstruction = senderMode === 'agent'
     ? `Write as ${agentName}, the creator's named agent, on behalf of the creator. Use third person for the creator where natural, be transparent that you represent them, and sign off as ${agentName}.`
     : 'Write as the creator in first person and sign off as the creator.';
@@ -632,11 +638,12 @@ Return ONLY JSON, no markdown:
   "body": "3-5 short paragraphs, plaintext (no markdown). First line names the creator + niche + metric. Second paragraph references brand's program/aesthetic/campaign if given. Third is a concrete concept idea. Fourth is the ask (next step/call). Sign off with creator's first name."
 }`;
   const brandCtx = [
-    `Brand: ${brand.name || 'Unknown'}${brand.domain ? ` (${brand.domain})` : ''}`,
+    `Brand: ${pitchOptions.brandTarget || brand.name || 'Unknown'}${brand.domain ? ` (${brand.domain})` : ''}`,
     brand.cat ? `Category: ${brand.cat}` : null,
     brand.program_url ? `Creator program: ${brand.program_url}` : null,
     Array.isArray(brand.recent_campaigns) && brand.recent_campaigns.length ? `Recent campaigns: ${brand.recent_campaigns.slice(0, 2).map(c => c.title || '').filter(Boolean).join(' | ')}` : null,
     pitchOptions.angle ? `Chosen angle: ${pitchOptions.angle}` : null,
+    pitchOptions.tone ? `Tone variant: ${toneMap[pitchOptions.tone] || pitchOptions.tone}` : null,
     brand.next_step ? `Recommended next step: ${brand.next_step}` : null,
     Array.isArray(brand.evidence) && brand.evidence.length ? `Recommendation evidence: ${brand.evidence.join('; ')}` : null,
     Array.isArray(brand.reasons) && brand.reasons.length ? `Fit reasons: ${brand.reasons.join('; ')}` : null,

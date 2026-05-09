@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -88,6 +88,11 @@ img.logo-mark{display:block}.spinner img{width:100%;height:100%;object-fit:conta
 .chat-new-btn{margin:12px 14px 0;padding:10px 14px;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:12px;font-weight:500;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:8px;justify-content:center}
 .chat-new-btn:hover{border-color:var(--gold-border);color:var(--gold)}
 .chat-list{flex:1;overflow-y:auto;padding:14px 10px;scrollbar-width:thin}
+.chat-list-search{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-family:inherit;font-size:12px;outline:none;margin:6px 0 10px}
+.chat-list-search:focus{border-color:var(--gold-border)}
+.chat-list-empty{padding:10px 8px;color:var(--muted);font-size:12px;line-height:1.45}
+.chat-list-more{width:100%;margin-top:6px;background:transparent;border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--muted);font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase}
+.chat-list-more:hover{color:var(--gold);border-color:var(--gold-border)}
 .chat-section-label{font-size:10px;font-weight:600;color:var(--muted2);letter-spacing:0.15em;text-transform:uppercase;padding:8px 8px 6px}
 .chat-list-item{padding:8px 10px;border-radius:6px;font-size:13px;color:var(--muted);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:all 0.15s}
 .chat-list-item:hover{background:var(--card2);color:var(--text)}
@@ -162,7 +167,7 @@ body.in-tool .nav{display:none}
 .chat-msg-body .md-field{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:start;margin:3px 0;line-height:1.55}
 .chat-msg-body .md-field-label{color:var(--gold);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;line-height:1.8;white-space:nowrap}
 .chat-msg-body .md-field-text{min-width:0;color:var(--text)}
-.chat-composer{border-top:1px solid var(--border);padding:16px 20px 20px;background:var(--bg);flex-shrink:0}
+.chat-composer{border-top:1px solid var(--border);padding:16px 20px calc(20px + env(safe-area-inset-bottom));background:var(--bg);flex-shrink:0}
 .chat-composer-inner{max-width:720px;margin:0 auto}
 .chat-input-wrap{position:relative}
 .chat-input{width:100%;background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:14px 50px 14px 18px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none;resize:none;min-height:52px;max-height:200px;line-height:1.5;transition:border-color 0.2s;display:block}
@@ -440,6 +445,18 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .loading-sub{transition:opacity 0.3s ease}
 .spinner{display:inline-block;animation:spin 2s linear infinite;margin-bottom:24px;width:52px;height:32px}
 .spinner svg{width:100%;height:100%;display:block}
+.agent-crab{display:inline-flex;align-items:center;justify-content:center;width:52px;height:32px;margin-bottom:24px;transform-origin:50% 55%}
+.agent-crab img{width:100%;height:100%;object-fit:contain;display:block}
+.agent-crab[data-state="reading"]{animation:agent-bob 1.8s ease-in-out infinite}
+.agent-crab[data-state="matching"]{animation:agent-scan 1.4s ease-in-out infinite}
+.agent-crab[data-state="drafting"]{animation:agent-write 1.1s ease-in-out infinite}
+.agent-crab[data-state="done"]{animation:agent-pop 0.75s ease-out both}
+.agent-crab[data-state="error"]{animation:agent-wiggle 0.55s ease-in-out 2}
+@keyframes agent-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes agent-scan{0%,100%{transform:translateX(-3px) rotate(-3deg)}50%{transform:translateX(3px) rotate(3deg)}}
+@keyframes agent-write{0%,100%{transform:translateX(0)}25%{transform:translateX(-2px) rotate(-2deg)}75%{transform:translateX(2px) rotate(2deg)}}
+@keyframes agent-pop{0%{transform:scale(0.9);opacity:0.75}55%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+@keyframes agent-wiggle{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
 .spinner-inline{display:inline-block;width:16px;height:10px;animation:spin 1.5s linear infinite;vertical-align:-1px}
 .spinner-inline svg{width:100%;height:100%;display:block}
 .loading-title{font-weight:400;font-size:16px;color:var(--text);letter-spacing:0.02em}
@@ -506,6 +523,10 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .media-kit-btn{position:absolute;top:18px;right:18px;display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--gold-border);border-radius:8px;padding:8px 12px;color:var(--gold);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-family:inherit;transition:all 0.18s ease}
 .media-kit-btn:hover{background:var(--gold);color:var(--bg);border-color:var(--gold)}
 .media-kit-btn svg{width:13px;height:13px;flex-shrink:0}
+.media-kit-preview{display:grid;gap:10px;margin:16px 0 8px}
+.media-kit-preview-row{display:flex;justify-content:space-between;gap:14px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px}
+.media-kit-preview-row span:first-child{color:var(--muted)}
+.media-kit-preview-row span:last-child{color:var(--text);font-weight:650;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:640px){.media-kit-btn{position:static;margin-top:14px;width:100%;justify-content:center;padding:11px 12px}}
 .vibe-tag{background:transparent;color:var(--muted);border-radius:4px;padding:4px 12px;font-size:10px;font-weight:500;border:1px solid var(--border2);letter-spacing:0.08em;text-transform:uppercase}
 
@@ -609,6 +630,10 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .pipeline-card-meta .sep{opacity:0.5}
 .pipeline-card-amount{font-size:13px;font-weight:600;display:flex;align-items:center;gap:5px;background:linear-gradient(135deg,var(--gold3),var(--gold),var(--gold2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--gold)}
 .pipeline-card-amount.confirmed{background:none;-webkit-text-fill-color:var(--green);color:var(--green)}
+.pipeline-card-cue{display:flex;align-items:flex-start;gap:7px;border:1px solid var(--gold-border);background:var(--gold-dim);color:var(--text);border-radius:7px;padding:7px 8px;font-size:10.5px;line-height:1.35;margin-top:2px}
+.pipeline-card-cue::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--gold);margin-top:4px;flex-shrink:0}
+.pipeline-card-cue.warn{border-color:rgba(196,110,110,0.28);background:var(--red-dim)}
+.pipeline-card-cue.warn::before{background:var(--red)}
 .pipeline-card-actions{display:flex;gap:6px;margin-top:4px}
 .pipeline-card-act{background:transparent;border:1px solid var(--border2);border-radius:5px;padding:4px 8px;color:var(--muted);font-size:10px;letter-spacing:0.04em;cursor:pointer;transition:all 0.15s;font-family:inherit}
 .pipeline-card-act:hover{color:var(--text);border-color:var(--text)}
@@ -691,6 +716,10 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .brand-trust{margin:12px 0;padding:10px 12px;border:1px solid rgba(255,255,255,0.055);border-radius:8px;background:rgba(255,255,255,0.018)}
 .brand-trust-kicker{font-size:8px;color:var(--muted);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:5px}
 .brand-trust-angle{font-size:12px;color:var(--text);font-weight:600;line-height:1.35}
+.brand-proof-stack{display:grid;gap:6px;margin-top:10px}
+.brand-proof-row{display:grid;grid-template-columns:84px 1fr;gap:8px;align-items:start;font-size:11px;line-height:1.35}
+.brand-proof-row span:first-child{color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;font-size:8px;padding-top:2px}
+.brand-proof-row span:last-child{color:var(--text)}
 .brand-evidence{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .brand-evidence-pill{font-size:9px;color:var(--muted);border:1px solid rgba(255,255,255,0.055);border-radius:999px;padding:4px 7px;line-height:1;background:rgba(255,255,255,0.018)}
 .brand-fit-label{font-size:8px;color:var(--muted2);letter-spacing:0.14em;text-transform:uppercase;margin:12px 0 8px}
@@ -945,6 +974,8 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .st-memory-badge{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:3px 7px;border-radius:999px;border:1px solid var(--border2);color:var(--muted);white-space:nowrap}
 .st-memory-badge.source{color:var(--gold);border-color:var(--gold-border)}
 .st-memory-badge.edited{color:var(--green);border-color:rgba(60,179,113,0.35)}
+.st-memory-used{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.st-memory-used-chip{font-size:9px;color:var(--muted);border:1px solid var(--border2);border-radius:999px;padding:3px 7px;background:var(--card)}
 .st-memory-copy{font-size:13px;color:var(--text);line-height:1.62}
 .st-memory-copy p{margin:0 0 10px}
 .st-memory-copy p:last-child{margin-bottom:0}
@@ -969,6 +1000,15 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 .st-edit-help{font-size:12px;color:var(--muted);line-height:1.45;margin-bottom:12px}
 .st-input[disabled]{opacity:0.68;cursor:not-allowed}
 @media(max-width:768px){
+  html,body{max-width:100%;overflow-x:hidden}
+  #chat-view{height:100dvh;overflow:hidden}
+  .chat-main{height:100dvh;min-width:0}
+  .chat-messages{padding-bottom:28px}
+  .chat-msg{max-width:100%;gap:10px}
+  .chat-msg-body{overflow-wrap:anywhere}
+  .chat-composer{padding:12px 14px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -10px 30px rgba(0,0,0,0.08)}
+  .chat-input{max-height:128px}
+  .tool-start-card,.persona-reveal-card,.inline-signin{max-width:100%}
   body.in-tool .header-inner{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;max-width:none}
   body.in-tool .header-hamburger{width:44px;height:44px;padding:0;justify-self:start}
   body.in-tool .logo{display:none}
@@ -1129,7 +1169,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   </div>
   <div id="persona-result" class="hidden">
     <div class="card persona-header" style="margin-bottom:20px;position:relative">
-      <button class="media-kit-btn" id="media-kit-btn" onclick="downloadMediaKit()" title="Download media kit (PDF)">
+      <button class="media-kit-btn" id="media-kit-btn" onclick="previewMediaKit()" title="Preview and download media kit (PDF)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="7 10 12 15 17 10"/>
@@ -1193,7 +1233,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   <h1 class="page-title">Your <span class="gold-text">Pitch</span> matches</h1>
   <p class="page-sub">Brands aligned with your persona, ranked by audience fit and content compatibility.</p>
   <div id="brands-cta" class="center-cta"><div class="center-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/><path d="M10 12v2h4v-2"/></svg></div><h2>Find brands that fit</h2><p>Match your audience and content style to brands, then draft outreach in your voice.</p><button class="gen-btn" onclick="generateBrands()">Find Brands</button></div>
-  <div id="brands-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Matching brands to your persona…</div><div class="loading-sub" id="brands-loading-sub">Matching brands to your audience signals…</div><div class="loading-progress"><div class="loading-progress-fill" id="brands-loading-bar"></div></div></div>
+  <div id="brands-loading" class="loading hidden"><div class="agent-crab" data-agent-crab data-state="matching"></div><div class="loading-title">Matching brands to your persona…</div><div class="loading-sub" id="brands-loading-sub">Matching brands to your audience signals…</div><div class="loading-progress"><div class="loading-progress-fill" id="brands-loading-bar"></div></div></div>
   <div style="position:relative">
     <div id="brands-result" class="brand-grid hidden"></div>
     <div class="teaser-gate" id="brands-gate" style="top:auto;bottom:-20px;padding:60px 24px 40px">
@@ -1249,7 +1289,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   <h1 class="page-title">What to <span class="gold-text">Create</span></h1>
   <p class="page-sub">Content ideas matched to your persona and what's trending right now.</p>
   <div id="pulse-cta" class="center-cta"><div class="center-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 10-13h-7l1-7z"/></svg></div><h2>Generate ideas matched to your audience</h2><p>Turn your persona and current trend signals into post ideas, hooks, formats, and draftable scripts.</p><button class="gen-btn" onclick="generatePulse()">Create Ideas</button></div>
-  <div id="pulse-loading" class="loading hidden"><div class="spinner" data-crab></div><div class="loading-title">Scanning trends across platforms…</div><div class="loading-sub" id="pulse-loading-sub">Matching current formats to your creator persona…</div><div class="loading-progress"><div class="loading-progress-fill" id="pulse-loading-bar"></div></div></div>
+  <div id="pulse-loading" class="loading hidden"><div class="agent-crab" data-agent-crab data-state="reading"></div><div class="loading-title">Scanning trends across platforms…</div><div class="loading-sub" id="pulse-loading-sub">Matching current formats to your creator persona…</div><div class="loading-progress"><div class="loading-progress-fill" id="pulse-loading-bar"></div></div></div>
   <div id="pulse-result" class="hidden"><div class="pulse-filters" id="pulse-filters"></div><div class="pulse-section-label"><span class="dot" style="background:var(--gold)"></span> Trending Now, Matched to Your Persona</div><div style="position:relative"><div class="pulse-grid" id="pulse-grid"></div><div class="teaser-gate" id="pulse-gate" style="top:auto;bottom:-20px;padding:60px 24px 40px"><div class="teaser-gate-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 10-13h-7l1-7z"/></svg></div><h3>Unlock all 10 content ideas</h3><p>Sign in to see the full list of AI-generated ideas, save them to your calendar, and auto-draft scripts in your voice.</p><div class="gate-actions"><button class="google-btn" onclick="signInWithGoogle()"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v3.9h6c-.3 1.3-1 2.4-2.2 3.2v2.7h3.5c2.1-1.9 3.2-4.7 3.2-7.7z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.3v2.8C4.1 20.5 7.8 23 12 23z"/><path fill="#FBBC05" d="M5.9 14.3c-.2-.7-.4-1.4-.4-2.3 0-.8.1-1.6.4-2.3V6.9H2.3C1.5 8.4 1 10.1 1 12s.5 3.6 1.3 5.1l3.6-2.8z"/><path fill="#EA4335" d="M12 5.2c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.4 1.9 14.9 1 12 1 7.8 1 4.1 3.5 2.3 6.9l3.6 2.8C6.8 7.1 9.2 5.2 12 5.2z"/></svg>Sign in with Google</button><button class="ig-btn" onclick="connectInstagram()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></svg>Connect Instagram</button></div></div></div></div>
 </div>
 
@@ -1366,7 +1406,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
             </div>
             <div class="connection-info">
               <div class="connection-name">Instagram</div>
-              <div class="connection-desc" id="connect-ig-desc">Link your Business/Creator account for real follower + engagement data.</div>
+              <div class="connection-desc" id="connect-ig-desc">Public-handle reads use scraped Instagram signals. Connect Business/Creator Instagram for first-party metrics and fresher analytics.</div>
             </div>
           </div>
           <button class="connection-btn" id="connect-ig-btn" onclick="connectInstagram()">Connect</button>
@@ -1562,18 +1602,25 @@ function applyTheme(t){
   if(icon) icon.innerHTML = svg;
   const chatIcon=document.getElementById('chat-theme-icon');
   if(chatIcon) chatIcon.innerHTML = svg;
+  const lbl=document.getElementById('st-appearance-label');
+  if(lbl) lbl.textContent=t==='dark'?'Dark':'Light';
 }
 function toggleTheme(){
   const cur=document.documentElement.getAttribute('data-theme')||'dark';
   const next=cur==='dark'?'light':'dark';
   applyTheme(next);
-  try{localStorage.setItem('cc-theme',next)}catch(e){}
-  const lbl=document.getElementById('st-appearance-label');
-  if(lbl) lbl.textContent=next==='dark'?'Dark':'Light';
+  try{
+    localStorage.setItem('cc-theme',next);
+    localStorage.setItem('cc-theme-user-set','1');
+  }catch(e){}
 }
 (function(){
-  let saved='dark';
-  try{saved=localStorage.getItem('cc-theme')||'dark'}catch(e){}
+  let saved='light';
+  try{
+    const explicit = localStorage.getItem('cc-theme-user-set') === '1';
+    saved = explicit ? (localStorage.getItem('cc-theme') || 'light') : 'light';
+    if(!explicit) localStorage.setItem('cc-theme','light');
+  }catch(e){}
   applyTheme(saved);
 })();
 
@@ -1582,9 +1629,13 @@ const LOGO_DATA_URI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAADBCAY
 function crabSVG(){
   return '<img src="'+LOGO_DATA_URI+'" alt="" style="width:100%;height:100%;object-fit:contain;display:block">';
 }
+function hydrateCrabs(root = document){
+  root.querySelectorAll('[data-crab-img]').forEach(el=>{ el.src=LOGO_DATA_URI; });
+  root.querySelectorAll('[data-crab]').forEach(el=>{ el.innerHTML=crabSVG(); });
+  root.querySelectorAll('[data-agent-crab]').forEach(el=>{ el.innerHTML=crabSVG(); });
+}
 // Populate header logo + spinner placeholders
-document.querySelectorAll('[data-crab-img]').forEach(el=>{ el.src=LOGO_DATA_URI; });
-document.querySelectorAll('[data-crab]').forEach(el=>{ el.innerHTML=crabSVG(); });
+hydrateCrabs();
 
 // ── Progress loading (rotating messages + growing bar) ───────────────────────
 const LOADING_MESSAGES={
@@ -1861,7 +1912,7 @@ function showModal(innerHTML){
   o.addEventListener('click',e=>{ if(e.target===o) closeModal(); });
   document.body.appendChild(o);
   // Populate any crab placeholders inside the modal
-  o.querySelectorAll('[data-crab]').forEach(el=>{ el.innerHTML=crabSVG(); });
+  hydrateCrabs(o);
 }
 function closeModal(){ const m=document.getElementById('active-modal'); if(m) m.remove(); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
@@ -2498,6 +2549,16 @@ function renderMemoryValue(row){
   return paragraphs.map(p => `<p>${esc(p)}</p>`).join('');
 }
 
+function memoryUsageChips(row = {}){
+  const key = String(row.key || '');
+  const group = String(row.group || '');
+  const chips = new Set();
+  if(/voice|vibe|pillar|recent_profile|strong_content|bio|known_for/.test(key) || group === 'Voice and positioning') chips.add('Used in Create');
+  if(/audience|brand|pitch|partnership|guardrail|known_for|public_context|recent_profile/.test(key) || group === 'Guardrails') chips.add('Used in Pitch');
+  if(/bio|audience|pillar|recent_profile|public_context|known_for/.test(key) || group === 'Source brief' || group === 'Profile signals') chips.add('Used in Analytics');
+  return Array.from(chips).slice(0, 3);
+}
+
 function stRenderMemory(){
   const body = document.getElementById('st-memory-body');
   if(!body) return;
@@ -2555,6 +2616,7 @@ function stRenderMemory(){
             </div>
           </div>
           <div class="st-memory-copy">${renderMemoryValue(row)}</div>
+          ${memoryUsageChips(row).length ? `<div class="st-memory-used">${memoryUsageChips(row).map(c=>`<span class="st-memory-used-chip">${esc(c)}</span>`).join('')}</div>` : ''}
         </div>
       `).join('')}
     </div>`;
@@ -3564,7 +3626,7 @@ function updateIgConnectUI(){
     } else {
       tabBtn.textContent = 'Connect';
       tabBtn.classList.remove('connected');
-      if(tabDesc) tabDesc.textContent = 'Link your Business/Creator account for real follower + engagement data.';
+      if(tabDesc) tabDesc.textContent = 'Public-handle reads use scraped Instagram signals. Connect Business/Creator Instagram for first-party metrics and fresher analytics.';
     }
   }
   const accountsBtn = document.getElementById('accounts-ig-btn');
@@ -3588,6 +3650,8 @@ const chatState = {
   messages: [],
   streaming: false,
   conversations: [],
+  recentsExpanded: false,
+  recentsSearch: '',
   activeTool: 'main',  // 'main' | 'create' | 'pitch' | 'pipeline', drives agent role + conversation scope
   followBottom: true,  // sticky-scroll: follow streaming content unless user scrolls up
   _onboardingStartedAt: 0,
@@ -3982,13 +4046,48 @@ function renderConversationList(){
   const el = document.getElementById('chat-list-items');
   if(!el) return;
   el.innerHTML = '';
-  chatState.conversations.forEach(c => {
+  const seen = new Set();
+  const query = String(chatState.recentsSearch || '').trim().toLowerCase();
+  const curated = [];
+  for(const c of chatState.conversations || []){
+    const title = String(c.title || 'Untitled').replace(/\s+/g, ' ').trim();
+    const key = title.toLowerCase();
+    if(seen.has(key)) continue;
+    seen.add(key);
+    if(query && !key.includes(query)) continue;
+    curated.push({ ...c, title });
+  }
+  el.insertAdjacentHTML('beforeend', `
+    <input class="chat-list-search" type="search" placeholder="Search recents" value="${escapeHtml(chatState.recentsSearch || '')}" oninput="filterRecents(this.value)" aria-label="Search recent chats">
+  `);
+  const visible = chatState.recentsExpanded || query ? curated : curated.slice(0, 5);
+  if(!visible.length){
+    const empty = document.createElement('div');
+    empty.className = 'chat-list-empty';
+    empty.textContent = query ? 'No recent chats match that search.' : 'No recent chats yet.';
+    el.appendChild(empty);
+    return;
+  }
+  visible.forEach(c => {
     const div = document.createElement('div');
     div.className = 'chat-list-item'+(c.id===chatState.conversationId?' active':'');
     div.textContent = c.title || 'Untitled';
     div.onclick = () => openConversation(c.id);
     el.appendChild(div);
   });
+  if(curated.length > 5 && !query){
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'chat-list-more';
+    more.textContent = chatState.recentsExpanded ? 'Show fewer' : `Show ${curated.length - 5} more`;
+    more.onclick = () => { chatState.recentsExpanded = !chatState.recentsExpanded; renderConversationList(); };
+    el.appendChild(more);
+  }
+}
+
+function filterRecents(value){
+  chatState.recentsSearch = value || '';
+  renderConversationList();
 }
 
 async function openConversation(id){
@@ -4012,6 +4111,7 @@ async function openConversation(id){
 function newChat(){
   chatState.conversationId = null;
   chatState.messages = [];
+  chatState.recentsExpanded = false;
   const cfg = activeToolConfig();
   const tool = chatState.activeTool || 'main';
   document.getElementById('chat-active-title').textContent = tool === 'main' ? 'New chat' : (cfg.label + ' · new');
@@ -5405,7 +5505,7 @@ async function runInlinePulsePreview(){
         </div>
         <div class="pulse-actions">
           <button class="pulse-save-btn" onclick="openSchedule('${safeTitle}')">${iconCalendar()}Schedule</button>
-          <button class="pulse-draft-btn" onclick="draftScript('${safeTitle}')">${iconScript()}Script</button>
+          <button class="pulse-draft-btn" onclick="draftScript('${safeTitle}', this)">${iconScript()}Script</button>
         </div>`;
       grid.appendChild(card);
     });
@@ -6004,6 +6104,35 @@ function asArrayPayload(raw, key){
 //   - Analytics tab "Download Media Kit" button
 //   - Pitch email draft "Attach media kit" button (downloads locally so the
 //     creator can attach it from their Gmail compose / mail client)
+function previewMediaKit(){
+  const p = state.persona || {};
+  const d = state.igData || {};
+  if(!p.name && !d.username){
+    showError('Generate your persona first, then preview the media kit.');
+    return;
+  }
+  const name = p.name || d.displayName || d.username || 'Creator';
+  const handle = d.username ? '@' + String(d.username).replace(/^@/, '') : 'No handle yet';
+  const rows = [
+    ['Creator', name],
+    ['Handle', handle],
+    ['Reach', p.totalReach || d.followers || 'N/A'],
+    ['Engagement', p.avgEngagement || d.engagementRate || 'N/A'],
+    ['Rate card', document.getElementById('rate-card-grid')?.textContent?.trim() ? 'Included' : 'Calculates after persona'],
+  ];
+  showModal(`
+    <div class="modal-title">Media kit preview</div>
+    <div class="modal-sub">This exports a one-page PDF with your creator snapshot, core metrics, content pillars, and recent themes.</div>
+    <div class="media-kit-preview">
+      ${rows.map(([k,v]) => `<div class="media-kit-preview-row"><span>${escapeHtml(k)}</span><span>${escapeHtml(v)}</span></div>`).join('')}
+    </div>
+    <div class="modal-row">
+      <button class="modal-cancel-btn" type="button" onclick="closeModal()">Cancel</button>
+      <button class="modal-save-btn" type="button" onclick="downloadMediaKit({ toast: true });closeModal()">Download PDF</button>
+    </div>
+  `);
+}
+
 async function downloadMediaKit(opts = {}){
   const p = state.persona || {};
   const d = state.igData || {};
@@ -6407,6 +6536,26 @@ function pipelineRollup(){
   return { earned, pipelineVal, active };
 }
 
+function pipelineCueForDeal(d){
+  const status = d.status || 'outreach';
+  const amount = Number(d.amount_usd) || 0;
+  const updated = new Date(d.updated_at || d.created_at || Date.now());
+  const ageDays = isNaN(updated.getTime()) ? 0 : Math.floor((Date.now() - updated.getTime()) / 86400000);
+  const notes = String(d.notes || '').toLowerCase();
+  if(status === 'awaiting_payment'){
+    return { tone: ageDays >= 7 ? 'warn' : '', text: ageDays >= 7 ? 'Payment follow-up today.' : 'Confirm payment date.' };
+  }
+  if(status === 'negotiating'){
+    if(amount && amount < 500) return { tone: 'warn', text: 'Rate looks low. Re-anchor scope.' };
+    return { tone: '', text: notes.includes('usage') ? 'Lock approval timeline.' : 'Ask for usage rights.' };
+  }
+  if(status === 'producing') return { tone: '', text: 'Confirm deliverables and revision limit.' };
+  if(status === 'in_progress') return { tone: '', text: 'Send recap with next step.' };
+  if(status === 'outreach') return { tone: ageDays >= 3 ? 'warn' : '', text: ageDays >= 3 ? 'Follow up today.' : 'Add one proof point.' };
+  if(status === 'inbound') return { tone: '', text: 'Reply with rate floor.' };
+  return null;
+}
+
 async function renderPipeline(){
   if(!state.deals) await loadDeals();
   const board = document.getElementById('pipeline-board');
@@ -6478,6 +6627,8 @@ function renderDealCard(d){
   const amountDisplay = amount
     ? `<div class="pipeline-card-amount${isClosed?' confirmed':''}">${isClosed?'✓ ':''}${fmtUsdShort(amount)}</div>`
     : '';
+  const cue = pipelineCueForDeal(d);
+  const cueDisplay = cue ? `<div class="pipeline-card-cue${cue.tone === 'warn' ? ' warn' : ''}">${esc(cue.text)}</div>` : '';
   return `
     <div class="pipeline-card" data-id="${esc(d.id)}" onclick="openDealModal('${esc(d.id)}')">
       <div class="pipeline-card-head">
@@ -6486,6 +6637,7 @@ function renderDealCard(d){
       </div>
       ${metaParts.length ? `<div class="pipeline-card-meta">${metaParts.map((p,i)=> i===0 ? esc(p) : `<span class="sep">·</span>${esc(p)}`).join('')}</div>` : ''}
       ${amountDisplay}
+      ${cueDisplay}
       <div class="pipeline-card-actions" onclick="event.stopPropagation()">
         <button class="pipeline-card-act" onclick="openMoveDealMenu(event,'${esc(d.id)}')">Move</button>
         <button class="pipeline-card-act" onclick="openDealModal('${esc(d.id)}')">Edit</button>
@@ -7243,17 +7395,30 @@ function brandPitchAngle(brand){
 
 function brandEvidence(brand){
   const raw = Array.isArray(brand?.evidence) ? brand.evidence : [];
+  const fit = Array.isArray(brand?.fit_evidence) ? brand.fit_evidence : [];
   const fallback = Array.isArray(brand?.reasons) ? brand.reasons : [];
-  return [...raw, ...fallback].map(x => String(x || '').trim()).filter(Boolean).slice(0,2);
+  return [...fit, ...raw, ...fallback].map(x => String(x || '').trim()).filter(Boolean).slice(0,3);
+}
+
+function brandProofRows(brand){
+  const rows = [];
+  const evidence = brandEvidence(brand);
+  if(brand?.cat) rows.push(['Category', `${brand.cat} fit`]);
+  if(evidence[0]) rows.push(['Audience proof', evidence[0]]);
+  if(evidence[1]) rows.push(['Content proof', evidence[1]]);
+  if(brand?.next_step) rows.push(['Next move', brand.next_step]);
+  return rows.slice(0, 4);
 }
 
 function brandTrustHtml(brand){
   const angle = brandPitchAngle(brand);
   const evidence = brandEvidence(brand);
+  const proofRows = brandProofRows(brand);
   return `
     <div class="brand-trust">
       <div class="brand-trust-kicker">Best angle</div>
       <div class="brand-trust-angle">${escapeHtml(angle)}</div>
+      ${proofRows.length ? `<div class="brand-proof-stack">${proofRows.map(([k,v])=>`<div class="brand-proof-row"><span>${escapeHtml(k)}</span><span>${escapeHtml(v)}</span></div>`).join('')}</div>` : ''}
       ${evidence.length ? `<div class="brand-evidence">${evidence.map(e=>`<span class="brand-evidence-pill">${escapeHtml(e)}</span>`).join('')}</div>` : ''}
     </div>
     <div class="brand-fit-label">Why this fits</div>
@@ -7717,7 +7882,7 @@ function renderInlineIdeasIntoBody(bodyEl, ideas){
       ${idea.sound?`<div class="pulse-sound-badge" title="Audio recommendation">${iconMusic()}<span class="pulse-sound-text">${escapeHtml(idea.sound)}</span></div>`:''}
       <div class="pulse-actions">
         <button class="pulse-save-btn" onclick="openSchedule('${safeTitle}')">${iconCalendar()}Schedule</button>
-        <button class="pulse-draft-btn" onclick="draftScript('${safeTitle}')">${iconScript()}Script</button>
+        <button class="pulse-draft-btn" onclick="draftScript('${safeTitle}', this)">${iconScript()}Script</button>
       </div>`;
     grid.appendChild(card);
   });
@@ -7836,10 +8001,19 @@ function draftPitch(i){
       <div class="brand-trust-kicker">Style source</div>
       <div class="brand-trust-angle">${esc(agentStyle)}</div>
     </div>
+    <div class="modal-label">Brand target</div>
+    <input id="pitch-brand-target" value="${esc(brand.name || '')}" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;margin-bottom:14px">
     <div class="modal-label">Email voice</div>
     <select id="pitch-sender-select" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;margin-bottom:14px">
       <option value="creator">From me</option>
       <option value="agent">From ${esc(agentName)} on my behalf</option>
+    </select>
+    <div class="modal-label">Tone variant</div>
+    <select id="pitch-tone-select" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;margin-bottom:14px">
+      <option value="warm_direct">Warm and direct</option>
+      <option value="premium_concise">Premium and concise</option>
+      <option value="playful_creator">Playful creator-led</option>
+      <option value="operator_sharp">Sharp operator</option>
     </select>
     <div class="modal-label">Angle</div>
     <select id="pitch-angle-select" style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;margin-bottom:14px">
@@ -7860,8 +8034,10 @@ async function generatePitchDraft(i){
   const brand = (state.brands||[])[i];
   if(!brand){ showError('Brand not found'); return; }
   const pitchOptions = {
+    brandTarget: document.getElementById('pitch-brand-target')?.value || brand.name || '',
     angle: document.getElementById('pitch-angle-select')?.value || brandPitchAngle(brand),
     senderMode: document.getElementById('pitch-sender-select')?.value || 'creator',
+    tone: document.getElementById('pitch-tone-select')?.value || 'warm_direct',
   };
   rememberBrandInteraction(brand, 'draft');
   const p = state.persona || {};
@@ -7870,7 +8046,7 @@ async function generatePitchDraft(i){
   showModal(
     '<div class="modal-title">Drafting pitch…</div>'+
     '<div class="modal-sub">To '+escapeHtml(brand.name||'')+'</div>'+
-    '<div class="pitch-loading"><div class="spinner" data-crab></div><div class="loading-title">Writing in your voice…</div></div>'
+    '<div class="pitch-loading"><div class="agent-crab" data-agent-crab data-state="drafting"></div><div class="loading-title">Writing in your voice…</div></div>'
   );
 
   // Prior partnerships as social proof, pulled from brandAffinities
@@ -8081,7 +8257,7 @@ function renderPulseCards(cat){
       <div class="pulse-tags">${(idea.tags||[]).map(t=>`<span class="pulse-tag">${escapeHtml(t)}</span>`).join('')}${(idea.persona||[]).map(p=>`<span class="pulse-tag persona">${escapeHtml(p)}</span>`).join('')}</div>
       <div class="pulse-actions">
         <button class="pulse-save-btn" onclick="openSchedule(${safeTitleArg})">${iconCalendar()}Schedule</button>
-        <button class="pulse-draft-btn" onclick="draftScript(${safeTitleArg})">${iconScript()}Script</button>
+        <button class="pulse-draft-btn" onclick="draftScript(${safeTitleArg}, this)">${iconScript()}Script</button>
       </div>`;
     frag.appendChild(card);
   });
@@ -8209,10 +8385,12 @@ function downloadICSEvent(title, date, time, plat){
   } catch(e){ console.warn('ICS generation failed', e); }
 }
 
-async function draftScript(encodedTitle){
+async function draftScript(encodedTitle, btn){
   const title=encodedTitle.replace(/&#39;/g,"'");
   const idea=(state.pulseIdeas||[]).find(i=>i.title===title);
   if(!idea) return;
+  const prev = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled = true; btn.innerHTML = `${iconScript()}Drafting`; }
   const p=state.persona||{};
   const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const cardBody = appendMessage('assistant', '');
@@ -8220,6 +8398,7 @@ async function draftScript(encodedTitle){
   wrap?.classList.add('is-loading');
   let verbHandle = startThinkingVerb(cardBody);
   requestAnimationFrame(()=>revealBubble(cardBody));
+  requestAnimationFrame(()=>cardBody.closest('.chat-msg')?.scrollIntoView({ behavior:'smooth', block:'nearest' }));
   const sys='Short-form video scriptwriter. Return ONLY JSON: {"hook":"...","body":"...","cta":"...","length":"..."} No markdown. The hook is the first 3 seconds (must stop the scroll). The body is the main content (25-40 seconds of spoken content). The cta is the closing line. Length is an estimated duration string like "45 seconds". Write in the creator\'s voice, use their vibes and tone.';
   const personaLine=`Creator voice: ${p.name||''}, ${p.bio||''}. Vibes: ${(p.vibes||[]).join(', ')}. Content pillars: ${(p.pillars||[]).map(x=>x.l).join(', ')}.`;
   const user=`${personaLine}\nContent idea: "${idea.title}". Format: ${idea.format||''}. Platform: ${idea.platform||''}. Hook context: ${idea.hook||''}. Tags: ${(idea.tags||[]).join(' ')}${idea.sound?`. Suggested audio: ${idea.sound}`:''}.\n\nScript JSON:`;
@@ -8243,12 +8422,14 @@ async function draftScript(encodedTitle){
       '<div class="modal-row">'+
         '<button class="copy-btn" onclick="copyPitch(this,`'+copyText+'`)">Copy to Clipboard</button>'+
       '</div>';
-    requestAnimationFrame(()=>revealBubble(cardBody));
-  } catch(e){
+	    requestAnimationFrame(()=>revealBubble(cardBody));
+    if(btn){ btn.disabled = false; btn.innerHTML = `${iconScript()}Done`; setTimeout(()=>{ btn.innerHTML = prev || `${iconScript()}Script`; }, 1800); }
+	  } catch(e){
     if(verbHandle){ stopThinkingVerb(verbHandle); verbHandle = null; }
     wrap?.classList.remove('is-loading');
-    cardBody.innerHTML='<div class="modal-title">Script draft failed</div><div class="modal-sub" style="color:var(--red)">'+esc(e.message||'Unknown error')+'</div>';
-  }
+	    cardBody.innerHTML='<div class="modal-title">Script draft failed</div><div class="modal-sub" style="color:var(--red)">'+esc(e.message||'Unknown error')+'</div>';
+    if(btn){ btn.disabled = false; btn.innerHTML = prev || `${iconScript()}Script`; }
+	  }
 }
 
 </script>
